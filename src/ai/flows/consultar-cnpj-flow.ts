@@ -47,12 +47,12 @@ const CnpjTool = ai.defineTool(
     }
 );
 
-export const ConsultarCnpjInputSchema = z.object({
+const ConsultarCnpjInputSchema = z.object({
   cnpj: z.string().describe('The CNPJ number to consult.'),
 });
 export type ConsultarCnpjInput = z.infer<typeof ConsultarCnpjInputSchema>;
 
-export const ConsultarCnpjOutputSchema = z.object({
+const ConsultarCnpjOutputSchema = z.object({
   razaoSocial: z.string().describe("The company's official name (Razão Social)."),
   nomeFantasia: z.string().describe("The company's trade name (Nome Fantasia)."),
   email: z.string().email().describe("The company's primary contact email."),
