@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { format } from 'date-fns';
 
 import {
   File,
@@ -78,6 +79,7 @@ import { consultarCnpjAction } from "@/app/actions";
 // Mock data for customers
 const initialCustomers = [
   {
+    id: "cust_1",
     name: "Tech Solutions Ltda.",
     email: "contato@techsolutions.com.br",
     status: "active",
@@ -87,6 +89,7 @@ const initialCustomers = [
     type: "active_contract",
   },
   {
+    id: "cust_2",
     name: "Inova Corp S.A.",
     email: "suporte@inovacorp.com",
     status: "active",
@@ -96,6 +99,7 @@ const initialCustomers = [
     type: "active_contract",
   },
   {
+    id: "cust_3",
     name: "Mercado Central",
     email: "compras@mercadocentral.com",
     status: "inactive",
@@ -105,6 +109,7 @@ const initialCustomers = [
     type: "one_time",
   },
   {
+    id: "cust_4",
     name: "ConstruBem Materiais",
     email: "vendas@construbem.com.br",
     status: "new",
@@ -114,6 +119,7 @@ const initialCustomers = [
     type: "one_time",
   },
   {
+    id: "cust_5",
     name: "AgroForte Distribuidora",
     email: "agroforte@distribuidora.com",
     status: "active",
@@ -247,7 +253,7 @@ export default function ClientesPage() {
 
   const confirmDeleteAction = () => {
     if (!deletingCustomer) return;
-    setCustomers(customers.filter(c => c.email !== deletingCustomer.email));
+    setCustomers(customers.filter(c => c.id !== deletingCustomer.id));
     toast({
       title: "Cliente Excluído",
       description: `${deletingCustomer.name} foi removido com sucesso.`,
@@ -260,7 +266,7 @@ export default function ClientesPage() {
       // Update Logic
       setCustomers(
         customers.map((c) =>
-          c.email === editingCustomer.email
+          c.id === editingCustomer.id
             ? {
                 ...c,
                 name: values.razaoSocial,
@@ -277,6 +283,7 @@ export default function ClientesPage() {
     } else {
       // Add Logic
       const newCustomer: Customer = {
+        id: `cust_${new Date().getTime()}`,
         name: values.razaoSocial,
         email: values.email,
         status: "new",
@@ -555,7 +562,7 @@ export default function ClientesPage() {
                 </TableHeader>
                 <TableBody>
                   {customers.map((customer) => (
-                    <TableRow key={customer.email}>
+                    <TableRow key={customer.id}>
                       <TableCell>
                         <div className="font-medium">{customer.name}</div>
                         <div className="hidden text-sm text-muted-foreground md:inline">
@@ -576,7 +583,7 @@ export default function ClientesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        {customer.lastContact.split('-').reverse().join('/')}
+                        {format(new Date(customer.lastContact), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -641,5 +648,3 @@ export default function ClientesPage() {
     </>
   );
 }
-
-    
