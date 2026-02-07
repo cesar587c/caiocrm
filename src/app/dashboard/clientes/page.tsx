@@ -1,5 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
 import {
   File,
   ListFilter,
@@ -7,6 +12,7 @@ import {
   PlusCircle,
   Search,
   Users,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +59,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+import { consultarCnpjAction } from "@/app/actions";
 
 // Mock data for customers
 const customers = [
@@ -115,8 +124,79 @@ const potentialMap: Record<string, string> = {
   low: "Baixo",
 };
 
+const formSchema = z.object({
+  cnpj: z.string().optional(),
+  razaoSocial: z.string().min(1, "Razão Social é obrigatória."),
+  nomeFantasia: z.string().optional(),
+  email: z.string().email("E-mail inválido."),
+  telefone: z.string().optional(),
+  inscricaoEstadual: z.string().optional(),
+  tipoCliente: z.boolean().default(false), // false = Avulso, true = Contrato Ativo
+});
+
 
 export default function ClientesPage() {
+  const [isCnpjLoading, setIsCnpjLoading] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      cnpj: "",
+      razaoSocial: "",
+      nomeFantasia: "",
+      email: "",
+      telefone: "",
+      inscricaoEstadual: "",
+      tipoCliente: false,
+    },
+  });
+
+  const handleCnpjLookup = async () => {
+    const cnpj = form.getValues("cnpj");
+    if (!cnpj) {
+      toast({
+        variant: "destructive",
+        title: "CNPJ Inválido",
+        description: "Por favor, insira um CNPJ para consultar.",
+      });
+      return;
+    }
+
+    setIsCnpjLoading(true);
+    const response = await consultarCnpjAction({ cnpj });
+    setIsCnpjLoading(false);
+
+    if (response.error) {
+      toast({
+        variant: "destructive",
+        title: "Erro na Consulta",
+        description: response.error,
+      });
+    } else if (response.success) {
+      const { razaoSocial, nomeFantasia, email, telefone, inscricaoEstadual } = response.success;
+      form.setValue("razaoSocial", razaoSocial);
+      form.setValue("nomeFantasia", nomeFantasia || "");
+      form.setValue("email", email);
+      form.setValue("telefone", telefone);
+      form.setValue("inscricaoEstadual", inscricaoEstadual);
+      toast({
+        title: "CNPJ Consultado!",
+        description: "Os dados da empresa foram preenchidos.",
+      });
+    }
+  };
+
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    // Handle form submission logic here
+    console.log(values);
+    // You would typically save the customer data to your backend here
+    toast({
+        title: "Cliente Salvo!",
+        description: `${values.razaoSocial} foi cadastrado com sucesso.`
+    })
+  }
+
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -170,93 +250,169 @@ export default function ClientesPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[625px]">
-                <DialogHeader>
-                  <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
-                  <DialogDescription>
-                    Preencha os dados abaixo para adicionar um novo cliente.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="cnpj" className="text-right">
-                      CNPJ
-                    </Label>
-                    <div className="col-span-3 flex items-center gap-2">
-                       <Input
-                        id="cnpj"
-                        placeholder="00.000.000/0000-00"
-                        className="flex-1"
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)}>
+                    <DialogHeader>
+                      <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+                      <DialogDescription>
+                        Preencha os dados abaixo para adicionar um novo cliente.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-2 py-4">
+                      <FormField
+                        control={form.control}
+                        name="cnpj"
+                        render={({ field }) => (
+                          <FormItem className="grid grid-cols-4 items-center gap-4">
+                            <FormLabel className="text-right">CNPJ</FormLabel>
+                            <div className="col-span-3 flex items-center gap-2">
+                              <FormControl>
+                                <Input
+                                  placeholder="00.000.000/0000-00"
+                                  className="flex-1"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <Button type="button" variant="secondary" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
+                                {isCnpjLoading ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Search className="h-4 w-4" />
+                                )}
+                                <span className="ml-2 hidden sm:inline">Consultar</span>
+                              </Button>
+                            </div>
+                             <div className="col-start-2 col-span-3">
+                               <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
                       />
-                      <Button type="button" variant="secondary">
-                        <Search className="h-4 w-4 mr-2" /> Consultar
-                      </Button>
+                      <FormField
+                        control={form.control}
+                        name="razaoSocial"
+                        render={({ field }) => (
+                          <FormItem className="grid grid-cols-4 items-center gap-4">
+                            <FormLabel className="text-right">Razão Social</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Nome da empresa"
+                                className="col-span-3"
+                                {...field}
+                              />
+                            </FormControl>
+                             <div className="col-start-2 col-span-3">
+                               <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                       <FormField
+                        control={form.control}
+                        name="nomeFantasia"
+                        render={({ field }) => (
+                          <FormItem className="grid grid-cols-4 items-center gap-4">
+                            <FormLabel className="text-right">Nome Fantasia</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Nome popular da empresa"
+                                className="col-span-3"
+                                {...field}
+                              />
+                             </FormControl>
+                             <div className="col-start-2 col-span-3">
+                               <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                       <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem className="grid grid-cols-4 items-center gap-4">
+                            <FormLabel className="text-right">E-mail</FormLabel>
+                             <FormControl>
+                              <Input
+                                type="email"
+                                placeholder="contato@empresa.com"
+                                className="col-span-3"
+                                {...field}
+                              />
+                            </FormControl>
+                             <div className="col-start-2 col-span-3">
+                               <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                       <FormField
+                        control={form.control}
+                        name="telefone"
+                        render={({ field }) => (
+                          <FormItem className="grid grid-cols-4 items-center gap-4">
+                            <FormLabel className="text-right">Telefone</FormLabel>
+                            <FormControl>
+                            <Input
+                              placeholder="(00) 00000-0000"
+                              className="col-span-3"
+                              {...field}
+                            />
+                            </FormControl>
+                             <div className="col-start-2 col-span-3">
+                               <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                       <FormField
+                        control={form.control}
+                        name="inscricaoEstadual"
+                        render={({ field }) => (
+                           <FormItem className="grid grid-cols-4 items-center gap-4">
+                            <FormLabel className="text-right">Inscrição Estadual</FormLabel>
+                            <FormControl>
+                            <Input
+                              placeholder="Número da inscrição"
+                              className="col-span-3"
+                              {...field}
+                            />
+                            </FormControl>
+                            <div className="col-start-2 col-span-3">
+                               <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                       <FormField
+                        control={form.control}
+                        name="tipoCliente"
+                        render={({ field }) => (
+                          <FormItem className="grid grid-cols-4 items-center gap-4">
+                              <FormLabel className="text-right">Tipo de Cliente</FormLabel>
+                              <div className="col-span-3 flex items-center space-x-2">
+                                <FormLabel htmlFor="tipo_cliente_avulso">Cliente Avulso</FormLabel>
+                                <FormControl>
+                                    <Switch
+                                        id="tipo_cliente_switch"
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                                <FormLabel htmlFor="tipo_cliente_contrato">Contrato Ativo</FormLabel>
+                              </div>
+                              <div className="col-start-2 col-span-3">
+                               <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="razao_social" className="text-right">
-                      Razão Social
-                    </Label>
-                    <Input
-                      id="razao_social"
-                      placeholder="Nome da empresa"
-                      className="col-span-3"
-                    />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="nome_fantasia" className="text-right">
-                      Nome Fantasia
-                    </Label>
-                    <Input
-                      id="nome_fantasia"
-                      placeholder="Nome popular da empresa"
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">
-                      E-mail
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="contato@empresa.com"
-                      className="col-span-3"
-                    />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="telefone" className="text-right">
-                      Telefone
-                    </Label>
-                    <Input
-                      id="telefone"
-                      placeholder="(00) 00000-0000"
-                      className="col-span-3"
-                    />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="inscricao_estadual" className="text-right">
-                      Inscrição Estadual
-                    </Label>
-                    <Input
-                      id="inscricao_estadual"
-                      placeholder="Número da inscrição"
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="tipo_cliente" className="text-right">
-                      Tipo de Cliente
-                    </Label>
-                    <div className="col-span-3 flex items-center space-x-2">
-                      <Label htmlFor="tipo_cliente">Cliente Avulso</Label>
-                      <Switch id="tipo_cliente" />
-                      <Label htmlFor="tipo_cliente">Contrato Ativo</Label>
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Salvar Cliente</Button>
-                </DialogFooter>
+                    <DialogFooter>
+                      <Button type="submit">Salvar Cliente</Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
               </DialogContent>
             </Dialog>
           </div>
