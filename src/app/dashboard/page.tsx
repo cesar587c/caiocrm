@@ -8,7 +8,6 @@ import {
   BadgePercent,
   BookUser,
   Clock,
-  Crown,
   DollarSign,
   FileCog,
   Lightbulb,
@@ -37,14 +36,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Tooltip,
   TooltipContent,
@@ -89,11 +80,11 @@ const funnelData = [
 ].reverse(); // Reverse for top-to-bottom display in vertical bar chart
 
 const teamRankingData = [
-  { rank: 1, team: "Equipe Alpha", sales: "R$ 350k", conversion: "32%" },
-  { rank: 2, team: "Equipe Bravo", sales: "R$ 280k", conversion: "28%" },
-  { rank: 3, team: "Equipe Charlie", sales: "R$ 250k", conversion: "25%" },
-  { rank: 4, team: "Equipe Delta", sales: "R$ 190k", conversion: "22%" },
-  { rank: 5, team: "Equipe Echo", sales: "R$ 175k", conversion: "21%" },
+  { rank: 1, team: "Equipe Alpha", sales: "R$ 350k", conversion: "32%", salesValue: 350000 },
+  { rank: 2, team: "Equipe Bravo", sales: "R$ 280k", conversion: "28%", salesValue: 280000 },
+  { rank: 3, team: "Equipe Charlie", sales: "R$ 250k", conversion: "25%", salesValue: 250000 },
+  { rank: 4, team: "Equipe Delta", sales: "R$ 190k", conversion: "22%", salesValue: 190000 },
+  { rank: 5, team: "Equipe Echo", sales: "R$ 175k", conversion: "21%", salesValue: 175000 },
 ];
 
 const channelData = [
@@ -229,36 +220,66 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Ranking de Equipes</CardTitle>
-            <CardDescription>Melhores equipes por performance de vendas.</CardDescription>
+            <CardDescription>Performance de vendas por equipe.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px] text-center">Rank</TableHead>
-                  <TableHead>Equipe</TableHead>
-                  <TableHead className="text-right">Vendas</TableHead>
-                  <TableHead className="text-right">Conversão</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {teamRankingData.map((team) => (
-                  <TableRow key={team.rank}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center justify-center">
-                        {team.rank === 1 ? <Crown className="h-5 w-5 text-yellow-500" /> : team.rank}
-                      </div>
-                    </TableCell>
-                    <TableCell>{team.team}</TableCell>
-                    <TableCell className="text-right">{team.sales}</TableCell>
-                    <TableCell className="text-right">{team.conversion}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <CardContent className="flex-1 -ml-4">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={teamRankingData}
+                layout="vertical"
+                margin={{ top: 5, right: 50, left: 10, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" hide />
+                <YAxis dataKey="team" type="category" axisLine={false} tickLine={false} width={80} />
+                <RechartsTooltip
+                  cursor={{ fill: "hsl(var(--muted))" }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="rounded-lg border bg-background p-2 shadow-sm">
+                          <div className="grid grid-cols-1 gap-1.5">
+                            <div className="flex flex-col">
+                              <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                Equipe
+                              </span>
+                              <span className="font-bold">{data.team}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                Vendas
+                              </span>
+                              <span className="font-bold text-foreground">
+                                {new Intl.NumberFormat("pt-BR", {
+                                  style: "currency",
+                                  currency: "BRL",
+                                }).format(data.salesValue)}
+                              </span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                Conversão
+                              </span>
+                              <span className="font-bold text-foreground">
+                                {data.conversion}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="salesValue" fill="hsl(var(--primary))" background={{ fill: 'hsl(var(--muted))', radius: 4 }}>
+                  <LabelList dataKey="sales" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
