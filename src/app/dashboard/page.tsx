@@ -1,18 +1,24 @@
-
 "use client";
 
 import {
+  Anchor,
   ArrowDown,
   ArrowUp,
+  ArrowUpCircle,
+  BadgePercent,
   BookUser,
   Clock,
   Crown,
   DollarSign,
+  FileCog,
+  Lightbulb,
   Percent,
   PhoneOff,
   ShoppingCart,
   ShieldCheck,
+  Split,
   Target,
+  Wrench,
 } from "lucide-react";
 import {
   Bar,
@@ -62,6 +68,16 @@ const serviceKpis = [
   { title: "TMA", value: "4m 32s", change: -3.5, icon: Clock, tooltip: "Tempo médio de atendimento. Variação negativa é positiva." },
   { title: "SLA (95%)", value: "98.2%", change: 1.2, icon: ShieldCheck, tooltip: "Percentual de chamados atendidos dentro do prazo." },
   { title: "Abandono", value: "3.1%", change: -0.5, icon: PhoneOff, tooltip: "Percentual de chamadas abandonadas. Variação negativa é positiva." },
+];
+
+const technicalSalesKpis = [
+    { title: "Vendas Influenciadas (Téc.)", value: "R$ 180k", change: 15, icon: Wrench, tooltip: "Vendas de peças ou serviços geradas a partir de um atendimento técnico." },
+    { title: "% Vendas com Interação Téc.", value: "15%", change: 3, icon: FileCog, tooltip: "Percentual do total de vendas que tiveram interação da equipe técnica." },
+    { title: "Leads Gerados (Téc.)", value: "120", change: 25, icon: Lightbulb, tooltip: "Novas oportunidades de negócio identificadas e registradas pela equipe técnica." },
+    { title: "Upsell/Cross-sell (Téc.)", value: "R$ 45k", change: 18, icon: ArrowUpCircle, tooltip: "Valor adicional em vendas gerado por sugestões técnicas durante o atendimento." },
+    { title: "Conversão Pós-Atendimento", value: "40%", change: 5, icon: BadgePercent, tooltip: "Taxa de conversão de oportunidades geradas após um suporte técnico." },
+    { title: "Ticket Médio (com vs sem sup.)", value: "+35%", change: 8, icon: Split, tooltip: "Aumento percentual no ticket médio quando há envolvimento do suporte técnico." },
+    { title: "Receita Retida (Churn Evitado)", value: "R$ 95k", change: 10, icon: Anchor, tooltip: "Valor de receita de clientes que foram retidos graças à atuação do suporte técnico." },
 ];
 
 const funnelData = [
@@ -153,6 +169,13 @@ export default function DashboardPage() {
         <h2 className="text-xl font-semibold tracking-tight font-headline">KPIs de Atendimento</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {serviceKpis.map(kpi => <KpiCard key={kpi.title} kpi={{...kpi, isTMA: kpi.title === 'TMA', isAbandonment: kpi.title === 'Abandono'}} />)}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold tracking-tight font-headline">KPIs de Suporte Técnico-Comercial</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {technicalSalesKpis.map(kpi => <KpiCard key={kpi.title} kpi={kpi} />)}
         </div>
       </div>
 
