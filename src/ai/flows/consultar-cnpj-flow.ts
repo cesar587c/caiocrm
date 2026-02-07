@@ -10,20 +10,39 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-// Mock function to simulate fetching data from an external API
+// Function to fetch data from BrasilAPI
 async function fetchCnpjDataFromApi(cnpj: string) {
-    console.log(`Simulating API call for CNPJ: ${cnpj}`);
-    // In a real scenario, this would be a fetch call to an external service.
-    // For demonstration, we return mock data.
-    return {
-        "razao_social": "TECH SOLUTIONS LTDA",
-        "nome_fantasia": "TECH SOLUTIONS",
-        "email": "contato@techsolutions.com.br",
-        "telefone": "(11) 99999-8888",
-        "inscricao_estadual": "123.456.789.112",
-        "situacao": "ATIVA",
-    };
+    console.log(`Fetching real data for CNPJ: ${cnpj} from BrasilAPI`);
+    try {
+        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`BrasilAPI request failed with status ${response.status}: ${errorText}`);
+            // The tool will catch this and the flow will return an error to the client.
+            throw new Error(`A API da BrasilAPI retornou um erro: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // The tool's output schema must be satisfied.
+        return {
+            razao_social: data.razao_social || '',
+            nome_fantasia: data.nome_fantasia || '',
+            email: 'naoinformado@exemplo.com', // BrasilAPI doesn't provide this.
+            telefone: data.ddd_telefone_1 || '',
+            inscricao_estadual: 'Isento', // BrasilAPI doesn't provide this.
+        };
+
+    } catch (error) {
+        console.error("Error fetching CNPJ data from BrasilAPI:", error);
+        if (error instanceof Error) {
+            throw error; // Re-throw the error to be handled by the caller (the tool)
+        }
+        throw new Error('Falha na comunicação com a API de CNPJ.');
+    }
 }
+
 
 const CnpjTool = ai.defineTool(
     {
@@ -50,7 +69,6 @@ const CnpjTool = ai.defineTool(
 const ConsultarCnpjInputSchema = z.object({
   cnpj: z.string().describe('The CNPJ number to consult.'),
 });
-export type ConsultarCnpjInput = z.infer<typeof ConsultarCnpjInputSchema>;
 
 const ConsultarCnpjOutputSchema = z.object({
   razaoSocial: z.string().describe("The company's official name (Razão Social)."),
@@ -59,7 +77,6 @@ const ConsultarCnpjOutputSchema = z.object({
   telefone: z.string().describe("The company's primary phone number."),
   inscricaoEstadual: z.string().describe("The company's state registration number (Inscrição Estadual)."),
 });
-export type ConsultarCnpjOutput = z.infer<typeof ConsultarCnpjOutputSchema>;
 
 export async function consultarCnpj(input: ConsultarCnpjInput): Promise<ConsultarCnpjOutput> {
   return consultarCnpjFlow(input);
@@ -95,3 +112,6 @@ const consultarCnpjFlow = ai.defineFlow(
     return output!;
   }
 );
+
+export type ConsultarCnpjInput = z.infer<typeof ConsultarCnpjInputSchema>;
+export type ConsultarCnpjOutput = z.infer<typeof ConsultarCnpjOutputSchema>;
