@@ -4,6 +4,42 @@
 
 @layer base {
   :root {
+    --background: 230 17% 10%;
+    --foreground: 220 20% 95%;
+    --card: 230 17% 15%;
+    --card-foreground: 220 20% 95%;
+    --popover: 230 17% 15%;
+    --popover-foreground: 220 20% 95%;
+    --primary: 250 60% 65%;
+    --primary-foreground: 220 20% 98%;
+    --secondary: 230 17% 25%;
+    --secondary-foreground: 220 20% 95%;
+    --muted: 230 17% 20%;
+    --muted-foreground: 220 20% 65%;
+    --accent: 250 60% 65%;
+    --accent-foreground: 220 20% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 230 17% 25%;
+    --input: 230 17% 25%;
+    --ring: 250 60% 70%;
+    --chart-1: 250 60% 65%;
+    --chart-2: 190 60% 55%;
+    --chart-3: 350 60% 65%;
+    --chart-4: 120 60% 55%;
+    --chart-5: 40 60% 65%;
+    --radius: 0.75rem;
+    --sidebar-background: 230 17% 12%;
+    --sidebar-foreground: 220 20% 95%;
+    --sidebar-primary: 220 20% 98%;
+    --sidebar-primary-foreground: 230 17% 12%;
+    --sidebar-accent: 230 17% 25%;
+    --sidebar-accent-foreground: 220 20% 98%;
+    --sidebar-border: 230 17% 25%;
+    --sidebar-ring: 220 20% 98%;
+  }
+
+  .light {
     --background: 225 67% 94%;
     --foreground: 231 40% 15%;
     --card: 0 0% 100%;
@@ -36,40 +72,6 @@
     --sidebar-accent: 231 48% 35%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 231 48% 35%;
-    --sidebar-ring: 0 0% 98%;
-  }
-  .dark {
-    --background: 231 40% 15%;
-    --foreground: 225 30% 95%;
-    --card: 231 48% 20%;
-    --card-foreground: 225 30% 95%;
-    --popover: 231 48% 20%;
-    --popover-foreground: 225 30% 95%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 231 48% 28%;
-    --secondary: 231 48% 35%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 231 48% 35%;
-    --muted-foreground: 225 30% 75%;
-    --accent: 266 39% 55%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 231 48% 35%;
-    --input: 231 48% 35%;
-    --ring: 266 39% 65%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 231 48% 18%;
-    --sidebar-foreground: 225 30% 95%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 231 48% 18%;
-    --sidebar-accent: 231 48% 25%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 231 48% 25%;
     --sidebar-ring: 0 0% 98%;
   }
 }

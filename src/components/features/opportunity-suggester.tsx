@@ -72,7 +72,7 @@ export function OpportunitySuggester() {
 
   return (
     <div className="grid gap-6">
-      <Card>
+      <Card className="bg-gradient-to-br from-card to-primary/5">
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
