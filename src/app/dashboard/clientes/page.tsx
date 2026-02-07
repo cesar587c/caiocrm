@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -55,8 +56,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -64,7 +74,7 @@ import { useToast } from "@/hooks/use-toast";
 import { consultarCnpjAction } from "@/app/actions";
 
 // Mock data for customers
-const customers = [
+const initialCustomers = [
   {
     name: "Tech Solutions Ltda.",
     email: "contato@techsolutions.com.br",
@@ -112,6 +122,8 @@ const customers = [
   },
 ];
 
+type Customer = typeof initialCustomers[0];
+
 const statusMap: Record<string, string> = {
   active: "Ativo",
   inactive: "Inativo",
@@ -136,7 +148,12 @@ const formSchema = z.object({
 
 
 export default function ClientesPage() {
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [isCnpjLoading, setIsCnpjLoading] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -186,18 +203,98 @@ export default function ClientesPage() {
       });
     }
   };
+  
+  const handleAddNewClick = () => {
+    setEditingCustomer(null);
+    form.reset({
+      cnpj: "",
+      razaoSocial: "",
+      nomeFantasia: "",
+      email: "",
+      telefone: "",
+      inscricaoEstadual: "",
+      tipoCliente: false,
+    });
+    setIsFormDialogOpen(true);
+  };
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Handle form submission logic here
-    console.log(values);
-    // You would typically save the customer data to your backend here
+  const handleEditClick = (customer: Customer) => {
+    setEditingCustomer(customer);
+    form.reset({
+        razaoSocial: customer.name,
+        email: customer.email,
+        tipoCliente: customer.type === "active_contract",
+        cnpj: '', 
+        nomeFantasia: '',
+        telefone: '',
+        inscricaoEstadual: '',
+    });
+    setIsFormDialogOpen(true);
+  };
+  
+  const handleViewHistoryClick = (customer: Customer) => {
     toast({
+      title: "Histórico do Cliente",
+      description: `Funcionalidade para exibir o histórico de ${customer.name} será implementada.`,
+    });
+  };
+
+  const handleDeleteClick = (customer: Customer) => {
+    setDeletingCustomer(customer);
+  };
+
+  const confirmDeleteAction = () => {
+    if (!deletingCustomer) return;
+    setCustomers(customers.filter(c => c.email !== deletingCustomer.email));
+    toast({
+      title: "Cliente Excluído",
+      description: `${deletingCustomer.name} foi removido com sucesso.`,
+    });
+    setDeletingCustomer(null);
+  };
+  
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    if (editingCustomer) {
+      // Update Logic
+      setCustomers(
+        customers.map((c) =>
+          c.email === editingCustomer.email
+            ? {
+                ...c,
+                name: values.razaoSocial,
+                email: values.email,
+                type: values.tipoCliente ? "active_contract" : "one_time",
+              }
+            : c
+        )
+      );
+      toast({
+        title: "Cliente Atualizado!",
+        description: `Os dados de ${values.razaoSocial} foram atualizados com sucesso.`,
+      });
+    } else {
+      // Add Logic
+      const newCustomer: Customer = {
+        name: values.razaoSocial,
+        email: values.email,
+        status: "new",
+        responsible: "Admin", // Placeholder
+        potential: "medium", // Default
+        lastContact: new Date().toISOString().split("T")[0],
+        type: values.tipoCliente ? "active_contract" : "one_time",
+      };
+      setCustomers([newCustomer, ...customers]);
+      toast({
         title: "Cliente Salvo!",
-        description: `${values.razaoSocial} foi cadastrado com sucesso.`
-    })
+        description: `${values.razaoSocial} foi cadastrado com sucesso.`,
+      });
+    }
+    setIsFormDialogOpen(false);
+    setEditingCustomer(null);
   }
 
   return (
+    <>
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">
@@ -240,9 +337,9 @@ export default function ClientesPage() {
                 Importar
               </span>
             </Button>
-            <Dialog>
+            <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="h-8 gap-1">
+                <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}>
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                     Novo Cliente
@@ -253,13 +350,13 @@ export default function ClientesPage() {
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
-                      <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+                      <DialogTitle>{editingCustomer ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</DialogTitle>
                       <DialogDescription>
-                        Preencha os dados abaixo para adicionar um novo cliente.
+                        {editingCustomer ? 'Altere os dados abaixo para atualizar o cliente.' : 'Preencha os dados abaixo para adicionar um novo cliente.'}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-2 py-4">
-                      <FormField
+                       <FormField
                         control={form.control}
                         name="cnpj"
                         render={({ field }) => (
@@ -409,7 +506,7 @@ export default function ClientesPage() {
                       />
                     </div>
                     <DialogFooter>
-                      <Button type="submit">Salvar Cliente</Button>
+                      <Button type="submit">{editingCustomer ? 'Salvar Alterações' : 'Salvar Cliente'}</Button>
                     </DialogFooter>
                   </form>
                 </Form>
@@ -493,10 +590,17 @@ export default function ClientesPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem>Editar</DropdownMenuItem>
-                            <DropdownMenuItem>Ver Histórico</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleEditClick(customer)}>
+                                Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleViewHistoryClick(customer)}>
+                                Ver Histórico
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive">
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onSelect={() => handleDeleteClick(customer)}
+                            >
                               Excluir
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -509,12 +613,30 @@ export default function ClientesPage() {
             </CardContent>
             <CardFooter>
               <div className="text-xs text-muted-foreground">
-                Mostrando <strong>1-5</strong> de <strong>{customers.length}</strong> clientes
+                Mostrando <strong>1-{customers.length}</strong> de <strong>{customers.length}</strong> clientes
               </div>
             </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
+
+    <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Essa ação não pode ser desfeita. Isso excluirá permanentemente o
+                cliente <span className="font-semibold">{deletingCustomer?.name}</span> e removerá seus dados de nossos servidores.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteAction}>Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
+
