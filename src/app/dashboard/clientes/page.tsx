@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -575,7 +576,7 @@ export default function ClientesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        {new Date(customer.lastContact).toLocaleDateString('pt-BR')}
+                        {customer.lastContact.split('-').reverse().join('/')}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
