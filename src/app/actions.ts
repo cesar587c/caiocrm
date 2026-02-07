@@ -26,6 +26,7 @@ export async function consultarCnpjAction(input: ConsultarCnpjInput) {
         return { success: result };
     } catch (error) {
         console.error("Error consulting CNPJ:", error);
-        return { error: "Falha ao consultar CNPJ. Verifique o número e tente novamente." };
+        const message = error instanceof Error ? error.message : "Falha ao consultar CNPJ. Verifique o número e tente novamente.";
+        return { error: message };
     }
 }
