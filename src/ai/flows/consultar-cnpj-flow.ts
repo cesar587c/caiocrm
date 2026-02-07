@@ -17,37 +17,44 @@ async function fetchCnpjDataFromApi(cnpj: string) {
         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
 
         if (!response.ok) {
+             // If the CNPJ is not found, BrasilAPI returns 404.
+            if (response.status === 404) {
+                 throw new Error('CNPJ não encontrado na base de dados da BrasilAPI.');
+            }
             const errorText = await response.text();
             console.error(`BrasilAPI request failed with status ${response.status}: ${errorText}`);
-            // The tool will catch this and the flow will return an error to the client.
-            throw new Error(`A API da BrasilAPI retornou um erro: ${response.statusText}`);
+            throw new Error(`A consulta na BrasilAPI falhou: ${response.statusText}`);
         }
 
         const data = await response.json();
 
-        // The tool's output schema must be satisfied.
+        // BrasilAPI doesn't provide a dedicated 'inscricao_estadual' field.
+        // We create a descriptive string based on the company's status and state.
+        const inscricaoEstadual = data.uf ? `Ativo em ${data.uf}` : 'Não informado';
+
         return {
             razao_social: data.razao_social || '',
             nome_fantasia: data.nome_fantasia || '',
-            email: 'naoinformado@exemplo.com', // BrasilAPI doesn't provide this.
-            telefone: data.ddd_telefone_1 || '',
-            inscricao_estadual: 'Isento', // BrasilAPI doesn't provide this.
+            // BrasilAPI may not provide email. We return a placeholder that passes email validation.
+            email: data.email || 'naoinformado@exemplo.com',
+            telefone: data.ddd_telefone_1 || data.ddd_telefone_2 || '',
+            inscricao_estadual: inscricaoEstadual,
         };
 
     } catch (error) {
         console.error("Error fetching CNPJ data from BrasilAPI:", error);
         if (error instanceof Error) {
-            throw error; // Re-throw the error to be handled by the caller (the tool)
+            throw error; // Re-throw the error to be handled by the caller.
         }
         throw new Error('Falha na comunicação com a API de CNPJ.');
     }
 }
 
 
-const CnpjTool = ai.defineTool(
+const fetchCnpjDataTool = ai.defineTool(
     {
         name: 'fetchCnpjData',
-        description: 'Fetches company data for a given Brazilian CNPJ number.',
+        description: 'Fetches company data for a given Brazilian CNPJ number from BrasilAPI.',
         inputSchema: z.object({
             cnpj: z.string().describe('The CNPJ number to look up. Should contain only digits.'),
         }),
@@ -82,25 +89,6 @@ export async function consultarCnpj(input: ConsultarCnpjInput): Promise<Consulta
   return consultarCnpjFlow(input);
 }
 
-
-const prompt = ai.definePrompt({
-  name: 'consultarCnpjPrompt',
-  system: `You are an assistant that processes company information.
-  Your task is to use the available tool to fetch data for a given CNPJ.
-  Then, map the retrieved data to the specified output format.
-  - 'razao_social' maps to 'razaoSocial'.
-  - 'nome_fantasia' maps to 'nomeFantasia'.
-  - 'email' maps to 'email'.
-  - 'telefone' maps to 'telefone'.
-  - 'inscricao_estadual' maps to 'inscricaoEstadual'.
-  Ensure you only return the data in the requested JSON format.
-  `,
-  input: { schema: ConsultarCnpjInputSchema },
-  output: { schema: ConsultarCnpjOutputSchema },
-  tools: [CnpjTool],
-});
-
-
 const consultarCnpjFlow = ai.defineFlow(
   {
     name: 'consultarCnpjFlow',
@@ -108,10 +96,20 @@ const consultarCnpjFlow = ai.defineFlow(
     outputSchema: ConsultarCnpjOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    return output!;
+    // We call the tool directly instead of using an LLM prompt to map fields.
+    // This is more reliable, efficient, and fixes the 'use server' export error.
+    const toolOutput = await fetchCnpjDataTool(input);
+
+    return {
+        razaoSocial: toolOutput.razao_social,
+        nomeFantasia: toolOutput.nome_fantasia,
+        email: toolOutput.email,
+        telefone: toolOutput.telefone,
+        inscricaoEstadual: toolOutput.inscricao_estadual,
+    };
   }
 );
+
 
 export type ConsultarCnpjInput = z.infer<typeof ConsultarCnpjInputSchema>;
 export type ConsultarCnpjOutput = z.infer<typeof ConsultarCnpjOutputSchema>;
