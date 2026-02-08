@@ -56,6 +56,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { companyProfile } from '@/lib/company-profile';
 import { ToastAction } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // Estrutura do produto com histórico de preços
 type Product = {
@@ -109,6 +117,8 @@ export default function PropostasPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [templateFile, setTemplateFile] = useState<File | null>(null);
   const [isProcessingTemplate, setIsProcessingTemplate] = useState(false);
+  const [isTemplateProcessed, setIsTemplateProcessed] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   useEffect(() => {
     // Generate ID on the client after hydration to avoid mismatch
@@ -238,12 +248,35 @@ export default function PropostasPage() {
     });
   };
 
-  const handleGeneratePdf = () => {
-    toast({
-      title: "PDF Gerado",
-      description: "O PDF da proposta foi gerado para download.",
-    });
-  }
+  const handleGeneratePdf = async () => {
+    const isValid = await form.trigger();
+    if (!isValid) {
+      toast({
+        variant: 'destructive',
+        title: 'Formulário Inválido',
+        description: 'Por favor, preencha todos os campos obrigatórios antes de gerar a proposta.',
+      });
+      return;
+    }
+
+    if (!templateFile) {
+      toast({
+        variant: 'destructive',
+        title: 'Nenhum modelo selecionado',
+        description: 'Por favor, faça o upload de um modelo de proposta primeiro.',
+      });
+      return;
+    }
+    if (!isTemplateProcessed) {
+      toast({
+        variant: 'destructive',
+        title: 'Modelo não analisado',
+        description: "Por favor, clique em 'Analisar Modelo' antes de gerar o PDF.",
+      });
+      return;
+    }
+    setIsPreviewOpen(true);
+  };
 
   const handleSendEmail = () => {
      toast({
@@ -259,6 +292,14 @@ export default function PropostasPage() {
     });
   }
   
+  const handlePrintAndDownload = () => {
+    toast({
+      title: 'Proposta pronta para Impressão/Download',
+      description: 'Em uma aplicação real, o PDF seria baixado aqui.',
+    });
+    setIsPreviewOpen(false);
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -287,6 +328,7 @@ export default function PropostasPage() {
   const handleProcessTemplate = () => {
     if (!templateFile) return;
     setIsProcessingTemplate(true);
+    setIsTemplateProcessed(false);
     toast({
       title: 'Processando modelo...',
       description: `O arquivo ${templateFile.name} está sendo analisado.`,
@@ -294,6 +336,7 @@ export default function PropostasPage() {
     // Simulate processing
     setTimeout(() => {
       setIsProcessingTemplate(false);
+      setIsTemplateProcessed(true);
       toast({
         title: 'Modelo Processado!',
         description:
@@ -304,6 +347,7 @@ export default function PropostasPage() {
 
   const handleRemoveTemplate = () => {
     setTemplateFile(null);
+    setIsTemplateProcessed(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -704,6 +748,101 @@ export default function PropostasPage() {
             </Card>
           </div>
         </div>
+
+        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+            <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
+                <DialogHeader>
+                <DialogTitle>Pré-visualização da Proposta</DialogTitle>
+                <DialogDescription>
+                    Confira como o documento final será gerado. Após a confirmação, você poderá enviá-lo ao cliente.
+                </DialogDescription>
+                </DialogHeader>
+                <div className="flex-1 border rounded-md bg-muted/30 overflow-y-auto p-8">
+                {/* Simulated Preview Content */}
+                <div className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto font-sans">
+                    <div className="flex justify-between items-start mb-8">
+                        <div>
+                            <h1 className="text-2xl font-bold">{companyProfile.name}</h1>
+                            <img src="https://picsum.photos/seed/logo/150/50" alt="Logo" data-ai-hint="logo" className="mt-2" />
+                        </div>
+                        <div className="text-right text-sm">
+                            <p>{companyProfile.address}</p>
+                            <p>{companyProfile.email}</p>
+                             <p>{companyProfile.phone}</p>
+                        </div>
+                    </div>
+                    
+                    <hr className="my-8 border-gray-300" />
+
+                    <h2 className="text-xl font-bold mb-4">Proposta Comercial #{proposalId}</h2>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
+                    <div>
+                        <p className="font-bold text-gray-600">PARA:</p>
+                        <p className="font-semibold">{form.getValues('clientName')}</p>
+                        <p>{form.getValues('clientPhone')}</p>
+                    </div>
+                    <div className="text-right">
+                        <p><span className="font-bold text-gray-600">Data da Proposta:</span> {format(form.getValues('proposalDate'), 'dd/MM/yyyy')}</p>
+                        <p><span className="font-bold text-gray-600">Validade:</span> {format(form.getValues('validityDate'), 'dd/MM/yyyy')}</p>
+                    </div>
+                    </div>
+
+                    <p className="text-sm mb-4">Prezado(a) {form.getValues('clientName').split(' ')[0]},</p>
+                    <p className="text-sm mb-4">É com grande prazer que apresentamos nossa proposta comercial para os serviços solicitados. Acreditamos que nossa solução trará grande valor para sua empresa.</p>
+
+                    <table className="w-full text-left text-sm mb-8">
+                    <thead className="bg-gray-100">
+                        <tr>
+                        <th className="p-2 font-semibold">Item</th>
+                        <th className="p-2 text-center font-semibold">Qtd.</th>
+                        <th className="p-2 text-right font-semibold">Preço Unit.</th>
+                        <th className="p-2 text-right font-semibold">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {watchItems.map((item, index) => (
+                        <tr key={index} className="border-b border-gray-200">
+                            <td className="p-2">{item.name}</td>
+                            <td className="p-2 text-center">{item.quantity}</td>
+                            <td className="p-2 text-right">{(Number(item.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            <td className="p-2 text-right">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                        </tr>
+                        ))}
+                    </tbody>
+                    </table>
+                    
+                    <div className="flex justify-end mb-8">
+                    <div className="w-1/2">
+                        <div className="flex justify-between text-lg">
+                        <span className="font-bold">Total:</span>
+                        <span className="font-bold">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                    </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-md text-sm">
+                      <h3 className="font-bold mb-2">Condições de Pagamento</h3>
+                      <p className="capitalize"><span className="font-semibold">Forma:</span> {form.getValues('paymentMethod').replace('cartao', 'Cartão de Crédito')}</p>
+                      <p><span className="font-semibold">Parcelamento:</span> {form.getValues('installments')}x de {installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                      {form.getValues('firstAsDownPayment') && <p>A primeira parcela deverá ser paga como entrada.</p>}
+                    </div>
+
+                    <div className="mt-12 text-xs text-gray-500 text-center">
+                        <p>Agradecemos a oportunidade e ficamos à disposição para quaisquer esclarecimentos.</p>
+                        <p>Atenciosamente, {companyProfile.name}</p>
+                    </div>
+
+                </div>
+                </div>
+                <DialogFooter>
+                <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancelar</Button>
+                <Button variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
+                <Button onClick={() => { setIsPreviewOpen(false); handleSendEmail(); }}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
+                <Button onClick={() => { setIsPreviewOpen(false); handleSendWhatsApp(); }}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       </form>
     </div>
   );
