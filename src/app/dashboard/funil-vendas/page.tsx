@@ -92,26 +92,9 @@ const KanbanCard = ({ opportunity }: { opportunity: Opportunity }) => {
       onDragStart={handleDragStart}
       className="mb-3 cursor-grab active:cursor-grabbing bg-card hover:bg-card/90 shadow-sm rounded-md"
     >
-      <CardContent className="p-3 space-y-2">
-        <Badge className={cn("h-1.5 w-10 p-0 rounded-full", potentialColorClass[opportunity.potential])} />
+      <CardContent className="p-3 space-y-3">
+        <div className={cn("h-1.5 w-10 rounded-full", potentialColorClass[opportunity.potential])} />
         <p className="font-semibold text-sm leading-tight">{opportunity.name}</p>
-        <div className="flex justify-between items-end text-xs text-muted-foreground pt-1">
-          <span>
-            {opportunity.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </span>
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              <span>{opportunity.responsible}</span>
-            </div>
-            {opportunity.telefone && (
-              <div className="flex items-center gap-1">
-                <Phone className="h-3 w-3" />
-                <span>{opportunity.telefone}</span>
-              </div>
-            )}
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
