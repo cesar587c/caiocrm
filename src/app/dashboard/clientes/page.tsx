@@ -8,7 +8,6 @@ import * as z from "zod";
 import {
   File,
   ListFilter,
-  MoreHorizontal,
   PlusCircle,
   Search,
   Users,
@@ -28,7 +27,6 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -353,7 +351,7 @@ export default function ClientesPage() {
                   </span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[625px]" onCloseAutoFocus={(e) => e.preventDefault()}>
+              <DialogContent className="sm:max-w-[625px]" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
@@ -512,7 +510,23 @@ export default function ClientesPage() {
                         )}
                       />
                     </div>
-                    <DialogFooter>
+                    <DialogFooter onOpenAutoFocus={(e) => e.preventDefault()}>
+                      {editingCustomer && (
+                          <>
+                          <Button
+                              type="button"
+                              variant="destructive"
+                              className="mr-auto"
+                              onClick={() => {
+                                  setIsFormDialogOpen(false);
+                                  handleDeleteClick(editingCustomer);
+                              }}
+                              >
+                              Excluir
+                          </Button>
+                          <Button type="button" variant="secondary" onClick={() => handleViewHistoryClick(editingCustomer)}>Ver Histórico</Button>
+                          </>
+                      )}
                       <Button type="submit">{editingCustomer ? 'Salvar Alterações' : 'Salvar Cliente'}</Button>
                     </DialogFooter>
                   </form>
@@ -529,7 +543,7 @@ export default function ClientesPage() {
                 <span>Todos os Clientes</span>
               </CardTitle>
               <CardDescription>
-                Gerencie seus clientes e visualize seus históricos.
+                Gerencie seus clientes e visualize seus históricos. Clique em um cliente para editar.
               </CardDescription>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -553,14 +567,11 @@ export default function ClientesPage() {
                     <TableHead className="hidden lg:table-cell">
                       Último Contato
                     </TableHead>
-                    <TableHead>
-                      <span className="sr-only">Ações</span>
-                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {customers.map((customer) => (
-                    <TableRow key={customer.id}>
+                    <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
                       <TableCell>
                         <div className="font-medium">{customer.name}</div>
                         <div className="hidden text-sm text-muted-foreground md:inline">
@@ -583,36 +594,6 @@ export default function ClientesPage() {
                       <TableCell className="hidden lg:table-cell">
                         {new Date(customer.lastContact).toLocaleDateString("pt-BR", {timeZone: 'UTC'})}
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              aria-haspopup="true"
-                              size="icon"
-                              variant="ghost"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={() => handleEditClick(customer)}>
-                                Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleViewHistoryClick(customer)}>
-                                Ver Histórico
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onSelect={() => handleDeleteClick(customer)}
-                            >
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -629,7 +610,7 @@ export default function ClientesPage() {
     </div>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
-        <AlertDialogContent onCloseAutoFocus={(e) => e.preventDefault()}>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
             <AlertDialogDescription>
