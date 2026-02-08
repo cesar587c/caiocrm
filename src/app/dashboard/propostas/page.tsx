@@ -832,10 +832,10 @@ export default function PropostasPage() {
                 </div>
                 </div>
                 <DialogFooter className="print-hide">
-                <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancelar</Button>
-                <Button variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
-                <Button onClick={() => { setIsPreviewOpen(false); handleSendEmail(); }}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
-                <Button onClick={() => { setIsPreviewOpen(false); handleSendWhatsApp(); }}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
+                <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancelar</Button>
+                <Button type="button" variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
+                <Button type="button" onClick={() => { setIsPreviewOpen(false); handleSendEmail(); }}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
+                <Button type="button" onClick={() => { setIsPreviewOpen(false); handleSendWhatsApp(); }}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
