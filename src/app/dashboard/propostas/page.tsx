@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -125,6 +125,7 @@ export default function PropostasPage() {
   const [savedProposals, setSavedProposals] = useState<Proposal[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
+  const [total, setTotal] = useState(0);
 
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
@@ -145,15 +146,24 @@ export default function PropostasPage() {
     name: 'items',
   });
 
+  const { watch } = form;
+
+  useEffect(() => {
+    const subscription = watch(value => {
+      const items = value.items || [];
+      const newTotal = items.reduce(
+        (acc: number, item: any) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+        0
+      );
+      setTotal(newTotal);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
+
   const watchItems = form.watch('items');
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
-  const total = watchItems.reduce(
-    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-    0
-  );
-    
   const selectedProposalInstallmentValue = useMemo(() => {
     if (!selectedProposal || !selectedProposal.installments || selectedProposal.total === 0) return 0;
     return selectedProposal.total / selectedProposal.installments;
@@ -759,10 +769,10 @@ export default function PropostasPage() {
                     <Button type="button" variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
                     {selectedProposal && (
                         <>
-                        <Button type="button" onClick={() => { handleSendEmail(selectedProposal); }}>
+                        <Button type="button" onClick={() => handleSendEmail(selectedProposal) }>
                           <Mail className="mr-2 h-4 w-4" /> Enviar por E-mail
                         </Button>
-                        <Button type="button" onClick={() => { handleSendWhatsApp(selectedProposal); }}>
+                        <Button type="button" onClick={() => handleSendWhatsApp(selectedProposal) }>
                           <Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp
                         </Button>
                         </>
