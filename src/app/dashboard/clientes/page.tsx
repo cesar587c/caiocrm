@@ -353,7 +353,7 @@ export default function ClientesPage() {
                   </span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[625px]" onCloseAutoFocus={(e) => e.preventDefault()}>
+              <DialogContent className="sm:max-w-[625px]">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
@@ -629,7 +629,7 @@ export default function ClientesPage() {
     </div>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
-        <AlertDialogContent onCloseAutoFocus={(e) => e.preventDefault()}>
+        <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -646,3 +646,5 @@ export default function ClientesPage() {
     </>
   );
 }
+
+    
