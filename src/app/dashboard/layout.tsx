@@ -13,7 +13,7 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider defaultOpen={true}>
-      <Sidebar>
+      <Sidebar collapsible="icon">
         <AppSidebar />
         <SidebarRail />
       </Sidebar>
