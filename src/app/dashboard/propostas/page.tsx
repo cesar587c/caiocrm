@@ -125,8 +125,7 @@ export default function PropostasPage() {
   const [savedProposals, setSavedProposals] = useState<Proposal[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
-  const [total, setTotal] = useState(0);
-
+  
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
     defaultValues: {
@@ -147,20 +146,16 @@ export default function PropostasPage() {
   });
 
   const { watch } = form;
+  const watchItems = watch('items');
 
-  useEffect(() => {
-    const subscription = watch(value => {
-      const items = value.items || [];
-      const newTotal = items.reduce(
-        (acc: number, item: any) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-        0
-      );
-      setTotal(newTotal);
-    });
-    return () => subscription.unsubscribe();
-  }, [watch]);
+  const total = useMemo(() => {
+    return watchItems.reduce(
+      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+      0
+    );
+  }, [watchItems]);
 
-  const watchItems = form.watch('items');
+
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
@@ -225,18 +220,108 @@ export default function PropostasPage() {
   };
 
   const handleSendEmail = (proposal: Proposal) => {
+    const itemsText = proposal.items
+      .map(
+        (item) =>
+          `- ${item.name} (Qtd: ${item.quantity}, Valor Unit.: ${item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`
+      )
+      .join('\n');
+
+    const subject = `Proposta Comercial da ${companyProfile.name} - Nº ${proposal.id}`;
+    
+    const body = `Olá, ${proposal.clientName}!
+    
+Segue a sua proposta comercial da ${companyProfile.name}, conforme solicitado.
+
+-----------------------------------
+DETALHES DA PROPOSTA
+-----------------------------------
+Proposta: ${proposal.id}
+Data: ${format(proposal.proposalDate, 'dd/MM/yyyy')}
+Validade: ${format(proposal.validityDate, 'dd/MM/yyyy')}
+
+-----------------------------------
+ITENS
+-----------------------------------
+${itemsText}
+
+-----------------------------------
+TOTAL: ${proposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+-----------------------------------
+
+-----------------------------------
+CONDIÇÕES DE PAGAMENTO
+-----------------------------------
+- Forma: ${proposal.paymentMethod.replace('cartao', 'Cartão de Crédito').replace('boleto', 'Boleto Bancário').replace('pix', 'PIX')}
+- Parcelas: ${proposal.installments}x de ${(proposal.total / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+
+Agradecemos a oportunidade e ficamos à disposição para quaisquer esclarecimentos.
+
+Atenciosamente,
+${companyProfile.name}
+${companyProfile.phone}
+${companyProfile.email}
+    `;
+
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedBody = encodeURIComponent(body);
+
+    const mailtoUrl = `mailto:?subject=${encodedSubject}&body=${encodedBody}`;
+
+    window.location.href = mailtoUrl;
+
     toast({
-      title: "E-mail Enviado",
-      description: `A proposta ${proposal.id} foi enviada para o e-mail do cliente.`,
+      title: "E-mail Pronto para Envio",
+      description: "Seu cliente de e-mail foi aberto com a proposta.",
     });
   };
 
   const handleSendWhatsApp = (proposal: Proposal) => {
+    const itemsText = proposal.items
+      .map(
+        (item) =>
+          `- ${item.name} (Qtd: ${item.quantity}, Valor Unit.: ${item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`
+      )
+      .join('\n');
+
+    const message = `Olá, ${proposal.clientName}! 👋
+Segue a sua proposta comercial da ${companyProfile.name}.
+
+*Proposta:* ${proposal.id}
+*Data:* ${format(proposal.proposalDate, 'dd/MM/yyyy')}
+
+*Itens:*
+${itemsText}
+
+*Total:* *${proposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*
+
+*Condições de Pagamento:*
+- *Forma:* ${proposal.paymentMethod.replace('cartao', 'Cartão de Crédito').replace('boleto', 'Boleto Bancário').replace('pix', 'PIX')}
+- *Parcelas:* ${proposal.installments}x de ${(proposal.total / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+
+Agradecemos a oportunidade e ficamos à disposição!
+
+${companyProfile.name}
+${companyProfile.phone}`;
+
+    const encodedMessage = encodeURIComponent(message);
+    
+    let whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+
+    const cleanPhone = proposal.clientPhone?.replace(/\D/g, '') || '';
+    if (cleanPhone.length >= 10) { // Basic validation for DDD + number
+         const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
+         whatsappUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodedMessage}`;
+    }
+
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+
     toast({
-      title: "Enviado para WhatsApp",
-      description: `A proposta ${proposal.id} está pronta para ser enviada via WhatsApp.`,
+      title: "Pronto para Enviar!",
+      description: `Sua mensagem para ${proposal.clientName} está pronta no WhatsApp.`,
     });
   };
+
 
   const handlePrintAndDownload = () => {
     window.print();
