@@ -122,17 +122,9 @@ export default function PropostasPage() {
   const [customers, setCustomers] = useState(initialCustomers);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
-  const [proposalId, setProposalId] = useState('');
-  
   const [savedProposals, setSavedProposals] = useState<Proposal[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
-
-
-  useEffect(() => {
-    // Generate ID on the client after hydration to avoid mismatch
-    setProposalId(`PROP-${String(Date.now()).slice(-5)}`);
-  }, []);
 
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
@@ -157,10 +149,12 @@ export default function PropostasPage() {
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
-  const total = watchItems.reduce(
-      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-      0
-    );
+  const total = useMemo(() => {
+    return watchItems.reduce(
+        (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+        0
+      );
+  }, [watchItems]);
     
   const selectedProposalInstallmentValue = useMemo(() => {
     if (!selectedProposal || !selectedProposal.installments || selectedProposal.total === 0) return 0;
@@ -301,7 +295,6 @@ export default function PropostasPage() {
       firstAsDownPayment: false,
     });
     setIsQuickAddingClient(false);
-    setProposalId(`PROP-${String(Date.now()).slice(-5)}`);
   };
 
   return (
@@ -324,7 +317,7 @@ export default function PropostasPage() {
                 <CardHeader className="flex flex-row items-start justify-between">
                     <div>
                         <CardTitle>Nova Proposta Comercial</CardTitle>
-                        <CardDescription>#{proposalId}</CardDescription>
+                        <CardDescription>Preencha os dados para gerar uma nova proposta</CardDescription>
                     </div>
                      <div className="flex items-center gap-4">
                         <div className="space-y-1 text-right">
@@ -658,11 +651,11 @@ export default function PropostasPage() {
                                 <TableCell>{proposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
-                                        <Button variant="outline" size="icon" onClick={() => setSelectedProposal(proposal)}>
+                                        <Button type="button" variant="outline" size="icon" onClick={() => setSelectedProposal(proposal)}>
                                             <Printer className="h-4 w-4" />
                                             <span className="sr-only">Visualizar e Imprimir</span>
                                         </Button>
-                                        <Button variant="outline" size="icon" onClick={() => setDeletingProposal(proposal)}>
+                                        <Button type="button" variant="outline" size="icon" onClick={() => setDeletingProposal(proposal)}>
                                             <Trash2 className="h-4 w-4 text-destructive" />
                                             <span className="sr-only">Excluir</span>
                                         </Button>
@@ -768,8 +761,12 @@ export default function PropostasPage() {
                     <Button type="button" variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
                     {selectedProposal && (
                         <>
-                        <Button type="button" onClick={() => handleSendEmail(selectedProposal)}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
-                        <Button type="button" onClick={() => handleSendWhatsApp(selectedProposal)}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
+                        <Button type="button" onClick={() => { handleSendEmail(selectedProposal); }}>
+                          <Mail className="mr-2 h-4 w-4" /> Enviar por E-mail
+                        </Button>
+                        <Button type="button" onClick={() => { handleSendWhatsApp(selectedProposal); }}>
+                          <Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp
+                        </Button>
                         </>
                     )}
                 </DialogFooter>
