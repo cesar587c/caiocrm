@@ -121,7 +121,7 @@ export default function PropostasPage() {
 
   const { subtotal, total } = useMemo(() => {
     const sub = watchItems.reduce(
-      (acc, item) => acc + item.quantity * item.price,
+      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
       0
     );
     // Adicionar lógica de desconto/taxas se necessário
@@ -402,7 +402,7 @@ export default function PropostasPage() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          {(watchItems[index].quantity * watchItems[index].price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          {((Number(watchItems[index].quantity) || 0) * (Number(watchItems[index].price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
