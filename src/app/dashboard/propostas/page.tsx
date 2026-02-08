@@ -562,10 +562,6 @@ export default function PropostasPage() {
                     </Button>
                     </div>
                 )}
-
-                <p className="text-xs text-muted-foreground text-center pt-2">
-                    Campos dinâmicos: {'{cliente}'}, {'{valor}'}, {'{data}'}, etc.
-                </p>
                 </CardContent>
             </Card>
           </div>
