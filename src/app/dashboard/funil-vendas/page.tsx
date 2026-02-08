@@ -92,9 +92,21 @@ const KanbanCard = ({ opportunity }: { opportunity: Opportunity }) => {
       onDragStart={handleDragStart}
       className="mb-3 cursor-grab active:cursor-grabbing bg-card hover:bg-card/90 shadow-sm rounded-md"
     >
-      <CardContent className="p-3 space-y-3">
+      <CardContent className="p-3 space-y-2 text-sm">
         <div className={cn("h-1.5 w-10 rounded-full", potentialColorClass[opportunity.potential])} />
-        <p className="font-semibold text-sm leading-tight">{opportunity.name}</p>
+        <p className="font-semibold leading-tight">{opportunity.name}</p>
+        <div className="text-muted-foreground space-y-1">
+            <div className="flex items-center gap-2">
+                <Users className="h-3 w-3" />
+                <span>{opportunity.responsible}</span>
+            </div>
+            {opportunity.telefone && (
+                 <div className="flex items-center gap-2">
+                    <Phone className="h-3 w-3" />
+                    <span>{opportunity.telefone}</span>
+                </div>
+            )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -124,7 +136,7 @@ export default function FunilVendasPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">Funil de Vendas</h2>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {stages.map((stage) => (
           <div
             key={stage.id}
