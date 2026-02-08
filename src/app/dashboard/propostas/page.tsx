@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -139,12 +138,10 @@ export default function PropostasPage() {
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
-  const total = useMemo(() => {
-    return watchItems.reduce(
+  const total = watchItems.reduce(
       (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
       0
     );
-  }, [watchItems]);
 
   const installmentValue = useMemo(() => {
     if (!watchInstallments || total === 0) return 0;
@@ -464,9 +461,9 @@ export default function PropostasPage() {
                   <TableBody>
                     {fields.map((item, index) => {
                       const currentItemName = watchItems[index]?.name;
-                      const currentProduct = useMemo(() => currentItemName
+                      const currentProduct = currentItemName
                           ? products.find(p => p.name.toLowerCase() === currentItemName.toLowerCase())
-                          : undefined, [currentItemName, products]);
+                          : undefined;
 
                       return (
                       <TableRow key={item.id}>
