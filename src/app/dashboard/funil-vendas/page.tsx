@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users } from "lucide-react";
+import { Phone, Users } from "lucide-react";
 import { cn } from '@/lib/utils';
 
 // Mock data based on existing customers, adapted for the sales funnel
@@ -15,6 +15,7 @@ const initialOpportunities = [
     potential: "high",
     value: 15000,
     responsible: "Ana Silva",
+    telefone: "(11) 98765-4321",
   },
   {
     id: "opp_2",
@@ -23,6 +24,7 @@ const initialOpportunities = [
     potential: "medium",
     value: 8000,
     responsible: "Carlos Pereira",
+    telefone: "(21) 91234-5678",
   },
   {
     id: "opp_3",
@@ -31,6 +33,7 @@ const initialOpportunities = [
     potential: "low",
     value: 3000,
     responsible: "Ana Silva",
+    telefone: "",
   },
   {
     id: "opp_4",
@@ -39,6 +42,7 @@ const initialOpportunities = [
     potential: "high",
     value: 25000,
     responsible: "Juliana Costa",
+    telefone: "(31) 99999-8888",
   },
   {
     id: "opp_5",
@@ -47,6 +51,7 @@ const initialOpportunities = [
     potential: "medium",
     value: 12000,
     responsible: "Carlos Pereira",
+    telefone: "",
   },
     {
     id: "opp_6",
@@ -55,6 +60,7 @@ const initialOpportunities = [
     potential: "high",
     value: 50000,
     responsible: "Juliana Costa",
+    telefone: "(41) 98877-6655",
   },
 ];
 
@@ -89,13 +95,21 @@ const KanbanCard = ({ opportunity }: { opportunity: Opportunity }) => {
       <CardContent className="p-3 space-y-2">
         <Badge className={cn("h-1.5 w-10 p-0 rounded-full", potentialColorClass[opportunity.potential])} />
         <p className="font-semibold text-sm leading-tight">{opportunity.name}</p>
-        <div className="flex justify-between items-center text-xs text-muted-foreground pt-1">
+        <div className="flex justify-between items-end text-xs text-muted-foreground pt-1">
           <span>
             {opportunity.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
           </span>
-          <div className="flex items-center gap-1">
-            <Users className="h-3 w-3" />
-            <span>{opportunity.responsible}</span>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              <span>{opportunity.responsible}</span>
+            </div>
+            {opportunity.telefone && (
+              <div className="flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                <span>{opportunity.telefone}</span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -127,18 +141,18 @@ export default function FunilVendasPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">Funil de Vendas</h2>
       </div>
-      <div className="flex flex-1 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {stages.map((stage) => (
           <div
             key={stage.id}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, stage.id)}
-            className="flex flex-1 flex-col rounded-lg bg-muted/50"
+            className="flex flex-col rounded-lg bg-muted/50"
           >
             <div className={cn("px-3 py-2 text-left rounded-t-lg", stage.headerClass)}>
               <h3 className="font-semibold text-sm text-primary-foreground">{stage.title} ({opportunities.filter(o => o.stage === stage.id).length})</h3>
             </div>
-            <div className="p-4 overflow-y-auto flex-1">
+            <div className="p-2 overflow-y-auto flex-1">
                 {opportunities
                 .filter((opp) => opp.stage === stage.id)
                 .map((opp) => (
