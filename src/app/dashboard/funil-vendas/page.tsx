@@ -134,7 +134,7 @@ export default function FunilVendasPage() {
               key={stage.id}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, stage.id)}
-              className="flex w-72 flex-shrink-0 flex-col rounded-lg bg-muted/50"
+              className="flex w-[265px] flex-shrink-0 flex-col rounded-lg bg-muted/50"
             >
               <div className={cn("px-3 py-2 text-left rounded-t-lg", stage.headerClass)}>
                 <h3 className="font-semibold text-sm text-primary-foreground">{stage.title} ({opportunities.filter(o => o.stage === stage.id).length})</h3>
