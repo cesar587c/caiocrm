@@ -266,6 +266,7 @@ export default function ClientesPage() {
           c.id === editingCustomer.id
             ? {
                 ...c,
+                id: c.id, // Ensure id remains stable
                 name: values.razaoSocial,
                 email: values.email,
                 type: values.tipoCliente ? "active_contract" : "one_time",
@@ -352,7 +353,7 @@ export default function ClientesPage() {
                   </span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[625px]">
+              <DialogContent className="sm:max-w-[625px]" onCloseAutoFocus={(e) => e.preventDefault()}>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
@@ -628,7 +629,7 @@ export default function ClientesPage() {
     </div>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
             <AlertDialogDescription>
