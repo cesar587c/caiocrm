@@ -136,36 +136,38 @@ export default function FunilVendasPage() {
   };
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
+    <div className="flex h-full flex-1 flex-col space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">Funil de Vendas</h2>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start">
-        {stages.map((stage) => (
-          <div
-            key={stage.id}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, stage.id)}
-            className="flex flex-col rounded-lg bg-muted/50 h-full"
-          >
-            <div className="p-4 border-b border-border">
-                <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-lg">{stage.title}</h3>
-                    <Badge variant="secondary">{opportunities.filter(o => o.stage === stage.id).length}</Badge>
-                </div>
-                 <p className="text-sm font-bold text-muted-foreground mt-1">
-                    {getStageTotalValue(stage.id).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                 </p>
+      <div className="flex-1 overflow-x-auto">
+        <div className="flex h-full gap-4 pb-4">
+          {stages.map((stage) => (
+            <div
+              key={stage.id}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, stage.id)}
+              className="flex w-80 flex-shrink-0 flex-col rounded-lg bg-muted/50"
+            >
+              <div className="p-4 border-b border-border">
+                  <div className="flex justify-between items-center">
+                      <h3 className="font-semibold text-lg">{stage.title}</h3>
+                      <Badge variant="secondary">{opportunities.filter(o => o.stage === stage.id).length}</Badge>
+                  </div>
+                   <p className="text-sm font-bold text-muted-foreground mt-1">
+                      {getStageTotalValue(stage.id).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                   </p>
+              </div>
+              <div className="p-4 overflow-y-auto flex-1">
+                  {opportunities
+                  .filter((opp) => opp.stage === stage.id)
+                  .map((opp) => (
+                      <KanbanCard key={opp.id} opportunity={opp} />
+                  ))}
+              </div>
             </div>
-            <div className="p-4 overflow-y-auto flex-1 min-h-[400px]">
-                {opportunities
-                .filter((opp) => opp.stage === stage.id)
-                .map((opp) => (
-                    <KanbanCard key={opp.id} opportunity={opp} />
-                ))}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
