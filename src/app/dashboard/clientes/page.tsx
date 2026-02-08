@@ -580,7 +580,7 @@ export default function ClientesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        {customer.lastContact.substring(0, 10).split('-').reverse().join('/')}
+                        {new Date(customer.lastContact).toLocaleDateString("pt-BR", {timeZone: 'UTC'})}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -594,7 +594,7 @@ export default function ClientesPage() {
                               <span className="sr-only">Toggle menu</span>
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuItem onSelect={() => handleEditClick(customer)}>
                                 Editar
