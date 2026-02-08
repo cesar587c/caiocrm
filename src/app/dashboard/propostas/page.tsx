@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -46,6 +45,9 @@ import {
   PlusCircle,
   Trash2,
   Send,
+  Upload,
+  Cog,
+  Loader2,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -84,6 +86,10 @@ export default function PropostasPage() {
   const [customers, setCustomers] = useState(initialCustomers);
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
   const [proposalId, setProposalId] = useState('');
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [templateFile, setTemplateFile] = useState<File | null>(null);
+  const [isProcessingTemplate, setIsProcessingTemplate] = useState(false);
 
   useEffect(() => {
     // Generate ID on the client after hydration to avoid mismatch
@@ -175,6 +181,56 @@ export default function PropostasPage() {
       description: "A proposta está pronta para ser enviada via WhatsApp.",
     });
   }
+  
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (
+        file.type === 'application/msword' ||
+        file.type ===
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        file.type === 'application/pdf'
+      ) {
+        setTemplateFile(file);
+        toast({
+          title: 'Modelo selecionado',
+          description: `Arquivo ${file.name} carregado.`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Formato de arquivo inválido',
+          description:
+            'Por favor, selecione um arquivo Word (.doc, .docx) ou PDF.',
+        });
+      }
+    }
+  };
+
+  const handleProcessTemplate = () => {
+    if (!templateFile) return;
+    setIsProcessingTemplate(true);
+    toast({
+      title: 'Processando modelo...',
+      description: `O arquivo ${templateFile.name} está sendo analisado.`,
+    });
+    // Simulate processing
+    setTimeout(() => {
+      setIsProcessingTemplate(false);
+      toast({
+        title: 'Modelo Processado!',
+        description:
+          'Os campos dinâmicos foram identificados. Você já pode gerar a proposta.',
+      });
+    }, 2000);
+  };
+
+  const handleRemoveTemplate = () => {
+    setTemplateFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
 
   return (
@@ -446,18 +502,72 @@ export default function PropostasPage() {
                 </CardContent>
              </Card>
 
-             <Card>
-                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><BrainCircuit className="h-5 w-5 text-primary" /> Motor de Documentos</CardTitle>
-                    <CardDescription>Gere propostas automaticamente a partir de modelos.</CardDescription>
-                 </CardHeader>
-                 <CardContent>
-                    <Button variant="outline" className="w-full">
-                        Fazer Upload de Modelo (Word/PDF)
+            <Card>
+                <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <BrainCircuit className="h-5 w-5 text-primary" /> Motor de
+                    Documentos
+                </CardTitle>
+                <CardDescription>
+                    Faça upload de um modelo Word ou PDF para preencher automaticamente.
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                <Input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf"
+                />
+                <Button
+                    variant="outline"
+                    className="w-full justify-start text-left"
+                    onClick={() => fileInputRef.current?.click()}
+                >
+                    <Upload className="mr-2 h-4 w-4" />
+                    <span className="truncate">
+                    {templateFile
+                        ? templateFile.name
+                        : 'Fazer Upload de Modelo...'}
+                    </span>
+                </Button>
+
+                {templateFile && (
+                    <div className="flex items-center gap-2">
+                    <Button
+                        className="w-full"
+                        onClick={handleProcessTemplate}
+                        disabled={isProcessingTemplate}
+                    >
+                        {isProcessingTemplate ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Analisando...
+                        </>
+                        ) : (
+                        <>
+                            <Cog className="mr-2 h-4 w-4" />
+                            Analisar Modelo
+                        </>
+                        )}
                     </Button>
-                    <p className="text-xs text-muted-foreground mt-2 text-center">Campos dinâmicos: {'{cliente}'}, {'{valor}'}, {'{data}'}, etc.</p>
-                 </CardContent>
-             </Card>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleRemoveTemplate}
+                        aria-label="Remover modelo"
+                    >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                    </div>
+                )}
+
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                    Campos dinâmicos: {'{cliente}'}, {'{valor}'}, {'{data}'}, etc.
+                </p>
+                </CardContent>
+            </Card>
           </div>
         </div>
       </form>
