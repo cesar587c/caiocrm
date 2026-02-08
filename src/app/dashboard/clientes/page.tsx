@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 import {
   File,
@@ -582,7 +580,7 @@ export default function ClientesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        {format(new Date(customer.lastContact), 'P', { locale: ptBR })}
+                        {customer.lastContact.substring(0, 10).split('-').reverse().join('/')}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
