@@ -86,34 +86,54 @@
 }
 
 @media print {
+  /* Hide everything on the page */
   body * {
     visibility: hidden;
   }
 
+  /* Reset the dialog wrapper to not interfere with printing */
+  [role="dialog"] {
+      visibility: visible !important; /* Make the dialog wrapper visible */
+      position: absolute !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      border: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: visible !important;
+      transform: none !important;
+      box-shadow: none !important;
+      background: none !important;
+  }
+
+  /* Make the specific print section and its children visible */
   #print-container,
   #print-container * {
     visibility: visible;
   }
 
+  /* Position the print section to fill the page */
   #print-container {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-    height: auto;
-    overflow: visible;
-    background: #fff;
-    padding: 0;
     margin: 0;
+    padding: 0;
     border: none;
+    background: white;
+    overflow: visible !important; /* Crucial for full content */
   }
   
   #proposal-preview {
       max-width: 100%;
       margin: 0 auto;
       box-shadow: none;
+      color: black; /* Ensure text is black */
   }
 
+  /* Hide any elements specifically marked not for printing */
   .print-hide {
     display: none !important;
   }
