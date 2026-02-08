@@ -1,8 +1,6 @@
-
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -76,7 +74,6 @@ import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { consultarCnpjAction } from "@/app/actions";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Mock data for customers
 const initialCustomers = [
@@ -163,8 +160,6 @@ export default function ClientesPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
 
   const { toast } = useToast();
 
@@ -305,13 +300,6 @@ export default function ClientesPage() {
     setIsFormDialogOpen(false);
     setEditingCustomer(null);
   }
-
-  const totalPages = Math.ceil(customers.length / itemsPerPage);
-  const paginatedCustomers = customers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
 
   return (
     <>
@@ -550,113 +538,90 @@ export default function ClientesPage() {
                 </div>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[calc(100vh-420px)]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead className="hidden sm:table-cell">
-                        Status
-                      </TableHead>
-                      <TableHead className="hidden md:table-cell">
-                        Responsável
-                      </TableHead>
-                      <TableHead className="hidden md:table-cell">
-                        Potencial
-                      </TableHead>
-                      <TableHead className="hidden lg:table-cell">
-                        Último Contato
-                      </TableHead>
-                      <TableHead>
-                        <span className="sr-only">Ações</span>
-                      </TableHead>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead className="hidden sm:table-cell">
+                      Status
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Responsável
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Potencial
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Último Contato
+                    </TableHead>
+                    <TableHead>
+                      <span className="sr-only">Ações</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell>
+                        <div className="font-medium">{customer.name}</div>
+                        <div className="hidden text-sm text-muted-foreground md:inline">
+                          {customer.email}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <Badge variant={customer.status === 'active' ? 'default' : customer.status === 'new' ? 'secondary' : 'outline'}>
+                            {statusMap[customer.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {customer.responsible}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Badge variant={customer.potential === 'high' ? 'destructive' : customer.potential === 'medium' ? 'secondary' : 'outline'} className="capitalize">
+                            {potentialMap[customer.potential]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {format(new Date(customer.lastContact), 'P', { locale: ptBR })}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              aria-haspopup="true"
+                              size="icon"
+                              variant="ghost"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => handleEditClick(customer)}>
+                                Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleViewHistoryClick(customer)}>
+                                Ver Histórico
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onSelect={() => handleDeleteClick(customer)}
+                            >
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedCustomers.map((customer) => (
-                      <TableRow key={customer.id}>
-                        <TableCell>
-                          <div className="font-medium">{customer.name}</div>
-                          <div className="hidden text-sm text-muted-foreground md:inline">
-                            {customer.email}
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <Badge variant={customer.status === 'active' ? 'default' : customer.status === 'new' ? 'secondary' : 'outline'}>
-                              {statusMap[customer.status]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {customer.responsible}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <Badge variant={customer.potential === 'high' ? 'destructive' : customer.potential === 'medium' ? 'secondary' : 'outline'} className="capitalize">
-                              {potentialMap[customer.potential]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {format(new Date(customer.lastContact), 'dd/MM/yyyy', { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                aria-haspopup="true"
-                                size="icon"
-                                variant="ghost"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                              <DropdownMenuItem onSelect={() => handleEditClick(customer)}>
-                                  Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => handleViewHistoryClick(customer)}>
-                                  Ver Histórico
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onSelect={() => handleDeleteClick(customer)}
-                              >
-                                Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
-            <CardFooter className="flex items-center justify-between">
-               <div className="text-xs text-muted-foreground">
-                Mostrando <strong>{(currentPage - 1) * itemsPerPage + 1}</strong>-<strong>{Math.min(currentPage * itemsPerPage, customers.length)}</strong> de <strong>{customers.length}</strong> clientes
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                    disabled={currentPage === 1}
-                >
-                    Anterior
-                </Button>
-                <div className="text-sm font-medium">
-                    Página {currentPage} de {totalPages}
-                </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                >
-                    Próximo
-                </Button>
+            <CardFooter>
+              <div className="text-xs text-muted-foreground">
+                Mostrando <strong>{customers.length}</strong> de <strong>{customers.length}</strong> clientes
               </div>
             </CardFooter>
           </Card>
