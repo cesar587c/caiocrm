@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -82,6 +82,12 @@ export default function PropostasPage() {
   const { toast } = useToast();
   const [customers, setCustomers] = useState(initialCustomers);
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
+  const [proposalId, setProposalId] = useState('');
+
+  useEffect(() => {
+    // Generate ID on the client after hydration to avoid mismatch
+    setProposalId(`PROP-${String(Date.now()).slice(-5)}`);
+  }, []);
 
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
@@ -185,7 +191,7 @@ export default function PropostasPage() {
                 <CardHeader className="flex flex-row items-start justify-between">
                     <div>
                         <CardTitle>Proposta Comercial</CardTitle>
-                        <CardDescription>#PROP-{String(Date.now()).slice(-5)}</CardDescription>
+                        <CardDescription>#{proposalId}</CardDescription>
                     </div>
                      <div className="flex items-center gap-4">
                         <div className="space-y-1 text-right">
