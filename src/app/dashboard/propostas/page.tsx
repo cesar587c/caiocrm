@@ -254,18 +254,6 @@ export default function PropostasPage() {
     setSelectedProposal(null);
   };
 
-  const handleEmailAndClose = () => {
-    if (!selectedProposal) return;
-    handleSendEmail(selectedProposal);
-    setSelectedProposal(null);
-  };
-
-  const handleWhatsAppAndClose = () => {
-    if (!selectedProposal) return;
-    handleSendWhatsApp(selectedProposal);
-    setSelectedProposal(null);
-  };
-
   const onSubmit = (data: ProposalFormValues) => {
     const newProposalData: Proposal = {
       ...data,
@@ -780,8 +768,8 @@ export default function PropostasPage() {
                     <Button type="button" variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
                     {selectedProposal && (
                         <>
-                        <Button type="button" onClick={handleEmailAndClose}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
-                        <Button type="button" onClick={handleWhatsAppAndClose}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
+                        <Button type="button" onClick={() => handleSendEmail(selectedProposal)}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
+                        <Button type="button" onClick={() => handleSendWhatsApp(selectedProposal)}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
                         </>
                     )}
                 </DialogFooter>
