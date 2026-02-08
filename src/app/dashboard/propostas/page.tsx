@@ -50,6 +50,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
+import { companyProfile } from '@/lib/company-profile';
 
 // Mock data - Em um app real, isso viria de uma API
 const initialCustomers = [
@@ -245,9 +246,10 @@ export default function PropostasPage() {
                 <CardContent className="flex items-center gap-4">
                      <Building className="h-16 w-16 text-muted-foreground" />
                      <div>
-                        <h3 className="font-bold text-lg">Sua Empresa</h3>
-                        <p className="text-sm text-muted-foreground">seuemail@empresa.com.br</p>
-                        <p className="text-sm text-muted-foreground">(00) 12345-6789</p>
+                        <h3 className="font-bold text-lg">{companyProfile.name}</h3>
+                        <p className="text-sm text-muted-foreground">{companyProfile.email}</p>
+                        <p className="text-sm text-muted-foreground">{companyProfile.phone}</p>
+                        <p className="text-sm text-muted-foreground">{companyProfile.address}</p>
                      </div>
                 </CardContent>
             </Card>
@@ -462,5 +464,3 @@ export default function PropostasPage() {
     </div>
   );
 }
-
-    
