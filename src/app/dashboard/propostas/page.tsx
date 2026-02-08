@@ -293,11 +293,7 @@ export default function PropostasPage() {
   }
   
   const handlePrintAndDownload = () => {
-    toast({
-      title: 'Proposta pronta para Impressão/Download',
-      description: 'Em uma aplicação real, o PDF seria baixado aqui.',
-    });
-    setIsPreviewOpen(false);
+    window.print();
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -751,15 +747,15 @@ export default function PropostasPage() {
 
         <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
             <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
-                <DialogHeader>
+                <DialogHeader className="print-hide">
                 <DialogTitle>Pré-visualização da Proposta</DialogTitle>
                 <DialogDescription>
                     Confira como o documento final será gerado. Após a confirmação, você poderá enviá-lo ao cliente.
                 </DialogDescription>
                 </DialogHeader>
-                <div className="flex-1 border rounded-md bg-muted/30 overflow-y-auto p-8">
+                <div id="print-container" className="flex-1 border rounded-md bg-muted/30 overflow-y-auto p-8">
                 {/* Simulated Preview Content */}
-                <div className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto font-sans">
+                <div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto font-sans">
                     <div className="flex justify-between items-start mb-8">
                         <div>
                             <h1 className="text-2xl font-bold">{companyProfile.name}</h1>
@@ -835,7 +831,7 @@ export default function PropostasPage() {
 
                 </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="print-hide">
                 <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancelar</Button>
                 <Button variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
                 <Button onClick={() => { setIsPreviewOpen(false); handleSendEmail(); }}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
