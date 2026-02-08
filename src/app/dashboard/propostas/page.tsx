@@ -222,6 +222,49 @@ export default function PropostasPage() {
       }
   };
 
+  const handleSendEmail = (proposal: Proposal) => {
+    toast({
+      title: "E-mail Enviado",
+      description: `A proposta ${proposal.id} foi enviada para o e-mail do cliente.`,
+    });
+  };
+
+  const handleSendWhatsApp = (proposal: Proposal) => {
+    toast({
+      title: "Enviado para WhatsApp",
+      description: `A proposta ${proposal.id} está pronta para ser enviada via WhatsApp.`,
+    });
+  };
+
+  const handlePrintAndDownload = () => {
+    window.print();
+  };
+
+  const confirmDeleteAction = () => {
+    if (!deletingProposal) return;
+    setSavedProposals(proposals => proposals.filter(p => p.id !== deletingProposal.id));
+    toast({
+      title: "Proposta Excluída",
+      description: `A proposta ${deletingProposal.id} foi removida com sucesso.`,
+    });
+    setDeletingProposal(null);
+  };
+  
+  const handleCancelPreview = () => {
+    setSelectedProposal(null);
+  };
+
+  const handleEmailAndClose = () => {
+    if (!selectedProposal) return;
+    handleSendEmail(selectedProposal);
+    setSelectedProposal(null);
+  };
+
+  const handleWhatsAppAndClose = () => {
+    if (!selectedProposal) return;
+    handleSendWhatsApp(selectedProposal);
+    setSelectedProposal(null);
+  };
 
   const onSubmit = (data: ProposalFormValues) => {
     const newProposalData: Proposal = {
@@ -271,34 +314,6 @@ export default function PropostasPage() {
     });
     setIsQuickAddingClient(false);
     setProposalId(`PROP-${String(Date.now()).slice(-5)}`);
-  };
-
-  const handleSendEmail = (proposal: Proposal) => {
-     toast({
-      title: "E-mail Enviado",
-      description: `A proposta ${proposal.id} foi enviada para o e-mail do cliente.`,
-    });
-  }
-
-  const handleSendWhatsApp = (proposal: Proposal) => {
-     toast({
-      title: "Enviado para WhatsApp",
-      description: `A proposta ${proposal.id} está pronta para ser enviada via WhatsApp.`,
-    });
-  }
-  
-  const handlePrintAndDownload = () => {
-    window.print();
-  };
-  
-  const confirmDeleteAction = () => {
-    if (!deletingProposal) return;
-    setSavedProposals(proposals => proposals.filter(p => p.id !== deletingProposal.id));
-    toast({
-      title: "Proposta Excluída",
-      description: `A proposta ${deletingProposal.id} foi removida com sucesso.`,
-    });
-    setDeletingProposal(null);
   };
 
   return (
@@ -761,14 +776,14 @@ export default function PropostasPage() {
                 </div>
                 )}
                 <DialogFooter className="print-hide">
-                <Button type="button" variant="outline" onClick={() => setSelectedProposal(null)}>Cancelar</Button>
-                <Button type="button" variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
-                {selectedProposal && (
-                    <>
-                    <Button type="button" onClick={() => { setSelectedProposal(null); handleSendEmail(selectedProposal); }}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
-                    <Button type="button" onClick={() => { setSelectedProposal(null); handleSendWhatsApp(selectedProposal); }}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
-                    </>
-                )}
+                    <Button type="button" variant="outline" onClick={handleCancelPreview}>Cancelar</Button>
+                    <Button type="button" variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
+                    {selectedProposal && (
+                        <>
+                        <Button type="button" onClick={handleEmailAndClose}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
+                        <Button type="button" onClick={handleWhatsAppAndClose}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
+                        </>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -791,5 +806,3 @@ export default function PropostasPage() {
     </div>
   );
 }
-
-    
