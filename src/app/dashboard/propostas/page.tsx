@@ -235,13 +235,13 @@ export default function PropostasPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight font-headline">Gerador de Propostas</h2>
-        <Button onClick={form.handleSubmit(onSubmit)}>Salvar Proposta</Button>
-      </div>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="flex items-center justify-between">
+            <h2 className="text-3xl font-bold tracking-tight font-headline">Gerador de Propostas</h2>
+            <Button type="submit">Salvar Proposta</Button>
+        </div>
 
-    <form>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
           {/* Coluna Principal (Esquerda) */}
           <div className="lg:col-span-2 space-y-6">
             <Card>
@@ -260,6 +260,7 @@ export default function PropostasPage() {
                                     <Popover>
                                         <PopoverTrigger asChild>
                                         <Button
+                                            type="button"
                                             variant={"outline"}
                                             className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
                                         >
@@ -283,6 +284,7 @@ export default function PropostasPage() {
                                     <Popover>
                                         <PopoverTrigger asChild>
                                         <Button
+                                            type="button"
                                             variant={"outline"}
                                             className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
                                         >
@@ -328,7 +330,7 @@ export default function PropostasPage() {
                         </SelectContent>
                         </Select>
                     </div>
-                    <Button variant="outline" className="mt-auto" onClick={handleQuickAddClient}>
+                    <Button type="button" variant="outline" className="mt-auto" onClick={handleQuickAddClient}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Cadastro Rápido
                     </Button>
@@ -403,7 +405,7 @@ export default function PropostasPage() {
                           {(watchItems[index].quantity * watchItems[index].price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => remove(index)}>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>
@@ -416,7 +418,7 @@ export default function PropostasPage() {
                  )}
               </CardContent>
               <CardFooter className="justify-between">
-                <Button variant="outline" onClick={() => append({ name: '', quantity: 1, price: 0 })}>
+                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, price: 0 })}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
                 </Button>
                 <div className="text-right">
@@ -496,9 +498,9 @@ export default function PropostasPage() {
                     <CardTitle>Ações e Envio</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 gap-2">
-                    <Button variant="secondary" onClick={handleGeneratePdf}><Download className="mr-2 h-4 w-4" />Gerar PDF</Button>
-                    <Button variant="secondary" onClick={handleSendEmail}><Mail className="mr-2 h-4 w-4" />Enviar por E-mail</Button>
-                    <Button variant="secondary" onClick={handleSendWhatsApp}><Send className="mr-2 h-4 w-4" />Enviar por WhatsApp</Button>
+                    <Button type="button" variant="secondary" onClick={handleGeneratePdf}><Download className="mr-2 h-4 w-4" />Gerar PDF</Button>
+                    <Button type="button" variant="secondary" onClick={handleSendEmail}><Mail className="mr-2 h-4 w-4" />Enviar por E-mail</Button>
+                    <Button type="button" variant="secondary" onClick={handleSendWhatsApp}><Send className="mr-2 h-4 w-4" />Enviar por WhatsApp</Button>
                 </CardContent>
              </Card>
 
@@ -521,6 +523,7 @@ export default function PropostasPage() {
                     accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf"
                 />
                 <Button
+                    type="button"
                     variant="outline"
                     className="w-full justify-start text-left"
                     onClick={() => fileInputRef.current?.click()}
@@ -536,6 +539,7 @@ export default function PropostasPage() {
                 {templateFile && (
                     <div className="flex items-center gap-2">
                     <Button
+                        type="button"
                         className="w-full"
                         onClick={handleProcessTemplate}
                         disabled={isProcessingTemplate}
@@ -553,6 +557,7 @@ export default function PropostasPage() {
                         )}
                     </Button>
                     <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         onClick={handleRemoveTemplate}
