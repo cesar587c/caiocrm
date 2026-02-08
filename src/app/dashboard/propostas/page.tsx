@@ -37,7 +37,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
-  BrainCircuit,
   Building,
   Calendar as CalendarIcon,
   Download,
@@ -45,10 +44,9 @@ import {
   PlusCircle,
   Trash2,
   Send,
-  Upload,
-  Cog,
-  Loader2,
   History,
+  Printer,
+  ListChecks,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -64,6 +62,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
 
 // Estrutura do produto com histórico de preços
 type Product = {
@@ -106,6 +115,7 @@ const proposalSchema = z.object({
 });
 
 type ProposalFormValues = z.infer<typeof proposalSchema>;
+type Proposal = ProposalFormValues & { id: string; total: number };
 
 export default function PropostasPage() {
   const { toast } = useToast();
@@ -114,11 +124,10 @@ export default function PropostasPage() {
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
   const [proposalId, setProposalId] = useState('');
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [templateFile, setTemplateFile] = useState<File | null>(null);
-  const [isProcessingTemplate, setIsProcessingTemplate] = useState(false);
-  const [isTemplateProcessed, setIsTemplateProcessed] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [savedProposals, setSavedProposals] = useState<Proposal[]>([]);
+  const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
+  const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
+
 
   useEffect(() => {
     // Generate ID on the client after hydration to avoid mismatch
@@ -152,11 +161,11 @@ export default function PropostasPage() {
       (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
       0
     );
-
-  const installmentValue = useMemo(() => {
-    if (!watchInstallments || total === 0) return 0;
-    return total / watchInstallments;
-  }, [total, watchInstallments]);
+    
+  const selectedProposalInstallmentValue = useMemo(() => {
+    if (!selectedProposal || !selectedProposal.installments || selectedProposal.total === 0) return 0;
+    return selectedProposal.total / selectedProposal.installments;
+  }, [selectedProposal]);
 
   const handleClientSelect = (clientId: string) => {
     const client = customers.find(c => c.id === clientId);
@@ -215,10 +224,16 @@ export default function PropostasPage() {
 
 
   const onSubmit = (data: ProposalFormValues) => {
-    console.log(data);
+    const newProposalData: Proposal = {
+      ...data,
+      id: `PROP-${String(Date.now()).slice(-5)}`,
+      total: total,
+    };
+    setSavedProposals(prev => [newProposalData, ...prev]);
+
     toast({
       title: 'Proposta Salva!',
-      description: 'A proposta foi salva com sucesso no sistema.',
+      description: 'A proposta foi salva com sucesso e adicionada à lista abaixo.',
     });
 
     setProducts(prevProducts => {
@@ -231,127 +246,63 @@ export default function PropostasPage() {
                 const product = updatedProducts[productIndex];
                 const newPrice = Number(item.price);
 
-                // Atualiza o preço principal para o último usado
                 product.price = newPrice;
 
-                // Move o preço usado para o topo do histórico se já existir
                 const priceIndexInHistory = product.priceHistory.indexOf(newPrice);
                 if (priceIndexInHistory > -1) {
                     product.priceHistory.splice(priceIndexInHistory, 1);
                 }
-                // Adiciona o novo preço (ou o movido) no início
                 product.priceHistory.unshift(newPrice);
             }
         });
-
         return updatedProducts;
     });
+
+    form.reset({
+      clientId: undefined,
+      clientName: '',
+      clientPhone: '',
+      proposalDate: new Date(),
+      validityDate: addDays(new Date(), 10),
+      items: [{ name: '', quantity: 1, price: 0 }],
+      paymentMethod: 'boleto',
+      installments: 1,
+      firstAsDownPayment: false,
+    });
+    setIsQuickAddingClient(false);
+    setProposalId(`PROP-${String(Date.now()).slice(-5)}`);
   };
 
-  const handleGeneratePdf = async () => {
-    const isValid = await form.trigger();
-    if (!isValid) {
-      toast({
-        variant: 'destructive',
-        title: 'Formulário Inválido',
-        description: 'Por favor, preencha todos os campos obrigatórios antes de gerar a proposta.',
-      });
-      return;
-    }
-
-    if (!templateFile) {
-      toast({
-        variant: 'destructive',
-        title: 'Nenhum modelo selecionado',
-        description: 'Por favor, faça o upload de um modelo de proposta primeiro.',
-      });
-      return;
-    }
-    if (!isTemplateProcessed) {
-      toast({
-        variant: 'destructive',
-        title: 'Modelo não analisado',
-        description: "Por favor, clique em 'Analisar Modelo' antes de gerar o PDF.",
-      });
-      return;
-    }
-    setIsPreviewOpen(true);
-  };
-
-  const handleSendEmail = () => {
+  const handleSendEmail = (proposal: Proposal) => {
      toast({
       title: "E-mail Enviado",
-      description: "A proposta foi enviada para o e-mail do cliente.",
+      description: `A proposta ${proposal.id} foi enviada para o e-mail do cliente.`,
     });
   }
 
-  const handleSendWhatsApp = () => {
+  const handleSendWhatsApp = (proposal: Proposal) => {
      toast({
       title: "Enviado para WhatsApp",
-      description: "A proposta está pronta para ser enviada via WhatsApp.",
+      description: `A proposta ${proposal.id} está pronta para ser enviada via WhatsApp.`,
     });
   }
   
   const handlePrintAndDownload = () => {
     window.print();
   };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (
-        file.type === 'application/msword' ||
-        file.type ===
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-        file.type === 'application/pdf'
-      ) {
-        setTemplateFile(file);
-        toast({
-          title: 'Modelo selecionado',
-          description: `Arquivo ${file.name} carregado.`,
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Formato de arquivo inválido',
-          description:
-            'Por favor, selecione um arquivo Word (.doc, .docx) ou PDF.',
-        });
-      }
-    }
-  };
-
-  const handleProcessTemplate = () => {
-    if (!templateFile) return;
-    setIsProcessingTemplate(true);
-    setIsTemplateProcessed(false);
+  
+  const confirmDeleteAction = () => {
+    if (!deletingProposal) return;
+    setSavedProposals(proposals => proposals.filter(p => p.id !== deletingProposal.id));
     toast({
-      title: 'Processando modelo...',
-      description: `O arquivo ${templateFile.name} está sendo analisado.`,
+      title: "Proposta Excluída",
+      description: `A proposta ${deletingProposal.id} foi removida com sucesso.`,
     });
-    // Simulate processing
-    setTimeout(() => {
-      setIsProcessingTemplate(false);
-      setIsTemplateProcessed(true);
-      toast({
-        title: 'Modelo Processado!',
-        description:
-          'Os campos dinâmicos foram identificados. Você já pode gerar a proposta.',
-      });
-    }, 2000);
+    setDeletingProposal(null);
   };
-
-  const handleRemoveTemplate = () => {
-    setTemplateFile(null);
-    setIsTemplateProcessed(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
+    <div className="flex-1 space-y-6 p-8 pt-6">
       <datalist id="product-datalist">
         {products.map(product => (
           <option key={product.id} value={product.name} />
@@ -369,7 +320,7 @@ export default function PropostasPage() {
             <Card>
                 <CardHeader className="flex flex-row items-start justify-between">
                     <div>
-                        <CardTitle>Proposta Comercial</CardTitle>
+                        <CardTitle>Nova Proposta Comercial</CardTitle>
                         <CardDescription>#{proposalId}</CardDescription>
                     </div>
                      <div className="flex items-center gap-4">
@@ -660,92 +611,70 @@ export default function PropostasPage() {
                 <p className="font-bold text-lg">Resumo</p>
                 <div className="w-full text-sm space-y-1">
                     <div className="flex justify-between"><span>Valor Total:</span> <span className="font-medium">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                    <div className="flex justify-between"><span>Parcelas:</span> <span className="font-medium">{watchInstallments}x de {installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                    <div className="flex justify-between"><span>Parcelas:</span> <span className="font-medium">{watchInstallments}x de { (total / watchInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</span></div>
                     <div className="flex justify-between"><span>Entrada:</span> <span className="font-medium">{watchFirstAsDownPayment ? 'Sim' : 'Não'}</span></div>
                 </div>
               </CardFooter>
             </Card>
-
-             <Card>
-                <CardHeader>
-                    <CardTitle>Ações e Envio</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 gap-2">
-                    <Button type="button" variant="secondary" onClick={handleGeneratePdf}><Download className="mr-2 h-4 w-4" />Gerar PDF</Button>
-                    <Button type="button" variant="secondary" onClick={handleSendEmail}><Mail className="mr-2 h-4 w-4" />Enviar por E-mail</Button>
-                    <Button type="button" variant="secondary" onClick={handleSendWhatsApp}><Send className="mr-2 h-4 w-4" />Enviar por WhatsApp</Button>
-                </CardContent>
-             </Card>
-
-            <Card>
-                <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <BrainCircuit className="h-5 w-5 text-primary" /> Motor de
-                    Documentos
-                </CardTitle>
-                <CardDescription>
-                    Faça upload de um modelo Word ou PDF para preencher automaticamente.
-                </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                <Input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={handleFileSelect}
-                    accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf"
-                />
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-start text-left"
-                    onClick={() => fileInputRef.current?.click()}
-                >
-                    <Upload className="mr-2 h-4 w-4" />
-                    <span className="truncate">
-                    {templateFile
-                        ? templateFile.name
-                        : 'Fazer Upload de Modelo...'}
-                    </span>
-                </Button>
-
-                {templateFile && (
-                    <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        className="w-full"
-                        onClick={handleProcessTemplate}
-                        disabled={isProcessingTemplate}
-                    >
-                        {isProcessingTemplate ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Analisando...
-                        </>
-                        ) : (
-                        <>
-                            <Cog className="mr-2 h-4 w-4" />
-                            Analisar Modelo
-                        </>
-                        )}
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleRemoveTemplate}
-                        aria-label="Remover modelo"
-                    >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                    </div>
-                )}
-                </CardContent>
-            </Card>
           </div>
         </div>
+      </form>
+      
+      <Card className="mt-6">
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <ListChecks className="h-5 w-5"/>
+                Propostas Salvas
+            </CardTitle>
+            <CardDescription>Gerencie e acompanhe as propostas que você já criou.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Proposta</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead className="text-right w-[140px]">Ações</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {savedProposals.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                Nenhuma proposta salva ainda.
+                            </TableCell>
+                        </TableRow>
+                    ) : (
+                        savedProposals.map(proposal => (
+                            <TableRow key={proposal.id}>
+                                <TableCell className="font-medium">{proposal.id}</TableCell>
+                                <TableCell>{proposal.clientName}</TableCell>
+                                <TableCell>{format(proposal.proposalDate, 'dd/MM/yyyy')}</TableCell>
+                                <TableCell>{proposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                                <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2">
+                                        <Button variant="outline" size="icon" onClick={() => setSelectedProposal(proposal)}>
+                                            <Printer className="h-4 w-4" />
+                                            <span className="sr-only">Visualizar e Imprimir</span>
+                                        </Button>
+                                        <Button variant="outline" size="icon" onClick={() => setDeletingProposal(proposal)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                            <span className="sr-only">Excluir</span>
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
+                </TableBody>
+            </Table>
+        </CardContent>
+      </Card>
 
-        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+
+        <Dialog open={!!selectedProposal} onOpenChange={(isOpen) => !isOpen && setSelectedProposal(null)}>
             <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
                 <DialogHeader className="print-hide">
                 <DialogTitle>Pré-visualização da Proposta</DialogTitle>
@@ -753,93 +682,114 @@ export default function PropostasPage() {
                     Confira como o documento final será gerado. Após a confirmação, você poderá enviá-lo ao cliente.
                 </DialogDescription>
                 </DialogHeader>
+                {selectedProposal && (
                 <div id="print-container" className="flex-1 border rounded-md bg-muted/30 overflow-y-auto p-8">
-                {/* Simulated Preview Content */}
-                <div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto font-sans">
-                    <div className="flex justify-between items-start mb-8">
+                    <div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto font-sans">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h1 className="text-2xl font-bold">{companyProfile.name}</h1>
+                                <img src="https://picsum.photos/seed/logo/150/50" alt="Logo" data-ai-hint="logo" className="mt-2" />
+                            </div>
+                            <div className="text-right text-sm">
+                                <p>{companyProfile.address}</p>
+                                <p>{companyProfile.email}</p>
+                                <p>{companyProfile.phone}</p>
+                            </div>
+                        </div>
+                        
+                        <hr className="my-8 border-gray-300" />
+
+                        <h2 className="text-xl font-bold mb-4">Proposta Comercial #{selectedProposal.id}</h2>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
                         <div>
-                            <h1 className="text-2xl font-bold">{companyProfile.name}</h1>
-                            <img src="https://picsum.photos/seed/logo/150/50" alt="Logo" data-ai-hint="logo" className="mt-2" />
+                            <p className="font-bold text-gray-600">PARA:</p>
+                            <p className="font-semibold">{selectedProposal.clientName}</p>
+                            <p>{selectedProposal.clientPhone}</p>
                         </div>
-                        <div className="text-right text-sm">
-                            <p>{companyProfile.address}</p>
-                            <p>{companyProfile.email}</p>
-                             <p>{companyProfile.phone}</p>
+                        <div className="text-right">
+                            <p><span className="font-bold text-gray-600">Data da Proposta:</span> {format(selectedProposal.proposalDate, 'dd/MM/yyyy')}</p>
+                            <p><span className="font-bold text-gray-600">Validade:</span> {format(selectedProposal.validityDate, 'dd/MM/yyyy')}</p>
                         </div>
-                    </div>
-                    
-                    <hr className="my-8 border-gray-300" />
+                        </div>
 
-                    <h2 className="text-xl font-bold mb-4">Proposta Comercial #{proposalId}</h2>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
-                    <div>
-                        <p className="font-bold text-gray-600">PARA:</p>
-                        <p className="font-semibold">{form.getValues('clientName')}</p>
-                        <p>{form.getValues('clientPhone')}</p>
-                    </div>
-                    <div className="text-right">
-                        <p><span className="font-bold text-gray-600">Data da Proposta:</span> {format(form.getValues('proposalDate'), 'dd/MM/yyyy')}</p>
-                        <p><span className="font-bold text-gray-600">Validade:</span> {format(form.getValues('validityDate'), 'dd/MM/yyyy')}</p>
-                    </div>
-                    </div>
+                        <p className="text-sm mb-4">Prezado(a) {selectedProposal.clientName.split(' ')[0]},</p>
+                        <p className="text-sm mb-4">É com grande prazer que apresentamos nossa proposta comercial para os serviços solicitados. Acreditamos que nossa solução trará grande valor para sua empresa.</p>
 
-                    <p className="text-sm mb-4">Prezado(a) {form.getValues('clientName').split(' ')[0]},</p>
-                    <p className="text-sm mb-4">É com grande prazer que apresentamos nossa proposta comercial para os serviços solicitados. Acreditamos que nossa solução trará grande valor para sua empresa.</p>
+                        <table className="w-full text-left text-sm mb-8">
+                        <thead className="bg-gray-100">
+                            <tr>
+                            <th className="p-2 font-semibold">Item</th>
+                            <th className="p-2 text-center font-semibold">Qtd.</th>
+                            <th className="p-2 text-right font-semibold">Preço Unit.</th>
+                            <th className="p-2 text-right font-semibold">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {selectedProposal.items.map((item, index) => (
+                            <tr key={index} className="border-b border-gray-200">
+                                <td className="p-2">{item.name}</td>
+                                <td className="p-2 text-center">{item.quantity}</td>
+                                <td className="p-2 text-right">{(Number(item.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                <td className="p-2 text-right">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            </tr>
+                            ))}
+                        </tbody>
+                        </table>
+                        
+                        <div className="flex justify-end mb-8">
+                        <div className="w-1/2">
+                            <div className="flex justify-between text-lg">
+                            <span className="font-bold">Total:</span>
+                            <span className="font-bold">{selectedProposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                        </div>
+                        </div>
 
-                    <table className="w-full text-left text-sm mb-8">
-                    <thead className="bg-gray-100">
-                        <tr>
-                        <th className="p-2 font-semibold">Item</th>
-                        <th className="p-2 text-center font-semibold">Qtd.</th>
-                        <th className="p-2 text-right font-semibold">Preço Unit.</th>
-                        <th className="p-2 text-right font-semibold">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {watchItems.map((item, index) => (
-                        <tr key={index} className="border-b border-gray-200">
-                            <td className="p-2">{item.name}</td>
-                            <td className="p-2 text-center">{item.quantity}</td>
-                            <td className="p-2 text-right">{(Number(item.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                            <td className="p-2 text-right">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                        </tr>
-                        ))}
-                    </tbody>
-                    </table>
-                    
-                    <div className="flex justify-end mb-8">
-                    <div className="w-1/2">
-                        <div className="flex justify-between text-lg">
-                        <span className="font-bold">Total:</span>
-                        <span className="font-bold">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        <div className="bg-gray-50 p-4 rounded-md text-sm">
+                        <h3 className="font-bold mb-2">Condições de Pagamento</h3>
+                        <p className="capitalize"><span className="font-semibold">Forma:</span> {selectedProposal.paymentMethod.replace('cartao', 'Cartão de Crédito')}</p>
+                        <p><span className="font-semibold">Parcelamento:</span> {selectedProposal.installments}x de {selectedProposalInstallmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        {selectedProposal.firstAsDownPayment && <p>A primeira parcela deverá ser paga como entrada.</p>}
+                        </div>
+
+                        <div className="mt-12 text-xs text-gray-500 text-center">
+                            <p>Agradecemos a oportunidade e ficamos à disposição para quaisquer esclarecimentos.</p>
+                            <p>Atenciosamente, {companyProfile.name}</p>
                         </div>
                     </div>
-                    </div>
-
-                    <div className="bg-gray-50 p-4 rounded-md text-sm">
-                      <h3 className="font-bold mb-2">Condições de Pagamento</h3>
-                      <p className="capitalize"><span className="font-semibold">Forma:</span> {form.getValues('paymentMethod').replace('cartao', 'Cartão de Crédito')}</p>
-                      <p><span className="font-semibold">Parcelamento:</span> {form.getValues('installments')}x de {installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                      {form.getValues('firstAsDownPayment') && <p>A primeira parcela deverá ser paga como entrada.</p>}
-                    </div>
-
-                    <div className="mt-12 text-xs text-gray-500 text-center">
-                        <p>Agradecemos a oportunidade e ficamos à disposição para quaisquer esclarecimentos.</p>
-                        <p>Atenciosamente, {companyProfile.name}</p>
-                    </div>
-
                 </div>
-                </div>
+                )}
                 <DialogFooter className="print-hide">
-                <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={() => setSelectedProposal(null)}>Cancelar</Button>
                 <Button type="button" variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
-                <Button type="button" onClick={() => { setIsPreviewOpen(false); handleSendEmail(); }}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
-                <Button type="button" onClick={() => { setIsPreviewOpen(false); handleSendWhatsApp(); }}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
+                {selectedProposal && (
+                    <>
+                    <Button type="button" onClick={() => { setSelectedProposal(null); handleSendEmail(selectedProposal); }}><Mail className="mr-2 h-4 w-4" /> Enviar por E-mail</Button>
+                    <Button type="button" onClick={() => { setSelectedProposal(null); handleSendWhatsApp(selectedProposal); }}><Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp</Button>
+                    </>
+                )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-      </form>
+        
+        <AlertDialog open={!!deletingProposal} onOpenChange={(open) => !open && setDeletingProposal(null)}>
+            <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Essa ação não pode ser desfeita. Isso excluirá permanentemente a
+                    proposta <span className="font-semibold">{deletingProposal?.id}</span> para o cliente <span className="font-semibold">{deletingProposal?.clientName}</span>.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDeleteAction}>Confirmar Exclusão</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }
+
+    
