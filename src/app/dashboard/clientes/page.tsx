@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -156,6 +156,9 @@ export default function ClientesPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [showInactive, setShowInactive] = useState(false);
 
   const { toast } = useToast();
 
@@ -171,6 +174,34 @@ export default function ClientesPage() {
       tipoCliente: false,
     },
   });
+
+  const displayedCustomers = useMemo(() => {
+    const lowercasedSearchTerm = searchTerm.toLowerCase();
+
+    let filtered = customers.filter(c =>
+        searchTerm === "" ||
+        c.name.toLowerCase().includes(lowercasedSearchTerm) ||
+        c.email.toLowerCase().includes(lowercasedSearchTerm)
+    );
+
+    if (showInactive) {
+        return filtered.filter(c => c.status === 'inactive');
+    }
+
+    switch (activeTab) {
+        case 'all':
+            return filtered.filter(c => c.status !== 'inactive');
+        case 'active_contract':
+            return filtered.filter(c => c.type === 'active_contract');
+        case 'one_time':
+            return filtered.filter(c => c.type === 'one_time');
+        case 'new':
+            return filtered.filter(c => c.status === 'new');
+        default:
+            return filtered.filter(c => c.status !== 'inactive');
+    }
+  }, [customers, searchTerm, activeTab, showInactive]);
+
 
   const handleCnpjLookup = async () => {
     const cnpj = form.getValues("cnpj");
@@ -306,7 +337,10 @@ export default function ClientesPage() {
           Gestão de Clientes
         </h2>
       </div>
-      <Tabs defaultValue="all">
+      <Tabs defaultValue="all" onValueChange={(value) => {
+          setActiveTab(value);
+          setShowInactive(false);
+      }}>
         <div className="flex items-center">
           <TabsList>
             <TabsTrigger value="all">Todos</TabsTrigger>
@@ -327,12 +361,11 @@ export default function ClientesPage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem checked>
-                  Status
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem>Responsável</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem>
-                  Potencial de Venda
+                <DropdownMenuCheckboxItem
+                    checked={showInactive}
+                    onCheckedChange={setShowInactive}
+                >
+                  Mostrar Somente Inativos
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -351,7 +384,7 @@ export default function ClientesPage() {
                   </span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[625px]">
+              <DialogContent className="sm:max-w-[625px]" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
@@ -535,82 +568,86 @@ export default function ClientesPage() {
             </Dialog>
           </div>
         </div>
-        <TabsContent value="all">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                <span>Todos os Clientes</span>
-              </CardTitle>
-              <CardDescription>
-                Gerencie seus clientes e visualize seus históricos. Clique em um cliente para editar.
-              </CardDescription>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar cliente..." className="pl-8" />
-                </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead className="hidden sm:table-cell">
-                      Status
-                    </TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Responsável
-                    </TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Potencial
-                    </TableHead>
-                    <TableHead className="hidden lg:table-cell">
-                      Último Contato
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {customers.map((customer) => (
-                    <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
-                      <TableCell>
-                        <div className="font-medium">{customer.name}</div>
-                        <div className="hidden text-sm text-muted-foreground md:inline">
-                          {customer.email}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <Badge variant={customer.status === 'active' ? 'default' : customer.status === 'new' ? 'secondary' : 'outline'}>
-                            {statusMap[customer.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {customer.responsible}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant={customer.potential === 'high' ? 'destructive' : customer.potential === 'medium' ? 'secondary' : 'outline'} className="capitalize">
-                            {potentialMap[customer.potential]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        {new Date(customer.lastContact).toLocaleDateString("pt-BR", {timeZone: 'UTC'})}
-                      </TableCell>
+        <TabsContent value="all" forceMount className="mt-4">
+            <Card>
+                <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    <span>Todos os Clientes</span>
+                </CardTitle>
+                <CardDescription>
+                    Gerencie seus clientes e visualize seus históricos. Clique em um cliente para editar.
+                </CardDescription>
+                    <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Buscar cliente..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    </div>
+                </CardHeader>
+                <CardContent>
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead className="hidden sm:table-cell">
+                        Status
+                        </TableHead>
+                        <TableHead className="hidden md:table-cell">
+                        Responsável
+                        </TableHead>
+                        <TableHead className="hidden md:table-cell">
+                        Potencial
+                        </TableHead>
+                        <TableHead className="hidden lg:table-cell">
+                        Último Contato
+                        </TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-            <CardFooter>
-              <div className="text-xs text-muted-foreground">
-                Mostrando <strong>{customers.length}</strong> de <strong>{customers.length}</strong> clientes
-              </div>
-            </CardFooter>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                    {displayedCustomers.map((customer) => (
+                        <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
+                        <TableCell>
+                            <div className="font-medium">{customer.name}</div>
+                            <div className="hidden text-sm text-muted-foreground md:inline">
+                            {customer.email}
+                            </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                            <Badge variant={customer.status === 'active' ? 'default' : customer.status === 'new' ? 'secondary' : 'outline'}>
+                                {statusMap[customer.status]}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                            {customer.responsible}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                            <Badge variant={customer.potential === 'high' ? 'destructive' : customer.potential === 'medium' ? 'secondary' : 'outline'} className="capitalize">
+                                {potentialMap[customer.potential]}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                            {new Date(customer.lastContact).toLocaleDateString("pt-BR", {timeZone: 'UTC'})}
+                        </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+                </CardContent>
+                <CardFooter>
+                <div className="text-xs text-muted-foreground">
+                    Mostrando <strong>{displayedCustomers.length}</strong> de <strong>{customers.length}</strong> clientes
+                </div>
+                </CardFooter>
+            </Card>
         </TabsContent>
+        <TabsContent value="active_contract" forceMount className="mt-4"><Card><CardHeader><CardTitle>Conteúdo Contratos Ativos</CardTitle></CardHeader><CardContent><p>O mesmo componente de tabela será renderizado aqui com os dados filtrados.</p></CardContent></Card></TabsContent>
+        <TabsContent value="one_time" forceMount className="mt-4"><Card><CardHeader><CardTitle>Conteúdo Clientes Avulsos</CardTitle></CardHeader><CardContent><p>O mesmo componente de tabela será renderizado aqui com os dados filtrados.</p></CardContent></Card></TabsContent>
+        <TabsContent value="new" forceMount className="mt-4"><Card><CardHeader><CardTitle>Conteúdo Novos</CardTitle></CardHeader><CardContent><p>O mesmo componente de tabela será renderizado aqui com os dados filtrados.</p></CardContent></Card></TabsContent>
+
       </Tabs>
     </div>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
             <AlertDialogDescription>
