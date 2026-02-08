@@ -4,8 +4,8 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-
 import {
+  Calendar as CalendarIcon,
   File,
   ListFilter,
   PlusCircle,
@@ -13,6 +13,11 @@ import {
   Users,
   Loader2,
 } from "lucide-react";
+import { addDays, format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
+
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +32,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -65,6 +71,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -81,6 +89,7 @@ const initialCustomers = [
     responsible: "Ana Silva",
     potential: "high",
     lastContact: "2024-07-22T00:00:00.000Z",
+    createdAt: "2024-07-20T00:00:00.000Z",
     type: "active_contract",
   },
   {
@@ -91,6 +100,7 @@ const initialCustomers = [
     responsible: "Carlos Pereira",
     potential: "medium",
     lastContact: "2024-07-20T00:00:00.000Z",
+    createdAt: "2024-07-01T00:00:00.000Z",
     type: "active_contract",
   },
   {
@@ -101,6 +111,7 @@ const initialCustomers = [
     responsible: "Ana Silva",
     potential: "low",
     lastContact: "2024-05-15T00:00:00.000Z",
+    createdAt: "2024-04-10T00:00:00.000Z",
     type: "one_time",
   },
   {
@@ -111,6 +122,7 @@ const initialCustomers = [
     responsible: "Juliana Costa",
     potential: "high",
     lastContact: "2024-07-23T00:00:00.000Z",
+    createdAt: "2024-07-23T00:00:00.000Z",
     type: "one_time",
   },
   {
@@ -121,6 +133,7 @@ const initialCustomers = [
     responsible: "Carlos Pereira",
     potential: "medium",
     lastContact: "2024-07-18T00:00:00.000Z",
+    createdAt: "2024-06-15T00:00:00.000Z",
     type: "active_contract",
   },
 ];
@@ -159,6 +172,7 @@ export default function ClientesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [showInactive, setShowInactive] = useState(false);
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
 
   const { toast } = useToast();
 
@@ -185,22 +199,38 @@ export default function ClientesPage() {
     );
 
     if (showInactive) {
-        return filtered.filter(c => c.status === 'inactive');
+        filtered = filtered.filter(c => c.status === 'inactive');
+    } else {
+        switch (activeTab) {
+            case 'all':
+                filtered = filtered.filter(c => c.status !== 'inactive');
+                break;
+            case 'active_contract':
+                filtered = filtered.filter(c => c.type === 'active_contract');
+                break;
+            case 'one_time':
+                filtered = filtered.filter(c => c.type === 'one_time');
+                break;
+            case 'new':
+                filtered = filtered.filter(c => c.status === 'new');
+                break;
+            default:
+                filtered = filtered.filter(c => c.status !== 'inactive');
+        }
+    }
+    
+    if (date?.from) {
+      const fromDate = startOfDay(date.from);
+      const toDate = endOfDay(date.to || date.from);
+      filtered = filtered.filter(c => {
+          const createdAt = new Date(c.createdAt);
+          return createdAt >= fromDate && createdAt <= toDate;
+      });
     }
 
-    switch (activeTab) {
-        case 'all':
-            return filtered.filter(c => c.status !== 'inactive');
-        case 'active_contract':
-            return filtered.filter(c => c.type === 'active_contract');
-        case 'one_time':
-            return filtered.filter(c => c.type === 'one_time');
-        case 'new':
-            return filtered.filter(c => c.status === 'new');
-        default:
-            return filtered.filter(c => c.status !== 'inactive');
-    }
-  }, [customers, searchTerm, activeTab, showInactive]);
+    return filtered;
+
+  }, [customers, searchTerm, activeTab, showInactive, date]);
 
 
   const handleCnpjLookup = async () => {
@@ -317,6 +347,7 @@ export default function ClientesPage() {
         responsible: "Admin", // Placeholder
         potential: "medium", // Default
         lastContact: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         type: values.tipoCliente ? "active_contract" : "one_time",
       };
       setCustomers([newCustomer, ...customers]);
@@ -367,6 +398,79 @@ export default function ClientesPage() {
                 >
                   Mostrar Somente Inativos
                 </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Data de Cadastro</DropdownMenuLabel>
+                <div className="px-2 py-1.5">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date?.from ? (
+                          date.to ? (
+                            <>
+                              {format(date.from, "dd/MM/y")} -{" "}
+                              {format(date.to, "dd/MM/y")}
+                            </>
+                          ) : (
+                            format(date.from, "dd/MM/y")
+                          )
+                        ) : (
+                          <span>Selecione um intervalo</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={2}
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    setDate({ from: subDays(new Date(), 7), to: new Date() })
+                  }
+                >
+                  Últimos 7 dias
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    setDate({ from: subDays(new Date(), 15), to: new Date() })
+                  }
+                >
+                  Últimos 15 dias
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    setDate({ from: subDays(new Date(), 30), to: new Date() })
+                  }
+                >
+                  Últimos 30 dias
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    setDate({ from: startOfMonth(new Date()), to: new Date() })
+                  }
+                >
+                  Este mês
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setDate(undefined)}>
+                  Limpar filtro de data
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button size="sm" variant="outline" className="h-8 gap-1">
@@ -384,7 +488,7 @@ export default function ClientesPage() {
                   </span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[625px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <DialogContent className="sm:max-w-[625px]">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
