@@ -55,10 +55,10 @@ export function AppSidebar() {
 
   return (
     <>
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2">
+      <SidebarHeader className="group-data-[state=expanded]:px-2">
+        <div className="flex items-center gap-2 group-data-[state=collapsed]:justify-center">
            <BrainCircuit className="h-8 w-8 text-primary-foreground" />
-           <h1 className="font-headline text-2xl font-semibold text-primary-foreground">VendasPro</h1>
+           <h1 className="font-headline text-2xl font-semibold text-primary-foreground group-data-[state=collapsed]:hidden">VendasPro</h1>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -71,7 +71,7 @@ export function AppSidebar() {
                   tooltip={item.label}
                 >
                   <item.icon />
-                  <span>{item.label}</span>
+                  <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
@@ -82,18 +82,18 @@ export function AppSidebar() {
       <SidebarFooter>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-auto w-full justify-start gap-2 p-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+            <Button variant="ghost" className="h-auto w-full justify-start gap-2 p-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[state=collapsed]:justify-center">
               <Avatar className="h-8 w-8">
                 <AvatarImage src="https://picsum.photos/seed/user/40/40" />
                 <AvatarFallback>AD</AvatarFallback>
               </Avatar>
-              <div className="flex-1 text-left">
+              <div className="flex-1 text-left group-data-[state=collapsed]:hidden">
                 <p className="text-sm font-medium">Admin</p>
                 <p className="text-xs text-sidebar-foreground/70">
                   admin@vendaspro.com
                 </p>
               </div>
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4 group-data-[state=collapsed]:hidden" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
