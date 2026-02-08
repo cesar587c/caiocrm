@@ -12,7 +12,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -23,6 +29,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -36,6 +43,7 @@ import {
   LogOut,
   ChevronDown,
   BrainCircuit,
+  View,
 } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -52,6 +60,7 @@ const menuItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { iconSize, setIconSize } = useSidebar();
 
   return (
     <>
@@ -67,6 +76,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.href}>
               <Link href={item.href}>
                 <SidebarMenuButton
+                  size={iconSize === 'large' ? 'lg' : 'default'}
                   isActive={pathname === item.href}
                   tooltip={item.label}
                 >
@@ -110,6 +120,28 @@ export function AppSidebar() {
               <UserCog className="mr-2 h-4 w-4" />
               <span>Perfil</span>
             </DropdownMenuItem>
+
+            <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                    <View className="mr-2 h-4 w-4" />
+                    <span>Visualização</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                        <DropdownMenuRadioGroup
+                            value={iconSize}
+                            onValueChange={(value) => setIconSize(value as "default" | "large")}
+                        >
+                            <DropdownMenuLabel>Tamanho dos Ícones</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuRadioItem value="default">Pequeno</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="large">Grande</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+            </DropdownMenuSub>
+
+            <DropdownMenuSeparator />
             <DropdownMenuItem>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Sair</span>
