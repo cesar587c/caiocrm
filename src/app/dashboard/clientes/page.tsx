@@ -510,7 +510,7 @@ export default function ClientesPage() {
                         )}
                       />
                     </div>
-                    <DialogFooter onOpenAutoFocus={(e) => e.preventDefault()}>
+                    <DialogFooter>
                       {editingCustomer && (
                           <>
                           <Button
