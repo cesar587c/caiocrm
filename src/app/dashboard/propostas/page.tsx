@@ -148,13 +148,10 @@ export default function PropostasPage() {
   const { watch } = form;
   const watchItems = watch('items');
 
-  const total = useMemo(() => {
-    return watchItems.reduce(
-      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-      0
-    );
-  }, [watchItems]);
-
+  const total = watchItems.reduce(
+    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+    0
+  );
 
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
@@ -854,10 +851,16 @@ ${companyProfile.phone}`;
                     <Button type="button" variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
                     {selectedProposal && (
                         <>
-                        <Button type="button" onClick={() => handleSendEmail(selectedProposal) }>
+                        <Button type="button" onClick={() => {
+                            handleSendEmail(selectedProposal);
+                            toast({ title: "Ação de E-mail Disparada", description: "Verifique seu cliente de e-mail." });
+                        }}>
                           <Mail className="mr-2 h-4 w-4" /> Enviar por E-mail
                         </Button>
-                        <Button type="button" onClick={() => handleSendWhatsApp(selectedProposal) }>
+                        <Button type="button" onClick={() => {
+                            handleSendWhatsApp(selectedProposal);
+                            toast({ title: "Ação de WhatsApp Disparada", description: "Verifique seu WhatsApp." });
+                        }}>
                           <Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp
                         </Button>
                         </>
