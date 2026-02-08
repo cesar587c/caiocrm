@@ -351,7 +351,7 @@ export default function ClientesPage() {
                   </span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[625px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <DialogContent className="sm:max-w-[625px]">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
@@ -360,7 +360,7 @@ export default function ClientesPage() {
                         {editingCustomer ? 'Altere os dados abaixo para atualizar o cliente.' : 'Preencha os dados abaixo para adicionar um novo cliente.'}
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-2 py-4">
+                    <div className="grid gap-2 py-4 max-h-[60vh] overflow-y-auto -mx-6 px-6">
                        <FormField
                         control={form.control}
                         name="cnpj"
@@ -610,7 +610,7 @@ export default function ClientesPage() {
     </div>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
-        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+        <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
             <AlertDialogDescription>
