@@ -49,12 +49,22 @@ import {
   Upload,
   Cog,
   Loader2,
+  History,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { companyProfile } from '@/lib/company-profile';
 import { ToastAction } from '@/components/ui/toast';
+import { Badge } from '@/components/ui/badge';
+
+// Estrutura do produto com histórico de preços
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  priceHistory: number[];
+};
 
 // Mock data - Em um app real, isso viria de uma API
 const initialCustomers = [
@@ -63,11 +73,11 @@ const initialCustomers = [
   { id: 'cust_4', name: 'ConstruBem Materiais', telefone: '(31) 99999-8888'},
 ];
 
-const initialProducts = [
-  { id: 'prod_1', name: 'Desenvolvimento de Website Responsivo', price: 5000 },
-  { id: 'prod_2', name: 'Manutenção Mensal de E-commerce', price: 500 },
-  { id: 'prod_3', name: 'Consultoria SEO (Pacote Inicial)', price: 1500 },
-  { id: 'prod_4', name: 'Criação de Logo e Identidade Visual', price: 2500 },
+const initialProducts: Product[] = [
+  { id: 'prod_1', name: 'Desenvolvimento de Website Responsivo', price: 5000, priceHistory: [5000, 4800, 5200] },
+  { id: 'prod_2', name: 'Manutenção Mensal de E-commerce', price: 500, priceHistory: [500] },
+  { id: 'prod_3', name: 'Consultoria SEO (Pacote Inicial)', price: 1500, priceHistory: [1500, 1450] },
+  { id: 'prod_4', name: 'Criação de Logo e Identidade Visual', price: 2500, priceHistory: [2500] },
 ];
 
 const proposalItemSchema = z.object({
@@ -93,7 +103,7 @@ type ProposalFormValues = z.infer<typeof proposalSchema>;
 export default function PropostasPage() {
   const { toast } = useToast();
   const [customers, setCustomers] = useState(initialCustomers);
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
   const [proposalId, setProposalId] = useState('');
   
@@ -129,10 +139,12 @@ export default function PropostasPage() {
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
-  const total = watchItems.reduce(
-    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-    0
-  );
+  const total = useMemo(() => {
+    return watchItems.reduce(
+      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+      0
+    );
+  }, [watchItems]);
 
   const installmentValue = useMemo(() => {
     if (!watchInstallments || total === 0) return 0;
@@ -163,7 +175,7 @@ export default function PropostasPage() {
     if (!newProduct.name || products.some(p => p.name.toLowerCase() === newProduct.name.toLowerCase())) {
         return;
     }
-    const newProductWithId = { ...newProduct, id: `prod_${Date.now()}` };
+    const newProductWithId: Product = { ...newProduct, id: `prod_${Date.now()}`, priceHistory: [newProduct.price] };
     setProducts(prevProducts => [...prevProducts, newProductWithId]);
     toast({
         title: "Item Cadastrado!",
@@ -200,6 +212,32 @@ export default function PropostasPage() {
     toast({
       title: 'Proposta Salva!',
       description: 'A proposta foi salva com sucesso no sistema.',
+    });
+
+    setProducts(prevProducts => {
+        const updatedProducts = [...prevProducts];
+
+        data.items.forEach(item => {
+            const productIndex = updatedProducts.findIndex(p => p.name.toLowerCase() === item.name.toLowerCase());
+            
+            if (productIndex !== -1) {
+                const product = updatedProducts[productIndex];
+                const newPrice = Number(item.price);
+
+                // Atualiza o preço principal para o último usado
+                product.price = newPrice;
+
+                // Move o preço usado para o topo do histórico se já existir
+                const priceIndexInHistory = product.priceHistory.indexOf(newPrice);
+                if (priceIndexInHistory > -1) {
+                    product.priceHistory.splice(priceIndexInHistory, 1);
+                }
+                // Adiciona o novo preço (ou o movido) no início
+                product.priceHistory.unshift(newPrice);
+            }
+        });
+
+        return updatedProducts;
     });
   };
 
@@ -424,7 +462,13 @@ export default function PropostasPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {fields.map((item, index) => (
+                    {fields.map((item, index) => {
+                      const currentItemName = watchItems[index]?.name;
+                      const currentProduct = useMemo(() => currentItemName
+                          ? products.find(p => p.name.toLowerCase() === currentItemName.toLowerCase())
+                          : undefined, [currentItemName, products]);
+
+                      return (
                       <TableRow key={item.id}>
                         <TableCell>
                           <Textarea
@@ -443,12 +487,55 @@ export default function PropostasPage() {
                           />
                         </TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            {...form.register(`items.${index}.price`)}
-                            className="w-28"
-                          />
+                           <div className="relative flex items-center">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              {...form.register(`items.${index}.price`)}
+                              className={cn("w-32", currentProduct && 'pr-8')}
+                            />
+                            {currentProduct && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute right-0 h-full w-8 text-muted-foreground hover:bg-transparent"
+                                    aria-label="Ver histórico de preços"
+                                  >
+                                    <History className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto max-w-xs p-2">
+                                  <div className="space-y-1">
+                                    <p className="font-semibold text-sm px-1.5">Histórico de Preços</p>
+                                    <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                                      {currentProduct.priceHistory.length > 0 ? (
+                                        currentProduct.priceHistory.map((price, idx) => (
+                                          <Button
+                                            key={`${price}-${idx}`}
+                                            type="button"
+                                            variant="ghost"
+                                            className="h-auto justify-between p-1.5 text-xs font-normal gap-2"
+                                            onClick={() => {
+                                              form.setValue(`items.${index}.price`, price, { shouldDirty: true });
+                                              form.trigger(`items.${index}.price`);
+                                            }}
+                                          >
+                                            <span>{price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            {price === currentProduct.price && <Badge variant="secondary">Recente</Badge>}
+                                          </Button>
+                                        ))
+                                      ) : (
+                                        <p className="text-xs text-muted-foreground p-1.5">Nenhum histórico.</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="font-medium">
                           {((Number(watchItems[index]?.quantity) || 0) * (Number(watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -459,7 +546,7 @@ export default function PropostasPage() {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )})}
                   </TableBody>
                 </Table>
                  {form.formState.errors.items && (
@@ -471,7 +558,7 @@ export default function PropostasPage() {
                     <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
                 </Button>
                 <div className="text-right">
-                    <p className="text-muted-foreground">Total dos Itens</p>
+                    <p className="text-muted-foreground">Total da Proposta</p>
                     <p className="text-2xl font-bold">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                 </div>
               </CardFooter>
