@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -53,12 +54,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { companyProfile } from '@/lib/company-profile';
+import { ToastAction } from '@/components/ui/toast';
 
 // Mock data - Em um app real, isso viria de uma API
 const initialCustomers = [
   { id: 'cust_1', name: 'Tech Solutions Ltda.', telefone: '(11) 98765-4321' },
   { id: 'cust_2', name: 'Inova Corp S.A.', telefone: '(21) 91234-5678' },
   { id: 'cust_4', name: 'ConstruBem Materiais', telefone: '(31) 99999-8888'},
+];
+
+const initialProducts = [
+  { id: 'prod_1', name: 'Desenvolvimento de Website Responsivo', price: 5000 },
+  { id: 'prod_2', name: 'Manutenção Mensal de E-commerce', price: 500 },
+  { id: 'prod_3', name: 'Consultoria SEO (Pacote Inicial)', price: 1500 },
+  { id: 'prod_4', name: 'Criação de Logo e Identidade Visual', price: 2500 },
 ];
 
 const proposalItemSchema = z.object({
@@ -84,6 +93,7 @@ type ProposalFormValues = z.infer<typeof proposalSchema>;
 export default function PropostasPage() {
   const { toast } = useToast();
   const [customers, setCustomers] = useState(initialCustomers);
+  const [products, setProducts] = useState(initialProducts);
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
   const [proposalId, setProposalId] = useState('');
   
@@ -125,7 +135,7 @@ export default function PropostasPage() {
   );
 
   const installmentValue = useMemo(() => {
-    if (!watchInstallments) return 0;
+    if (!watchInstallments || total === 0) return 0;
     return total / watchInstallments;
   }, [total, watchInstallments]);
 
@@ -148,6 +158,42 @@ export default function PropostasPage() {
     });
     setIsQuickAddingClient(true);
   }
+  
+  const handleSaveNewProduct = (newProduct: { name: string, price: number }) => {
+    if (!newProduct.name || products.some(p => p.name.toLowerCase() === newProduct.name.toLowerCase())) {
+        return;
+    }
+    const newProductWithId = { ...newProduct, id: `prod_${Date.now()}` };
+    setProducts(prevProducts => [...prevProducts, newProductWithId]);
+    toast({
+        title: "Item Cadastrado!",
+        description: `"${newProduct.name}" foi adicionado à sua lista de produtos.`,
+    });
+  };
+
+  const handleItemNameBlur = (index: number) => {
+      const itemName = form.getValues(`items.${index}.name`);
+      if (!itemName) return;
+
+      const existingProduct = products.find(p => p.name.toLowerCase().trim() === itemName.toLowerCase().trim());
+
+      if (existingProduct) {
+          form.setValue(`items.${index}.price`, existingProduct.price, { shouldDirty: true, shouldTouch: true });
+          form.trigger(`items.${index}.price`);
+      } else {
+          const itemPrice = form.getValues(`items.${index}.price`);
+          toast({
+              title: 'Cadastrar Novo Item?',
+              description: `Deseja salvar "${itemName}" na sua lista de produtos?`,
+              action: (
+                  <ToastAction altText="Cadastrar" onClick={() => handleSaveNewProduct({ name: itemName, price: itemPrice || 0 })}>
+                      Cadastrar
+                  </ToastAction>
+              ),
+          });
+      }
+  };
+
 
   const onSubmit = (data: ProposalFormValues) => {
     console.log(data);
@@ -231,6 +277,11 @@ export default function PropostasPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
+      <datalist id="product-datalist">
+        {products.map(product => (
+          <option key={product.id} value={product.name} />
+        ))}
+      </datalist>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <div className="flex items-center justify-between">
             <h2 className="text-3xl font-bold tracking-tight font-headline">Gerador de Propostas</h2>
@@ -380,6 +431,8 @@ export default function PropostasPage() {
                             placeholder="Descrição do produto ou serviço"
                             {...form.register(`items.${index}.name`)}
                             className="min-h-0 h-10"
+                            list="product-datalist"
+                            onBlur={() => handleItemNameBlur(index)}
                           />
                         </TableCell>
                         <TableCell>
