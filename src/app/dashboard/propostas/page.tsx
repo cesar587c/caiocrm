@@ -119,17 +119,13 @@ export default function PropostasPage() {
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
-  const { subtotal, total } = useMemo(() => {
-    const sub = watchItems.reduce(
-      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-      0
-    );
-    // Adicionar lógica de desconto/taxas se necessário
-    return { subtotal: sub, total: sub };
-  }, [watchItems]);
+  const total = watchItems.reduce(
+    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+    0
+  );
 
   const installmentValue = useMemo(() => {
-    if (watchInstallments === 0) return 0;
+    if (!watchInstallments) return 0;
     return total / watchInstallments;
   }, [total, watchInstallments]);
 
@@ -402,7 +398,7 @@ export default function PropostasPage() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          {((Number(watchItems[index].quantity) || 0) * (Number(watchItems[index].price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          {((Number(watchItems[index]?.quantity) || 0) * (Number(watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
