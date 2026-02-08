@@ -149,12 +149,10 @@ export default function PropostasPage() {
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
-  const total = useMemo(() => {
-    return watchItems.reduce(
-        (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-        0
-      );
-  }, [watchItems]);
+  const total = watchItems.reduce(
+    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+    0
+  );
     
   const selectedProposalInstallmentValue = useMemo(() => {
     if (!selectedProposal || !selectedProposal.installments || selectedProposal.total === 0) return 0;
