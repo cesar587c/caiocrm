@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
+import { cn } from '@/lib/utils';
 
 // Mock data based on existing customers, adapted for the sales funnel
 const initialOpportunities = [
@@ -60,50 +61,42 @@ const initialOpportunities = [
 type Opportunity = typeof initialOpportunities[0];
 
 const stages = [
-  { id: "lead", title: "Lead" },
-  { id: "opportunity", title: "Oportunidade" },
-  { id: "proposal", title: "Proposta Enviada" },
-  { id: "negotiation", title: "Em Negociação" },
-  { id: "won", title: "Ganho" },
-  { id: "lost", title: "Perdido" },
+  { id: "lead", title: "Lead", headerClass: "bg-chart-5" }, // Yellow/Orange
+  { id: "opportunity", title: "Oportunidade", headerClass: "bg-chart-2" }, // Blue
+  { id: "proposal", title: "Proposta Enviada", headerClass: "bg-chart-1" }, // Purple
+  { id: "negotiation", title: "Em Negociação", headerClass: "bg-chart-3" }, // Pink
+  { id: "won", title: "Ganho", headerClass: "bg-chart-4" }, // Green
+  { id: "lost", title: "Perdido", headerClass: "bg-destructive" }, // Red
 ];
-
-const potentialMap: Record<string, string> = {
-  high: "Alto",
-  medium: "Médio",
-  low: "Baixo",
-};
 
 const KanbanCard = ({ opportunity }: { opportunity: Opportunity }) => {
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     e.dataTransfer.setData("opportunityId", opportunity.id);
+  };
+  
+  const potentialColorClass: Record<string, string> = {
+    high: "bg-destructive",
+    medium: "bg-chart-5",
+    low: "bg-chart-2",
   };
 
   return (
     <Card
       draggable
       onDragStart={handleDragStart}
-      className="mb-4 cursor-grab active:cursor-grabbing bg-card/80 hover:bg-card"
+      className="mb-3 cursor-grab active:cursor-grabbing bg-card hover:bg-card/90 shadow-sm rounded-md"
     >
-      <CardHeader className="p-4">
-        <CardTitle className="text-base font-semibold">{opportunity.name}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="flex justify-between items-center text-sm text-muted-foreground">
-          <span>Valor:</span>
-          <span className="font-bold text-foreground">
+      <CardContent className="p-3 space-y-2">
+        <Badge className={cn("h-1.5 w-10 p-0 rounded-full", potentialColorClass[opportunity.potential])} />
+        <p className="font-semibold text-sm leading-tight">{opportunity.name}</p>
+        <div className="flex justify-between items-center text-xs text-muted-foreground pt-1">
+          <span>
             {opportunity.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
           </span>
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Potencial:</span>
-            <Badge variant={opportunity.potential === 'high' ? 'destructive' : opportunity.potential === 'medium' ? 'secondary' : 'outline'} className="capitalize">
-                {potentialMap[opportunity.potential]}
-            </Badge>
-        </div>
-        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
             <Users className="h-3 w-3" />
             <span>{opportunity.responsible}</span>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -128,12 +121,6 @@ export default function FunilVendasPage() {
       )
     );
   };
-  
-  const getStageTotalValue = (stageId: string) => {
-    return opportunities
-      .filter(opp => opp.stage === stageId)
-      .reduce((sum, opp) => sum + opp.value, 0);
-  };
 
   return (
     <div className="flex h-full flex-1 flex-col space-y-4 p-4 md:p-8 pt-6">
@@ -149,14 +136,8 @@ export default function FunilVendasPage() {
               onDrop={(e) => handleDrop(e, stage.id)}
               className="flex w-80 flex-shrink-0 flex-col rounded-lg bg-muted/50"
             >
-              <div className="p-4 border-b border-border">
-                  <div className="flex justify-between items-center">
-                      <h3 className="font-semibold text-lg">{stage.title}</h3>
-                      <Badge variant="secondary">{opportunities.filter(o => o.stage === stage.id).length}</Badge>
-                  </div>
-                   <p className="text-sm font-bold text-muted-foreground mt-1">
-                      {getStageTotalValue(stage.id).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                   </p>
+              <div className={cn("px-3 py-2 text-left rounded-t-lg", stage.headerClass)}>
+                <h3 className="font-semibold text-sm text-primary-foreground">{stage.title} ({opportunities.filter(o => o.stage === stage.id).length})</h3>
               </div>
               <div className="p-4 overflow-y-auto flex-1">
                   {opportunities
