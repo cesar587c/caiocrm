@@ -157,12 +157,10 @@ export default function PropostasPage() {
   const { watch } = form;
   const watchItems = watch('items');
 
-  const total = useMemo(() => {
-    return watchItems.reduce(
-      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-      0
-    );
-  }, [watchItems]);
+  const total = (watchItems || []).reduce(
+    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+    0
+  );
 
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
