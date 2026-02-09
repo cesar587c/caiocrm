@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -47,6 +49,7 @@ import {
   History,
   Printer,
   ListChecks,
+  Loader2,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -125,6 +128,7 @@ export default function PropostasPage() {
   const [savedProposals, setSavedProposals] = useState<Proposal[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
@@ -320,8 +324,75 @@ ${companyProfile.phone}`;
   };
 
 
-  const handlePrintAndDownload = () => {
-    window.print();
+  const handleDownloadPdf = async () => {
+    const proposalElement = document.getElementById('proposal-preview');
+    if (!proposalElement) {
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao gerar PDF',
+            description: 'Não foi possível encontrar o conteúdo da proposta.'
+        });
+        return;
+    }
+    if (!selectedProposal) return;
+
+    setIsDownloading(true);
+
+    try {
+        const canvas = await html2canvas(proposalElement, {
+            scale: 2, // Aumenta a resolução para melhor qualidade
+            useCORS: true,
+            backgroundColor: null,
+            windowWidth: proposalElement.scrollWidth,
+            windowHeight: proposalElement.scrollHeight,
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        
+        // A4 page dimensions in mm: 210 x 297
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'mm',
+            format: 'a4',
+        });
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const canvasAspectRatio = canvasWidth / canvasHeight;
+        
+        let finalPdfWidth = pdfWidth;
+        let finalPdfHeight = pdfWidth / canvasAspectRatio;
+
+        // Se a altura calculada for maior que a página, ajustamos pela altura
+        if (finalPdfHeight > pdfHeight) {
+            finalPdfHeight = pdfHeight;
+            finalPdfWidth = pdfHeight * canvasAspectRatio;
+        }
+
+        // Centraliza a imagem
+        const xOffset = (pdfWidth - finalPdfWidth) / 2;
+        const yOffset = (pdfHeight - finalPdfHeight) / 2;
+        
+        pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalPdfWidth, finalPdfHeight);
+        pdf.save(`proposta-${selectedProposal.id}.pdf`);
+
+        toast({
+            title: 'Download Iniciado',
+            description: `O download da proposta ${selectedProposal.id} começou.`,
+        });
+
+    } catch (error) {
+        console.error("Erro ao gerar PDF:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao gerar PDF',
+            description: 'Ocorreu um erro inesperado. Tente novamente.',
+        });
+    } finally {
+        setIsDownloading(false);
+    }
   };
 
   const confirmDeleteAction = () => {
@@ -848,18 +919,23 @@ ${companyProfile.phone}`;
                 )}
                 <DialogFooter className="print-hide">
                     <Button type="button" variant="outline" onClick={handleCancelPreview}>Cancelar</Button>
-                    <Button type="button" variant="secondary" onClick={handlePrintAndDownload}><Download className="mr-2 h-4 w-4" /> Imprimir/Baixar</Button>
+                    <Button type="button" variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>
+                        {isDownloading ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Baixar PDF
+                    </Button>
                     {selectedProposal && (
                         <>
                         <Button type="button" onClick={() => {
                             handleSendEmail(selectedProposal);
-                            toast({ title: "Ação de E-mail Disparada", description: "Verifique seu cliente de e-mail." });
                         }}>
                           <Mail className="mr-2 h-4 w-4" /> Enviar por E-mail
                         </Button>
                         <Button type="button" onClick={() => {
                             handleSendWhatsApp(selectedProposal);
-                            toast({ title: "Ação de WhatsApp Disparada", description: "Verifique seu WhatsApp." });
                         }}>
                           <Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp
                         </Button>
