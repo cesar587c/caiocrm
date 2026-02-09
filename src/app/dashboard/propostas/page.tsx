@@ -130,6 +130,11 @@ export default function PropostasPage() {
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
     defaultValues: {
@@ -152,10 +157,12 @@ export default function PropostasPage() {
   const { watch } = form;
   const watchItems = watch('items');
 
-  const total = watchItems.reduce(
-    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-    0
-  );
+  const total = useMemo(() => {
+    return watchItems.reduce(
+      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+      0
+    );
+  }, [watchItems]);
 
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
@@ -495,7 +502,7 @@ ${companyProfile.phone}`;
                                             className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                            {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
                                         </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0">
@@ -519,7 +526,7 @@ ${companyProfile.phone}`;
                                             className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                            {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
                                         </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0">
@@ -609,9 +616,7 @@ ${companyProfile.phone}`;
                   <TableBody>
                     {fields.map((item, index) => {
                       const currentItemName = watchItems[index]?.name;
-                      const currentProduct = currentItemName
-                          ? products.find(p => p.name.toLowerCase() === currentItemName.toLowerCase())
-                          : undefined;
+                      const currentProduct = products.find(p => p.name.toLowerCase() === currentItemName?.toLowerCase());
 
                       return (
                       <TableRow key={item.id}>
