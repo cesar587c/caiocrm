@@ -125,6 +125,7 @@ export default function PropostasPage() {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
@@ -438,19 +439,48 @@ ${companyProfile.phone}`;
     });
   };
 
-  const onSubmit = (data: ProposalFormValues) => {
-    const newProposalData: Proposal = {
-      ...data,
-      id: `PROP-${String(Date.now()).slice(-5)}`,
-      total: total,
-    };
-    setSavedProposals(prev => [newProposalData, ...prev]);
-
-    toast({
-      title: 'Proposta Salva!',
-      description: 'A proposta foi salva com sucesso e adicionada à lista abaixo.',
+  const handleEditProposalClick = (proposal: Proposal) => {
+    setEditingProposal(proposal);
+    form.reset({
+      clientId: proposal.clientId,
+      clientName: proposal.clientName,
+      clientPhone: proposal.clientPhone,
+      proposalDate: proposal.proposalDate,
+      validityDate: proposal.validityDate,
+      items: proposal.items,
+      paymentMethod: proposal.paymentMethod,
+      installments: proposal.installments,
+      firstAsDownPayment: proposal.firstAsDownPayment,
     });
+    setIsQuickAddingClient(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast({
+        title: "Modo de Edição",
+        description: `Alterando a proposta ${proposal.id}. O cliente não pode ser modificado.`,
+    });
+  };
 
+  const handleCancelEdit = () => {
+    setEditingProposal(null);
+    form.reset({
+      clientId: undefined,
+      clientName: '',
+      clientPhone: '',
+      proposalDate: new Date(),
+      validityDate: addDays(new Date(), 10),
+      items: [{ name: '', quantity: 1, price: 0 }],
+      paymentMethod: 'boleto',
+      installments: 1,
+      firstAsDownPayment: false,
+    });
+    setIsQuickAddingClient(false);
+    toast({
+        title: "Edição Cancelada",
+    });
+  };
+
+  const onSubmit = (data: ProposalFormValues) => {
+    // Shared logic for product price updates
     setProducts(prevProducts => {
       const updatedProducts = [...prevProducts];
       const proposalItemsMap = new Map(data.items.map(item => [item.name.toLowerCase(), Number(item.price)]));
@@ -473,6 +503,46 @@ ${companyProfile.phone}`;
       return updatedProducts;
     });
 
+    if (editingProposal) {
+      const updatedProposal: Proposal = {
+        // Preserve from editingProposal
+        id: editingProposal.id,
+        clientId: editingProposal.clientId,
+        clientName: editingProposal.clientName,
+        clientPhone: editingProposal.clientPhone,
+        // Update from form data
+        proposalDate: data.proposalDate,
+        validityDate: data.validityDate,
+        items: data.items,
+        paymentMethod: data.paymentMethod,
+        installments: data.installments,
+        firstAsDownPayment: data.firstAsDownPayment,
+        // Recalculate
+        total: total,
+      };
+
+      setSavedProposals(prev => prev.map(p => p.id === editingProposal.id ? updatedProposal : p));
+      toast({
+        title: 'Proposta Atualizada!',
+        description: `A proposta ${editingProposal.id} foi atualizada com sucesso.`,
+      });
+
+    } else {
+      // Create new proposal
+      const newProposalData: Proposal = {
+        ...data,
+        id: `PROP-${String(Date.now()).slice(-5)}`,
+        total: total,
+      };
+      setSavedProposals(prev => [newProposalData, ...prev]);
+
+      toast({
+        title: 'Proposta Salva!',
+        description: 'A proposta foi salva com sucesso e adicionada à lista abaixo.',
+      });
+    }
+
+    // Reset form and state for both cases
     form.reset({
       clientId: undefined,
       clientName: '',
@@ -485,6 +555,7 @@ ${companyProfile.phone}`;
       firstAsDownPayment: false,
     });
     setIsQuickAddingClient(false);
+    setEditingProposal(null);
   };
 
   const handleEditProductClick = (e: React.MouseEvent, product: Product) => {
@@ -565,8 +636,8 @@ ${companyProfile.phone}`;
               <Card>
                   <CardHeader className="flex flex-row items-start justify-between">
                       <div>
-                          <CardTitle>Nova Proposta Comercial</CardTitle>
-                          <CardDescription>Preencha os dados para gerar uma nova proposta</CardDescription>
+                          <CardTitle>{editingProposal ? `Editando Proposta ${editingProposal.id}` : 'Nova Proposta Comercial'}</CardTitle>
+                          <CardDescription>{editingProposal ? 'Altere os itens e condições de pagamento.' : 'Preencha os dados para gerar uma nova proposta'}</CardDescription>
                       </div>
                       <div className="flex items-center gap-4">
                           <div className="space-y-1 text-right">
@@ -633,48 +704,60 @@ ${companyProfile.phone}`;
               <Card>
                 <CardHeader>
                   <CardTitle>Dados do Cliente</CardTitle>
-                  <CardDescription>Selecione um cliente existente ou cadastre um novo.</CardDescription>
+                    {editingProposal ? (
+                        <CardDescription>O cliente não pode ser alterado durante a edição.</CardDescription>
+                    ) : (
+                        <CardDescription>Selecione um cliente existente ou cadastre um novo.</CardDescription>
+                    )}
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                      <div className="flex-1">
-                          <Label>Selecionar Cliente</Label>
-                          <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
-                          <SelectTrigger>
-                              <SelectValue placeholder="Selecione um cliente existente..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                              {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                          </SelectContent>
-                          </Select>
-                      </div>
-                      <Button type="button" variant="outline" className="mt-auto" onClick={handleQuickAddClient}>
-                          <PlusCircle className="mr-2 h-4 w-4" />
-                          Cadastro Rápido
-                      </Button>
-                  </div>
+                    {editingProposal ? (
+                         <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/50">
+                             <div><span className="font-semibold">Cliente:</span> {editingProposal.clientName}</div>
+                             <div><span className="font-semibold">Telefone:</span> {editingProposal.clientPhone}</div>
+                         </div>
+                    ) : (
+                        <>
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <Label>Selecionar Cliente</Label>
+                                    <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione um cliente existente..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                    </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button type="button" variant="outline" className="mt-auto" onClick={handleQuickAddClient}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Cadastro Rápido
+                                </Button>
+                            </div>
 
-                  {isQuickAddingClient && (
-                      <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20">
-                          <div>
-                              <Label htmlFor="clientName">Nome do Cliente</Label>
-                              <Input id="clientName" {...form.register('clientName')} placeholder="Nome completo ou Razão Social" />
-                              {form.formState.errors.clientName && <p className="text-destructive text-sm mt-1">{form.formState.errors.clientName.message}</p>}
-                          </div>
-                          <div>
-                              <Label htmlFor="clientPhone">Telefone</Label>
-                              <Input id="clientPhone" {...form.register('clientPhone')} placeholder="(00) 00000-0000" />
-                          </div>
-                      </div>
-                  )}
-                  
-                  {form.getValues('clientId') && !isQuickAddingClient && (
-                      <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
-                          <div><span className="font-semibold">Cliente:</span> {form.getValues('clientName')}</div>
-                          <div><span className="font-semibold">Telefone:</span> {form.getValues('clientPhone')}</div>
-                      </div>
-                  )}
-
+                            {isQuickAddingClient && (
+                                <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20">
+                                    <div>
+                                        <Label htmlFor="clientName">Nome do Cliente</Label>
+                                        <Input id="clientName" {...form.register('clientName')} placeholder="Nome completo ou Razão Social" />
+                                        {form.formState.errors.clientName && <p className="text-destructive text-sm mt-1">{form.formState.errors.clientName.message}</p>}
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="clientPhone">Telefone</Label>
+                                        <Input id="clientPhone" {...form.register('clientPhone')} placeholder="(00) 00000-0000" />
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {form.getValues('clientId') && !isQuickAddingClient && (
+                                <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
+                                    <div><span className="font-semibold">Cliente:</span> {form.getValues('clientName')}</div>
+                                    <div><span className="font-semibold">Telefone:</span> {form.getValues('clientPhone')}</div>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </CardContent>
               </Card>
 
@@ -794,8 +877,13 @@ ${companyProfile.phone}`;
                   </div>
                 </CardFooter>
               </Card>
-              <div className="mt-6 flex justify-end">
-                  <Button type="submit" size="lg" form="proposal-form">Salvar Proposta</Button>
+              <div className="mt-6 flex justify-end gap-4">
+                {editingProposal && (
+                    <Button type="button" variant="outline" size="lg" onClick={handleCancelEdit}>Cancelar Edição</Button>
+                )}
+                <Button type="submit" size="lg" form="proposal-form">
+                    {editingProposal ? 'Atualizar Proposta' : 'Salvar Proposta'}
+                </Button>
               </div>
             </form>
           </div>
@@ -813,7 +901,7 @@ ${companyProfile.phone}`;
                     control={form.control}
                     name="paymentMethod"
                     render={({ field }) => (
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <Select onValueChange={field.onChange} value={field.value}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="boleto">Boleto Bancário</SelectItem>
@@ -830,7 +918,7 @@ ${companyProfile.phone}`;
                     control={form.control}
                     name="installments"
                     render={({ field }) => (
-                        <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
+                        <Select onValueChange={field.onChange} value={String(field.value)}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                             {[...Array(6)].map((_, i) => (
@@ -942,7 +1030,7 @@ ${companyProfile.phone}`;
                         <TableHead>Cliente</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead>Valor</TableHead>
-                        <TableHead className="text-right w-[140px]">Ações</TableHead>
+                        <TableHead className="text-right w-[180px]">Ações</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -957,10 +1045,14 @@ ${companyProfile.phone}`;
                             <TableRow key={proposal.id}>
                                 <TableCell className="font-medium">{proposal.id}</TableCell>
                                 <TableCell>{proposal.clientName}</TableCell>
-                                <TableCell>{format(proposal.proposalDate, 'dd/MM/yyyy')}</TableCell>
+                                <TableCell>{isClient ? format(proposal.proposalDate, 'dd/MM/yyyy') : ''}</TableCell>
                                 <TableCell>{proposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
+                                        <Button type="button" variant="outline" size="icon" onClick={() => handleEditProposalClick(proposal)}>
+                                            <Pencil className="h-4 w-4" />
+                                            <span className="sr-only">Editar</span>
+                                        </Button>
                                         <Button type="button" variant="outline" size="icon" onClick={() => setSelectedProposal(proposal)}>
                                             <Printer className="h-4 w-4" />
                                             <span className="sr-only">Visualizar e Imprimir</span>
@@ -1014,8 +1106,8 @@ ${companyProfile.phone}`;
                             <p>{selectedProposal.clientPhone}</p>
                         </div>
                         <div className="text-right">
-                            <p><span className="font-bold text-gray-600">Data da Proposta:</span> {format(selectedProposal.proposalDate, 'dd/MM/yyyy')}</p>
-                            <p><span className="font-bold text-gray-600">Validade:</span> {format(selectedProposal.validityDate, 'dd/MM/yyyy')}</p>
+                            <p><span className="font-bold text-gray-600">Data da Proposta:</span> {isClient ? format(selectedProposal.proposalDate, 'dd/MM/yyyy') : ''}</p>
+                            <p><span className="font-bold text-gray-600">Validade:</span> {isClient ? format(selectedProposal.validityDate, 'dd/MM/yyyy') : ''}</p>
                         </div>
                         </div>
 
