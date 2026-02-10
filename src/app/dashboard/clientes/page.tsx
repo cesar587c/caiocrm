@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -78,67 +79,10 @@ import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { consultarCnpjAction } from "@/app/actions";
+import { initialCustomers } from "@/lib/mock-data";
+import type { Customer as CustomerType } from "@/lib/mock-data";
 
-// Mock data for customers
-const initialCustomers = [
-  {
-    id: "cust_1",
-    name: "Tech Solutions Ltda.",
-    email: "contato@techsolutions.com.br",
-    status: "active",
-    responsible: "Ana Silva",
-    potential: "high",
-    lastContact: "2024-07-22T00:00:00.000Z",
-    createdAt: "2024-07-20T00:00:00.000Z",
-    type: "active_contract",
-  },
-  {
-    id: "cust_2",
-    name: "Inova Corp S.A.",
-    email: "suporte@inovacorp.com",
-    status: "active",
-    responsible: "Carlos Pereira",
-    potential: "medium",
-    lastContact: "2024-07-20T00:00:00.000Z",
-    createdAt: "2024-07-01T00:00:00.000Z",
-    type: "active_contract",
-  },
-  {
-    id: "cust_3",
-    name: "Mercado Central",
-    email: "compras@mercadocentral.com",
-    status: "inactive",
-    responsible: "Ana Silva",
-    potential: "low",
-    lastContact: "2024-05-15T00:00:00.000Z",
-    createdAt: "2024-04-10T00:00:00.000Z",
-    type: "one_time",
-  },
-  {
-    id: "cust_4",
-    name: "ConstruBem Materiais",
-    email: "vendas@construbem.com.br",
-    status: "new",
-    responsible: "Juliana Costa",
-    potential: "high",
-    lastContact: "2024-07-23T00:00:00.000Z",
-    createdAt: "2024-07-23T00:00:00.000Z",
-    type: "one_time",
-  },
-  {
-    id: "cust_5",
-    name: "AgroForte Distribuidora",
-    email: "agroforte@distribuidora.com",
-    status: "active",
-    responsible: "Carlos Pereira",
-    potential: "medium",
-    lastContact: "2024-07-18T00:00:00.000Z",
-    createdAt: "2024-06-15T00:00:00.000Z",
-    type: "active_contract",
-  },
-];
-
-type Customer = typeof initialCustomers[0];
+type Customer = CustomerType;
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -290,7 +234,7 @@ export default function ClientesPage() {
         tipoCliente: customer.type === "active_contract",
         cnpj: '', 
         nomeFantasia: '',
-        telefone: '',
+        telefone: customer.telefone || '',
         inscricaoEstadual: '',
     });
     setIsFormDialogOpen(true);
@@ -328,6 +272,7 @@ export default function ClientesPage() {
                 id: c.id, // Ensure id remains stable
                 name: values.razaoSocial,
                 email: values.email,
+                telefone: values.telefone,
                 type: values.tipoCliente ? "active_contract" : "one_time",
               }
             : c
@@ -343,6 +288,7 @@ export default function ClientesPage() {
         id: `cust_${new Date().getTime()}`,
         name: values.razaoSocial,
         email: values.email,
+        telefone: values.telefone,
         status: "new",
         responsible: "Admin", // Placeholder
         potential: "medium", // Default
@@ -768,3 +714,5 @@ export default function ClientesPage() {
     </>
   );
 }
+
+    

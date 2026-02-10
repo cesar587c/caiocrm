@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -50,6 +51,7 @@ import {
   Printer,
   ListChecks,
   Loader2,
+  Search,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -75,29 +77,10 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { initialCustomers, initialProducts } from '@/lib/mock-data';
+import type { Product } from '@/lib/mock-data';
 
-
-// Estrutura do produto com histórico de preços
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  priceHistory: number[];
-};
-
-// Mock data - Em um app real, isso viria de uma API
-const initialCustomers = [
-  { id: 'cust_1', name: 'Tech Solutions Ltda.', telefone: '(11) 98765-4321' },
-  { id: 'cust_2', name: 'Inova Corp S.A.', telefone: '(21) 91234-5678' },
-  { id: 'cust_4', name: 'ConstruBem Materiais', telefone: '(31) 99999-8888'},
-];
-
-const initialProducts: Product[] = [
-  { id: 'prod_1', name: 'Desenvolvimento de Website Responsivo', price: 5000, priceHistory: [5000, 4800, 5200] },
-  { id: 'prod_2', name: 'Manutenção Mensal de E-commerce', price: 500, priceHistory: [500] },
-  { id: 'prod_3', name: 'Consultoria SEO (Pacote Inicial)', price: 1500, priceHistory: [1500, 1450] },
-  { id: 'prod_4', name: 'Criação de Logo e Identidade Visual', price: 2500, priceHistory: [2500] },
-];
 
 const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -124,6 +107,7 @@ export default function PropostasPage() {
   const { toast } = useToast();
   const [customers, setCustomers] = useState(initialCustomers);
   const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [productSearch, setProductSearch] = useState('');
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
   const [savedProposals, setSavedProposals] = useState<Proposal[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -157,13 +141,24 @@ export default function PropostasPage() {
   const { watch } = form;
   const watchItems = watch('items');
 
-  const total = (watchItems || []).reduce(
-    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-    0
-  );
+  const total = useMemo(() => {
+    return (watchItems || []).reduce(
+      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+      0
+    );
+  }, [watchItems]);
 
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) {
+      return products;
+    }
+    return products.filter(p =>
+      p.name.toLowerCase().includes(productSearch.toLowerCase())
+    );
+  }, [products, productSearch]);
 
   const selectedProposalInstallmentValue = useMemo(() => {
     if (!selectedProposal || !selectedProposal.installments || selectedProposal.total === 0) return 0;
@@ -412,6 +407,14 @@ ${companyProfile.phone}`;
   
   const handleCancelPreview = () => {
     setSelectedProposal(null);
+  };
+
+  const handleAddProductFromList = (product: Product) => {
+    append({ name: product.name, quantity: 1, price: product.price });
+    toast({
+      title: "Item Adicionado!",
+      description: `"${product.name}" foi adicionado à proposta.`,
+    });
   };
 
   const onSubmit = (data: ProposalFormValues) => {
@@ -712,6 +715,9 @@ ${companyProfile.phone}`;
                 </div>
               </CardFooter>
             </Card>
+            <div className="mt-6 flex justify-end">
+                <Button type="submit" size="lg">Salvar Proposta</Button>
+            </div>
           </div>
 
           {/* Coluna Lateral (Direita) */}
@@ -777,9 +783,46 @@ ${companyProfile.phone}`;
                 </div>
               </CardFooter>
             </Card>
-            <div className="mt-6 flex justify-end">
-                <Button type="submit" size="lg">Salvar Proposta</Button>
-            </div>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Produtos Cadastrados</CardTitle>
+                <CardDescription>Clique em um item para adicioná-lo à proposta.</CardDescription>
+                 <div className="relative pt-2">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground mt-2" />
+                    <Input 
+                      placeholder="Buscar produto..." 
+                      className="pl-8" 
+                      value={productSearch} 
+                      onChange={(e) => setProductSearch(e.target.value)} 
+                    />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-72">
+                  <div className="flex flex-col gap-2">
+                    {filteredProducts.map(product => (
+                      <Button
+                        type="button"
+                        key={product.id}
+                        variant="ghost"
+                        className="h-auto justify-start text-left"
+                        onClick={() => handleAddProductFromList(product)}
+                      >
+                        <div>
+                          <p className="font-semibold text-sm">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        </div>
+                      </Button>
+                    ))}
+                     {filteredProducts.length === 0 && (
+                        <p className="text-sm text-center text-muted-foreground py-4">Nenhum produto encontrado.</p>
+                     )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
           </div>
         </div>
       </form>
@@ -970,3 +1013,5 @@ ${companyProfile.phone}`;
     </div>
   );
 }
+
+    
