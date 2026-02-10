@@ -52,6 +52,7 @@ import {
   ListChecks,
   Loader2,
   Search,
+  Pencil,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -80,6 +81,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { initialCustomers, initialProducts } from '@/lib/mock-data';
 import type { Product } from '@/lib/mock-data';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 
 const proposalItemSchema = z.object({
@@ -103,6 +105,16 @@ const proposalSchema = z.object({
 type ProposalFormValues = z.infer<typeof proposalSchema>;
 type Proposal = ProposalFormValues & { id: string; total: number };
 
+
+const productFormSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'O nome do produto é obrigatório.'),
+  price: z.coerce.number().min(0, 'O preço não pode ser negativo.'),
+});
+
+type ProductFormValues = z.infer<typeof productFormSchema>;
+
+
 export default function PropostasPage() {
   const { toast } = useToast();
   const [customers, setCustomers] = useState(initialCustomers);
@@ -113,6 +125,10 @@ export default function PropostasPage() {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
@@ -133,6 +149,14 @@ export default function PropostasPage() {
     },
   });
 
+  const productForm = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: {
+      name: '',
+      price: 0,
+    },
+  });
+
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'items',
@@ -140,16 +164,13 @@ export default function PropostasPage() {
 
   const { watch } = form;
   const watchItems = watch('items');
-
-  const total = useMemo(() => {
-    return (watchItems || []).reduce(
-      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-      0
-    );
-  }, [watchItems]);
-
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
+
+  const total = (watchItems || []).reduce(
+    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+    0
+  );
 
   const filteredProducts = useMemo(() => {
     if (!productSearch) {
@@ -431,27 +452,25 @@ ${companyProfile.phone}`;
     });
 
     setProducts(prevProducts => {
+      const updatedProducts = [...prevProducts];
       const proposalItemsMap = new Map(data.items.map(item => [item.name.toLowerCase(), Number(item.price)]));
-  
-      return prevProducts.map(product => {
-          const lowerCaseName = product.name.toLowerCase();
-          if (proposalItemsMap.has(lowerCaseName)) {
-              const newPrice = proposalItemsMap.get(lowerCaseName)!;
-  
-              if (product.price === newPrice) {
-                  return product;
-              }
-  
-              const updatedPriceHistory = [newPrice, ...product.priceHistory.filter(p => p !== newPrice)];
-  
-              return {
-                  ...product,
-                  price: newPrice,
-                  priceHistory: updatedPriceHistory,
-              };
+
+      updatedProducts.forEach((product, index) => {
+        const lowerCaseName = product.name.toLowerCase();
+        if (proposalItemsMap.has(lowerCaseName)) {
+          const newPrice = proposalItemsMap.get(lowerCaseName)!;
+
+          if (product.price !== newPrice) {
+            const updatedPriceHistory = [newPrice, ...product.priceHistory.filter(p => p !== newPrice)];
+            updatedProducts[index] = {
+              ...product,
+              price: newPrice,
+              priceHistory: updatedPriceHistory,
+            };
           }
-          return product;
+        }
       });
+      return updatedProducts;
     });
 
     form.reset({
@@ -468,6 +487,65 @@ ${companyProfile.phone}`;
     setIsQuickAddingClient(false);
   };
 
+  const handleEditProductClick = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    setEditingProduct(product);
+    productForm.reset({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+    });
+    setIsProductFormOpen(true);
+  };
+
+  const handleDeleteProductClick = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    setDeletingProduct(product);
+  };
+
+  const confirmDeleteProductAction = () => {
+    if (!deletingProduct) return;
+    setProducts(products => products.filter(p => p.id !== deletingProduct.id));
+    toast({
+      title: "Produto Excluído",
+      description: `"${deletingProduct.name}" foi removido com sucesso.`,
+    });
+    setDeletingProduct(null);
+  };
+
+  const onProductSubmit = (values: ProductFormValues) => {
+    if (!editingProduct) return;
+
+    setProducts(prevProducts =>
+      prevProducts.map(p => {
+        if (p.id === editingProduct.id) {
+          const newPrice = values.price;
+          const oldPrice = p.price;
+          let newPriceHistory = p.priceHistory;
+
+          if (newPrice !== oldPrice) {
+            newPriceHistory = [newPrice, ...p.priceHistory.filter(price => price !== newPrice)];
+          }
+
+          return {
+            ...p,
+            name: values.name,
+            price: newPrice,
+            priceHistory: newPriceHistory,
+          };
+        }
+        return p;
+      })
+    );
+
+    toast({
+      title: "Produto Atualizado",
+      description: `"${values.name}" foi atualizado com sucesso.`
+    });
+    setIsProductFormOpen(false);
+    setEditingProduct(null);
+  };
+
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
       <datalist id="product-datalist">
@@ -475,7 +553,7 @@ ${companyProfile.phone}`;
           <option key={product.id} value={product.name} />
         ))}
       </datalist>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      
         <div className="flex items-center justify-between">
             <h2 className="text-3xl font-bold tracking-tight font-headline">Gerador de Propostas</h2>
         </div>
@@ -483,241 +561,243 @@ ${companyProfile.phone}`;
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
           {/* Coluna Principal (Esquerda) */}
           <div className="lg:col-span-2 space-y-6">
-            <Card>
-                <CardHeader className="flex flex-row items-start justify-between">
-                    <div>
-                        <CardTitle>Nova Proposta Comercial</CardTitle>
-                        <CardDescription>Preencha os dados para gerar uma nova proposta</CardDescription>
-                    </div>
-                     <div className="flex items-center gap-4">
-                        <div className="space-y-1 text-right">
-                            <Label htmlFor="proposalDate">Data de Emissão</Label>
-                            <Controller
-                                control={form.control}
-                                name="proposalDate"
-                                render={({ field }) => (
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant={"outline"}
-                                            className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
-                                        </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
-                                        </PopoverContent>
-                                    </Popover>
-                                )}
-                            />
-                        </div>
-                        <div className="space-y-1 text-right">
-                             <Label htmlFor="validityDate">Data de Validade</Label>
-                             <Controller
-                                control={form.control}
-                                name="validityDate"
-                                render={({ field }) => (
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant={"outline"}
-                                            className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
-                                        </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
-                                        </PopoverContent>
-                                    </Popover>
-                                )}
-                            />
-                        </div>
-                     </div>
+            <form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form" className="space-y-6">
+              <Card>
+                  <CardHeader className="flex flex-row items-start justify-between">
+                      <div>
+                          <CardTitle>Nova Proposta Comercial</CardTitle>
+                          <CardDescription>Preencha os dados para gerar uma nova proposta</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-4">
+                          <div className="space-y-1 text-right">
+                              <Label htmlFor="proposalDate">Data de Emissão</Label>
+                              <Controller
+                                  control={form.control}
+                                  name="proposalDate"
+                                  render={({ field }) => (
+                                      <Popover>
+                                          <PopoverTrigger asChild>
+                                          <Button
+                                              type="button"
+                                              variant={"outline"}
+                                              className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
+                                          >
+                                              <CalendarIcon className="mr-2 h-4 w-4" />
+                                              {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                          </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-auto p-0">
+                                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
+                                          </PopoverContent>
+                                      </Popover>
+                                  )}
+                              />
+                          </div>
+                          <div className="space-y-1 text-right">
+                              <Label htmlFor="validityDate">Data de Validade</Label>
+                              <Controller
+                                  control={form.control}
+                                  name="validityDate"
+                                  render={({ field }) => (
+                                      <Popover>
+                                          <PopoverTrigger asChild>
+                                          <Button
+                                              type="button"
+                                              variant={"outline"}
+                                              className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
+                                          >
+                                              <CalendarIcon className="mr-2 h-4 w-4" />
+                                              {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                          </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-auto p-0">
+                                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
+                                          </PopoverContent>
+                                      </Popover>
+                                  )}
+                              />
+                          </div>
+                      </div>
+                  </CardHeader>
+                  <CardContent className="flex items-center gap-4">
+                      <Building className="h-16 w-16 text-muted-foreground" />
+                      <div>
+                          <h3 className="font-bold text-lg">{companyProfile.name}</h3>
+                          <p className="text-sm text-muted-foreground">{companyProfile.email}</p>
+                          <p className="text-sm text-muted-foreground">{companyProfile.phone}</p>
+                          <p className="text-sm text-muted-foreground">{companyProfile.address}</p>
+                      </div>
+                  </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Dados do Cliente</CardTitle>
+                  <CardDescription>Selecione um cliente existente ou cadastre um novo.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex items-center gap-4">
-                     <Building className="h-16 w-16 text-muted-foreground" />
-                     <div>
-                        <h3 className="font-bold text-lg">{companyProfile.name}</h3>
-                        <p className="text-sm text-muted-foreground">{companyProfile.email}</p>
-                        <p className="text-sm text-muted-foreground">{companyProfile.phone}</p>
-                        <p className="text-sm text-muted-foreground">{companyProfile.address}</p>
-                     </div>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                      <div className="flex-1">
+                          <Label>Selecionar Cliente</Label>
+                          <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
+                          <SelectTrigger>
+                              <SelectValue placeholder="Selecione um cliente existente..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          </SelectContent>
+                          </Select>
+                      </div>
+                      <Button type="button" variant="outline" className="mt-auto" onClick={handleQuickAddClient}>
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Cadastro Rápido
+                      </Button>
+                  </div>
+
+                  {isQuickAddingClient && (
+                      <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20">
+                          <div>
+                              <Label htmlFor="clientName">Nome do Cliente</Label>
+                              <Input id="clientName" {...form.register('clientName')} placeholder="Nome completo ou Razão Social" />
+                              {form.formState.errors.clientName && <p className="text-destructive text-sm mt-1">{form.formState.errors.clientName.message}</p>}
+                          </div>
+                          <div>
+                              <Label htmlFor="clientPhone">Telefone</Label>
+                              <Input id="clientPhone" {...form.register('clientPhone')} placeholder="(00) 00000-0000" />
+                          </div>
+                      </div>
+                  )}
+                  
+                  {form.getValues('clientId') && !isQuickAddingClient && (
+                      <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
+                          <div><span className="font-semibold">Cliente:</span> {form.getValues('clientName')}</div>
+                          <div><span className="font-semibold">Telefone:</span> {form.getValues('clientPhone')}</div>
+                      </div>
+                  )}
+
                 </CardContent>
-            </Card>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados do Cliente</CardTitle>
-                <CardDescription>Selecione um cliente existente ou cadastre um novo.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                 <div className="flex gap-2">
-                    <div className="flex-1">
-                        <Label>Selecionar Cliente</Label>
-                        <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Selecione um cliente existente..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                        </Select>
-                    </div>
-                    <Button type="button" variant="outline" className="mt-auto" onClick={handleQuickAddClient}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Cadastro Rápido
-                    </Button>
-                 </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Itens da Proposta</CardTitle>
+                  <CardDescription>Adicione os produtos ou serviços que fazem parte desta proposta.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50%]">Descrição</TableHead>
+                        <TableHead>Qtd.</TableHead>
+                        <TableHead>Preço Unit.</TableHead>
+                        <TableHead>Subtotal</TableHead>
+                        <TableHead className="text-right">Ação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {fields.map((item, index) => {
+                        const currentItemName = watchItems[index]?.name;
+                        const currentProduct = products.find(p => p.name.toLowerCase() === currentItemName?.toLowerCase());
 
-                {isQuickAddingClient && (
-                    <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20">
-                         <div>
-                            <Label htmlFor="clientName">Nome do Cliente</Label>
-                            <Input id="clientName" {...form.register('clientName')} placeholder="Nome completo ou Razão Social" />
-                            {form.formState.errors.clientName && <p className="text-destructive text-sm mt-1">{form.formState.errors.clientName.message}</p>}
-                        </div>
-                        <div>
-                            <Label htmlFor="clientPhone">Telefone</Label>
-                            <Input id="clientPhone" {...form.register('clientPhone')} placeholder="(00) 00000-0000" />
-                        </div>
-                    </div>
-                )}
-                
-                {form.getValues('clientId') && !isQuickAddingClient && (
-                     <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
-                        <div><span className="font-semibold">Cliente:</span> {form.getValues('clientName')}</div>
-                        <div><span className="font-semibold">Telefone:</span> {form.getValues('clientPhone')}</div>
-                    </div>
-                )}
-
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Itens da Proposta</CardTitle>
-                <CardDescription>Adicione os produtos ou serviços que fazem parte desta proposta.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50%]">Descrição</TableHead>
-                      <TableHead>Qtd.</TableHead>
-                      <TableHead>Preço Unit.</TableHead>
-                      <TableHead>Subtotal</TableHead>
-                      <TableHead className="text-right">Ação</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {fields.map((item, index) => {
-                      const currentItemName = watchItems[index]?.name;
-                      const currentProduct = products.find(p => p.name.toLowerCase() === currentItemName?.toLowerCase());
-
-                      return (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <Textarea
-                            placeholder="Descrição do produto ou serviço"
-                            {...form.register(`items.${index}.name`)}
-                            className="min-h-0 h-10"
-                            list="product-datalist"
-                            onBlur={() => handleItemNameBlur(index)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            {...form.register(`items.${index}.quantity`)}
-                            className="w-20"
-                          />
-                        </TableCell>
-                        <TableCell>
-                           <div className="relative flex items-center">
+                        return (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <Textarea
+                              placeholder="Descrição do produto ou serviço"
+                              {...form.register(`items.${index}.name`)}
+                              className="min-h-0 h-10"
+                              list="product-datalist"
+                              onBlur={() => handleItemNameBlur(index)}
+                            />
+                          </TableCell>
+                          <TableCell>
                             <Input
                               type="number"
-                              step="0.01"
-                              {...form.register(`items.${index}.price`)}
-                              className={cn("w-32", currentProduct && 'pr-8')}
+                              {...form.register(`items.${index}.quantity`)}
+                              className="w-20"
                             />
-                            {currentProduct && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute right-0 h-full w-8 text-muted-foreground hover:bg-transparent"
-                                    aria-label="Ver histórico de preços"
-                                  >
-                                    <History className="h-4 w-4" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto max-w-xs p-2">
-                                  <div className="space-y-1">
-                                    <p className="font-semibold text-sm px-1.5">Histórico de Preços</p>
-                                    <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                                      {currentProduct.priceHistory.length > 0 ? (
-                                        currentProduct.priceHistory.map((price, idx) => (
-                                          <Button
-                                            key={`${price}-${idx}`}
-                                            type="button"
-                                            variant="ghost"
-                                            className="h-auto justify-between p-1.5 text-xs font-normal gap-2"
-                                            onClick={() => {
-                                              form.setValue(`items.${index}.price`, price, { shouldDirty: true });
-                                              form.trigger(`items.${index}.price`);
-                                            }}
-                                          >
-                                            <span>{price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                            {price === currentProduct.price && <Badge variant="secondary">Recente</Badge>}
-                                          </Button>
-                                        ))
-                                      ) : (
-                                        <p className="text-xs text-muted-foreground p-1.5">Nenhum histórico.</p>
-                                      )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="relative flex items-center">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                {...form.register(`items.${index}.price`)}
+                                className={cn("w-32", currentProduct && 'pr-8')}
+                              />
+                              {currentProduct && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="absolute right-0 h-full w-8 text-muted-foreground hover:bg-transparent"
+                                      aria-label="Ver histórico de preços"
+                                    >
+                                      <History className="h-4 w-4" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto max-w-xs p-2">
+                                    <div className="space-y-1">
+                                      <p className="font-semibold text-sm px-1.5">Histórico de Preços</p>
+                                      <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                                        {currentProduct.priceHistory.length > 0 ? (
+                                          currentProduct.priceHistory.map((price, idx) => (
+                                            <Button
+                                              key={`${price}-${idx}`}
+                                              type="button"
+                                              variant="ghost"
+                                              className="h-auto justify-between p-1.5 text-xs font-normal gap-2"
+                                              onClick={() => {
+                                                form.setValue(`items.${index}.price`, price, { shouldDirty: true });
+                                                form.trigger(`items.${index}.price`);
+                                              }}
+                                            >
+                                              <span>{price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                              {price === currentProduct.price && <Badge variant="secondary">Recente</Badge>}
+                                            </Button>
+                                          ))
+                                        ) : (
+                                          <p className="text-xs text-muted-foreground p-1.5">Nenhum histórico.</p>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {((Number(watchItems[index]?.quantity) || 0) * (Number(watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )})}
-                  </TableBody>
-                </Table>
-                 {form.formState.errors.items && (
-                    <p className="text-destructive text-sm mt-2">{form.formState.errors.items.message || form.formState.errors.items.root?.message}</p>
-                 )}
-              </CardContent>
-              <CardFooter className="justify-between">
-                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, price: 0 })}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
-                </Button>
-                <div className="text-right">
-                    <p className="text-muted-foreground">Total da Proposta</p>
-                    <p className="text-2xl font-bold">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                </div>
-              </CardFooter>
-            </Card>
-            <div className="mt-6 flex justify-end">
-                <Button type="submit" size="lg">Salvar Proposta</Button>
-            </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {((Number(watchItems[index]?.quantity) || 0) * (Number(watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )})}
+                    </TableBody>
+                  </Table>
+                  {form.formState.errors.items && (
+                      <p className="text-destructive text-sm mt-2">{form.formState.errors.items.message || form.formState.errors.items.root?.message}</p>
+                  )}
+                </CardContent>
+                <CardFooter className="justify-between">
+                  <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, price: 0 })}>
+                      <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
+                  </Button>
+                  <div className="text-right">
+                      <p className="text-muted-foreground">Total da Proposta</p>
+                      <p className="text-2xl font-bold">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  </div>
+                </CardFooter>
+              </Card>
+              <div className="mt-6 flex justify-end">
+                  <Button type="submit" size="lg" form="proposal-form">Salvar Proposta</Button>
+              </div>
+            </form>
           </div>
 
           {/* Coluna Lateral (Direita) */}
@@ -800,20 +880,40 @@ ${companyProfile.phone}`;
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-72">
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-1 pr-2">
                     {filteredProducts.map(product => (
-                      <Button
-                        type="button"
+                       <div
                         key={product.id}
-                        variant="ghost"
-                        className="h-auto justify-start text-left"
+                        className="group flex cursor-pointer items-center justify-between rounded-md p-2 hover:bg-muted"
                         onClick={() => handleAddProductFromList(product)}
                       >
-                        <div>
-                          <p className="font-semibold text-sm">{product.name}</p>
+                        <div className="flex-1 truncate pr-2">
+                          <p className="font-semibold text-sm truncate">{product.name}</p>
                           <p className="text-xs text-muted-foreground">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                         </div>
-                      </Button>
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => handleEditProductClick(e, product)}
+                            aria-label="Editar produto"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={(e) => handleDeleteProductClick(e, product)}
+                            aria-label="Excluir produto"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     ))}
                      {filteredProducts.length === 0 && (
                         <p className="text-sm text-center text-muted-foreground py-4">Nenhum produto encontrado.</p>
@@ -825,7 +925,6 @@ ${companyProfile.phone}`;
 
           </div>
         </div>
-      </form>
       
       <Card className="mt-6">
         <CardHeader>
@@ -1010,8 +1109,68 @@ ${companyProfile.phone}`;
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={isProductFormOpen} onOpenChange={setIsProductFormOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <Form {...productForm}>
+                <form onSubmit={productForm.handleSubmit(onProductSubmit)}>
+                    <DialogHeader>
+                    <DialogTitle>Editar Produto</DialogTitle>
+                    <DialogDescription>
+                        Altere os dados do produto abaixo. As alterações serão refletidas em futuras propostas.
+                    </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                    <FormField
+                        control={productForm.control}
+                        name="name"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Nome do Produto</FormLabel>
+                            <FormControl>
+                            <Input placeholder="Nome do produto ou serviço" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={productForm.control}
+                        name="price"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Preço</FormLabel>
+                            <FormControl>
+                            <Input type="number" step="0.01" placeholder="0,00" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    </div>
+                    <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsProductFormOpen(false)}>Cancelar</Button>
+                    <Button type="submit">Salvar Alterações</Button>
+                    </DialogFooter>
+                </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={!!deletingProduct} onOpenChange={(open) => !open && setDeletingProduct(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o produto <span className="font-semibold">{deletingProduct?.name}</span>.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={confirmDeleteProductAction}>Confirmar Exclusão</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }
-
-    
