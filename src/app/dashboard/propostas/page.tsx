@@ -157,12 +157,10 @@ export default function PropostasPage() {
   const { watch } = form;
   const watchItems = watch('items');
 
-  const total = useMemo(() => {
-    return (watchItems || []).reduce(
-      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-      0
-    );
-  }, [watchItems]);
+  const total = (watchItems || []).reduce(
+    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+    0
+  );
 
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
@@ -430,25 +428,27 @@ ${companyProfile.phone}`;
     });
 
     setProducts(prevProducts => {
-        const updatedProducts = [...prevProducts];
-
-        data.items.forEach(item => {
-            const productIndex = updatedProducts.findIndex(p => p.name.toLowerCase() === item.name.toLowerCase());
-            
-            if (productIndex !== -1) {
-                const product = updatedProducts[productIndex];
-                const newPrice = Number(item.price);
-
-                product.price = newPrice;
-
-                const priceIndexInHistory = product.priceHistory.indexOf(newPrice);
-                if (priceIndexInHistory > -1) {
-                    product.priceHistory.splice(priceIndexInHistory, 1);
-                }
-                product.priceHistory.unshift(newPrice);
-            }
-        });
-        return updatedProducts;
+      const proposalItemsMap = new Map(data.items.map(item => [item.name.toLowerCase(), Number(item.price)]));
+  
+      return prevProducts.map(product => {
+          const lowerCaseName = product.name.toLowerCase();
+          if (proposalItemsMap.has(lowerCaseName)) {
+              const newPrice = proposalItemsMap.get(lowerCaseName)!;
+  
+              if (product.price === newPrice) {
+                  return product;
+              }
+  
+              const updatedPriceHistory = [newPrice, ...product.priceHistory.filter(p => p !== newPrice)];
+  
+              return {
+                  ...product,
+                  price: newPrice,
+                  priceHistory: updatedPriceHistory,
+              };
+          }
+          return product;
+      });
     });
 
     form.reset({
@@ -749,7 +749,7 @@ ${companyProfile.phone}`;
                             <SelectContent>
                             {[...Array(6)].map((_, i) => (
                                 <SelectItem key={i + 1} value={String(i + 1)}>
-                                {i + 1}x de { (total / (i + 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
+                                {i + 1}x de { (total / (i + 1) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
                                 </SelectItem>
                             ))}
                             </SelectContent>
@@ -772,15 +772,15 @@ ${companyProfile.phone}`;
                 <p className="font-bold text-lg">Resumo</p>
                 <div className="w-full text-sm space-y-1">
                     <div className="flex justify-between"><span>Valor Total:</span> <span className="font-medium">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                    <div className="flex justify-between"><span>Parcelas:</span> <span className="font-medium">{watchInstallments}x de { (total / watchInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</span></div>
+                    <div className="flex justify-between"><span>Parcelas:</span> <span className="font-medium">{watchInstallments}x de { (total / watchInstallments || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</span></div>
                     <div className="flex justify-between"><span>Entrada:</span> <span className="font-medium">{watchFirstAsDownPayment ? 'Sim' : 'Não'}</span></div>
                 </div>
               </CardFooter>
             </Card>
+            <div className="mt-6 flex justify-end">
+                <Button type="submit" size="lg">Salvar Proposta</Button>
+            </div>
           </div>
-        </div>
-        <div className="mt-6 flex justify-end">
-            <Button type="submit" size="lg">Salvar Proposta</Button>
         </div>
       </form>
       
