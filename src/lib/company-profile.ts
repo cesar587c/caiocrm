@@ -3,6 +3,7 @@ export type CompanyProfile = {
   email: string;
   phone: string;
   address: string;
+  logoUrl?: string;
 };
 
 export const companyProfile: CompanyProfile = {
@@ -10,4 +11,5 @@ export const companyProfile: CompanyProfile = {
   email: "contato@suaempresa.com",
   phone: "(XX) XXXX-XXXX",
   address: "Sua Rua, 123, Sua Cidade - UF",
+  logoUrl: "https://picsum.photos/seed/logo/150/50",
 };

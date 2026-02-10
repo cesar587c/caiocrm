@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -24,6 +24,7 @@ const formSchema = z.object({
   email: z.string().email('E-mail inválido.'),
   phone: z.string().min(1, 'O telefone é obrigatório.'),
   address: z.string().min(1, 'O endereço é obrigatório.'),
+  logoUrl: z.string().url({ message: "Por favor, insira uma URL válida." }).or(z.literal("")).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -125,6 +126,22 @@ export default function ConfiguracoesPage() {
                     <FormControl>
                        <Textarea placeholder="Rua, número, cidade - UF" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="logoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL do Logo</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://suaempresa.com/logo.png" {...(field as any)} />
+                    </FormControl>
+                     <FormDescription>
+                        Insira a URL completa da imagem do seu logo.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

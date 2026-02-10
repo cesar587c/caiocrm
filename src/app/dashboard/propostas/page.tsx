@@ -535,16 +535,20 @@ ${companyProfile.phone}`;
 
     } else {
       // Create new proposal
+      const newId = savedProposals.length > 0
+        ? Math.max(0, ...savedProposals.map(p => Number(p.id))) + 1
+        : 1;
+
       const newProposalData: Proposal = {
         ...data,
-        id: `PROP-${String(Date.now()).slice(-5)}`,
+        id: String(newId),
         total: currentTotal,
       };
       setSavedProposals(prev => [newProposalData, ...prev]);
 
       toast({
         title: 'Proposta Salva!',
-        description: 'A proposta foi salva com sucesso e adicionada à lista abaixo.',
+        description: `A proposta #${newId} foi salva com sucesso e adicionada à lista abaixo.`,
       });
     }
 
@@ -1092,7 +1096,7 @@ ${companyProfile.phone}`;
                         <div className="flex justify-between items-start mb-8">
                             <div>
                                 <h1 className="text-2xl font-bold">{companyProfile.name}</h1>
-                                <img src="https://picsum.photos/seed/logo/150/50" alt="Logo" data-ai-hint="logo" className="mt-2" />
+                                { companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" data-ai-hint="logo" className="mt-2 max-h-12 w-auto" /> }
                             </div>
                             <div className="text-right text-sm">
                                 <p>{companyProfile.address}</p>
@@ -1103,7 +1107,7 @@ ${companyProfile.phone}`;
                         
                         <hr className="my-8 border-gray-300" />
 
-                        <h2 className="text-xl font-bold mb-4">Proposta Comercial #{selectedProposal.id}</h2>
+                        <h2 className="text-xl font-bold mb-4">Proposta Comercial {selectedProposal.id}</h2>
                         
                         <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
                         <div>
