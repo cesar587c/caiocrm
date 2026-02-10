@@ -6,8 +6,8 @@ export type CompanyProfile = {
 };
 
 export const companyProfile: CompanyProfile = {
-  name: "VendasPro Soluções",
-  email: "contato@vendaspro.com.br",
-  phone: "(11) 1234-5678",
-  address: "Rua das Inovações, 123, São Paulo - SP",
+  name: "Sua Empresa de CRM",
+  email: "contato@suaempresa.com",
+  phone: "(XX) XXXX-XXXX",
+  address: "Sua Rua, 123, Sua Cidade - UF",
 };

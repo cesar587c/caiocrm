@@ -57,7 +57,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
-import { companyProfile } from '@/lib/company-profile';
+import { useSettings } from '@/contexts/SettingsContext';
 import { ToastAction } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -116,6 +116,7 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 
 
 export default function PropostasPage() {
+  const { companyProfile } = useSettings();
   const { toast } = useToast();
   const [customers, setCustomers] = useState(initialCustomers);
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -168,10 +169,13 @@ export default function PropostasPage() {
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
-  const total = (watchItems || []).reduce(
-    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-    0
-  );
+  const total = useMemo(() => {
+    return (watchItems || []).reduce(
+      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+      0
+    );
+  }, [watchItems]);
+
 
   const filteredProducts = useMemo(() => {
     if (!productSearch) {
@@ -480,27 +484,31 @@ ${companyProfile.phone}`;
   };
 
   const onSubmit = (data: ProposalFormValues) => {
+    const currentTotal = data.items.reduce(
+        (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+        0
+    );
+    
     // Shared logic for product price updates
     setProducts(prevProducts => {
-      const updatedProducts = [...prevProducts];
-      const proposalItemsMap = new Map(data.items.map(item => [item.name.toLowerCase(), Number(item.price)]));
+      const updatedProductsMap = new Map(prevProducts.map(p => [p.name.toLowerCase(), p]));
+      
+      data.items.forEach(item => {
+        const lowerCaseName = item.name.toLowerCase();
+        const newPrice = Number(item.price);
+        const existingProduct = updatedProductsMap.get(lowerCaseName);
 
-      updatedProducts.forEach((product, index) => {
-        const lowerCaseName = product.name.toLowerCase();
-        if (proposalItemsMap.has(lowerCaseName)) {
-          const newPrice = proposalItemsMap.get(lowerCaseName)!;
-
-          if (product.price !== newPrice) {
-            const updatedPriceHistory = [newPrice, ...product.priceHistory.filter(p => p !== newPrice)];
-            updatedProducts[index] = {
-              ...product,
-              price: newPrice,
-              priceHistory: updatedPriceHistory,
-            };
-          }
+        if (existingProduct && existingProduct.price !== newPrice) {
+          const updatedPriceHistory = [newPrice, ...existingProduct.priceHistory.filter(p => p !== newPrice)];
+          updatedProductsMap.set(lowerCaseName, {
+            ...existingProduct,
+            price: newPrice,
+            priceHistory: updatedPriceHistory,
+          });
         }
       });
-      return updatedProducts;
+      
+      return Array.from(updatedProductsMap.values());
     });
 
     if (editingProposal) {
@@ -518,7 +526,7 @@ ${companyProfile.phone}`;
         installments: data.installments,
         firstAsDownPayment: data.firstAsDownPayment,
         // Recalculate
-        total: total,
+        total: currentTotal,
       };
 
       setSavedProposals(prev => prev.map(p => p.id === editingProposal.id ? updatedProposal : p));
@@ -532,7 +540,7 @@ ${companyProfile.phone}`;
       const newProposalData: Proposal = {
         ...data,
         id: `PROP-${String(Date.now()).slice(-5)}`,
-        total: total,
+        total: currentTotal,
       };
       setSavedProposals(prev => [newProposalData, ...prev]);
 

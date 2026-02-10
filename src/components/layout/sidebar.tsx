@@ -44,6 +44,7 @@ import {
   ChevronDown,
   BrainCircuit,
   View,
+  Settings,
 } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -55,6 +56,7 @@ const menuItems = [
   { href: "/dashboard/agenda", label: "Agenda", icon: Calendar },
   { href: "/dashboard/chamados", label: "Chamados", icon: BookUser },
   { href: "/dashboard/relatorios", label: "Relatórios", icon: LineChart },
+  { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
   { href: "/dashboard/usuarios", label: "Usuários", icon: UserCog },
 ];
 
