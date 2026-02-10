@@ -157,10 +157,12 @@ export default function PropostasPage() {
   const { watch } = form;
   const watchItems = watch('items');
 
-  const total = (watchItems || []).reduce(
-    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-    0
-  );
+  const total = useMemo(() => {
+    return (watchItems || []).reduce(
+      (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+      0
+    );
+  }, [watchItems]);
 
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
@@ -473,7 +475,6 @@ ${companyProfile.phone}`;
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <div className="flex items-center justify-between">
             <h2 className="text-3xl font-bold tracking-tight font-headline">Gerador de Propostas</h2>
-            <Button type="submit">Salvar Proposta</Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
@@ -777,6 +778,9 @@ ${companyProfile.phone}`;
               </CardFooter>
             </Card>
           </div>
+        </div>
+        <div className="mt-6 flex justify-end">
+            <Button type="submit" size="lg">Salvar Proposta</Button>
         </div>
       </form>
       
