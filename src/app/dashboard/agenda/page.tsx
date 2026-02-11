@@ -76,6 +76,7 @@ export default function AgendaPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [reschedulingAppointment, setReschedulingAppointment] = useState<Appointment | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -175,17 +176,42 @@ export default function AgendaPage() {
 
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
-    form.reset({
-      date: day,
-      clientName: '',
-      address: '',
-      phone: '',
-      contact: '',
-      time: '',
-      assignedTo: '',
-      summary: '',
-    });
-    setEditingAppointment(null);
+    
+    if (reschedulingAppointment) {
+        let assignedToValue = reschedulingAppointment.assignedTo;
+        if (assignedToValue && !assignedToValue.includes(':')) {
+            const sector = sectors.find(s => s.name === assignedToValue);
+            if (sector) {
+                assignedToValue = `sector:${sector.id}`;
+            }
+        }
+        
+        form.reset({
+          date: day,
+          clientName: reschedulingAppointment.clientName,
+          address: reschedulingAppointment.address,
+          phone: reschedulingAppointment.phone || '',
+          contact: reschedulingAppointment.contact,
+          time: reschedulingAppointment.time,
+          assignedTo: assignedToValue,
+          summary: reschedulingAppointment.summary || '',
+        });
+        setEditingAppointment(reschedulingAppointment);
+        setReschedulingAppointment(null);
+    } else {
+        form.reset({
+          date: day,
+          clientName: '',
+          address: '',
+          phone: '',
+          contact: '',
+          time: '',
+          assignedTo: '',
+          summary: '',
+        });
+        setEditingAppointment(null);
+    }
+
     setSelectedAppointment(null);
     setIsModalOpen(true);
   };
@@ -241,6 +267,7 @@ export default function AgendaPage() {
   const handleCancelEdit = () => {
     setEditingAppointment(null);
     setSelectedAppointment(null);
+    setReschedulingAppointment(null);
     form.reset({
       date: selectedDate,
       clientName: '',
@@ -572,7 +599,13 @@ export default function AgendaPage() {
                                     type="button"
                                     variant={"outline"}
                                     className="w-full justify-start text-left font-normal mt-2"
-                                    onClick={() => setIsModalOpen(false)}
+                                    onClick={() => {
+                                        if (editingAppointment) {
+                                            setReschedulingAppointment(editingAppointment);
+                                            setEditingAppointment(null);
+                                        }
+                                        setIsModalOpen(false);
+                                    }}
                                 >
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {format(parse(editingAppointment.date, 'yyyy-MM-dd', new Date()), "PPP", { locale: ptBR })}
