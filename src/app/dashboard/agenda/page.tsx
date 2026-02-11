@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { add, format, isSameDay, parse, startOfDay, getMonth, startOfMonth, isToday } from 'date-fns';
+import { add, format, isSameDay, startOfDay, getMonth, startOfMonth, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   BellRing,
@@ -23,9 +23,9 @@ import {
   Filter,
 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { DayContentProps } from 'react-day-picker';
+import { DayContentProps, DayPicker } from 'react-day-picker';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Card,
@@ -77,7 +77,7 @@ import { Badge } from '@/components/ui/badge';
 import { useSettings } from '@/contexts/SettingsContext';
 import { ToastAction } from '@/components/ui/toast';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { buttonVariants } from '@/components/ui/button';
+
 
 const eventTypes = {
   pagamento: { label: 'Pagamento', className: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200' },
@@ -327,7 +327,7 @@ export default function AgendaPage() {
   };
   
   const formatWeekdayName = (day: Date) => {
-    return format(day, "cccc", { locale: ptBR }).replace('-feira', '');
+    return format(day, "EEEE", { locale: ptBR }).split('-')[0];
   };
 
 
@@ -338,17 +338,19 @@ export default function AgendaPage() {
             .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
     }, [props.date, events, visibleEventTypes]);
     
-    const { date, displayMonth } = props;
-    const isOutside = getMonth(date) !== getMonth(displayMonth);
+    const { date, modifiers } = props;
+    const isOutside = modifiers.outside;
     const isTodayDate = isToday(date);
+    const isSelected = modifiers.selected;
 
     return (
-        <div className={cn("h-full w-full flex flex-col", isOutside && "opacity-40")}>
+        <div className={cn("h-full w-full flex flex-col p-1.5", isOutside && "text-muted-foreground/50")}>
             <div className={cn(
-                "self-end text-sm w-7 h-7 flex items-center justify-center rounded-lg",
-                isTodayDate && "bg-muted font-bold",
+                "self-end text-sm w-7 h-7 flex items-center justify-center rounded-full",
+                isTodayDate && !isSelected && "bg-accent text-accent-foreground",
+                isSelected && "bg-primary text-primary-foreground font-semibold",
             )}>
-                {format(props.date, 'd')}
+                {format(date, 'd')}
             </div>
             <div className="flex-grow space-y-1 overflow-hidden mt-1 text-left">
                 {dayEvents.slice(0, 2).map(evt => (
@@ -436,27 +438,28 @@ export default function AgendaPage() {
               onMonthChange={setCurrentMonth}
               locale={ptBR}
               today={today}
+              fixedWeeks
               formatters={{ formatWeekdayName }}
               components={{ DayContent: CustomDayContent }}
               classNames={{
                   root: 'flex-1 flex flex-col',
                   months: "flex flex-col flex-1",
-                  month: "flex flex-col flex-1 space-y-0",
-                  caption: "flex justify-center items-center relative p-4",
-                  caption_label: "text-lg font-bold uppercase",
+                  month: "flex flex-col flex-1 space-y-4",
+                  caption: "flex justify-center items-center relative px-4 pt-4 pb-2",
+                  caption_label: "text-xl font-bold capitalize",
                   nav: 'space-x-1 flex items-center',
-                  nav_button: cn(buttonVariants({ variant: 'outline' }), 'h-7 w-7 bg-transparent p-0'),
-                  nav_button_previous: 'absolute left-4',
-                  nav_button_next: 'absolute right-4',
-                  head_row: "flex w-full mt-2",
-                  head_cell: "text-muted-foreground w-full font-normal text-sm text-center",
+                  nav_button: cn(buttonVariants({ variant: 'outline' }), 'h-8 w-8 bg-transparent p-0'),
+                  nav_button_previous: 'absolute left-4 top-4',
+                  nav_button_next: 'absolute right-4 top-4',
+                  head_row: "grid grid-cols-7 w-full",
+                  head_cell: "text-muted-foreground capitalize font-medium text-sm text-center py-2",
                   body: "grid grid-cols-7 flex-1 border-t border-l",
                   row: "contents",
                   cell: "h-32 text-sm p-0 relative border-r border-b focus-within:relative focus-within:z-20",
-                  day: "h-full w-full p-1 rounded-none focus-visible:outline-none",
+                  day: "h-full w-full p-0 rounded-none focus-visible:outline-none focus:ring-1 focus:ring-ring focus:z-10",
                   day_selected: "bg-primary/10",
                   day_today: "",
-                  day_outside: "",
+                  day_outside: "pointer-events-none",
               }}
             />
           ) : (
@@ -759,5 +762,3 @@ export default function AgendaPage() {
     </>
   );
 }
-
-    
