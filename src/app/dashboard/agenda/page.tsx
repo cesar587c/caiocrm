@@ -327,18 +327,12 @@ export default function AgendaPage() {
             .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
     }, [props.date, appointments, visibleEventTypes]);
     
-    const { date, displayMonth, modifiers } = props;
+    const { date, displayMonth } = props;
     const isOutside = getMonth(date) !== getMonth(displayMonth);
-    const dayIsToday = !!modifiers.today;
-    const dayIsSelected = selectedDate ? isSameDay(date, selectedDate) : false;
 
     return (
-        <div className={cn("h-full w-full p-1 flex flex-col relative", isOutside && "opacity-40", dayIsToday && !dayIsSelected && "bg-accent/20")}>
-            <div className={cn(
-                "ml-auto text-sm h-6 w-6 flex items-center justify-center font-bold",
-                 dayIsSelected && "bg-primary text-primary-foreground rounded-full",
-                 !dayIsSelected && dayIsToday && "text-primary"
-            )}>
+        <div className={cn("h-full w-full p-2 flex flex-col relative", isOutside && "opacity-40")}>
+            <div className="text-sm font-semibold text-right">
                 {format(props.date, 'd')}
             </div>
             <div className="w-full flex-grow space-y-1 overflow-hidden mt-1 text-left">
@@ -350,7 +344,7 @@ export default function AgendaPage() {
                             handleOpenForm(appt);
                         }}
                         className={cn(
-                          "text-xs rounded-md border px-1.5 py-0.5 truncate cursor-pointer",
+                          "text-xs rounded-lg border-l-4 px-1.5 py-1 truncate cursor-pointer",
                           eventTypes[appt.eventType]?.className,
                           appt.status === 'completed' && 'bg-muted/80 line-through text-muted-foreground border-transparent'
                         )}
@@ -424,20 +418,20 @@ export default function AgendaPage() {
               today={today}
               formatters={{ formatWeekdayName }}
               components={{ DayContent: CustomDayContent }}
-              className="border"
               classNames={{
+                  root: 'flex-1 flex flex-col',
                   months: "flex flex-col flex-1",
-                  month: "flex flex-col flex-1",
-                  caption: "flex justify-center items-center relative p-4 border-b",
-                  caption_label: "text-lg font-bold",
-                  head_row: "flex w-full divide-x divide-border",
-                  head_cell: "text-muted-foreground font-normal text-xs md:text-sm flex-1 text-center border-b p-2 capitalize",
-                  body: "grid grid-cols-7 flex-1 divide-x divide-border",
+                  month: "flex flex-col flex-1 space-y-0",
+                  caption: "flex justify-center items-center relative p-4",
+                  caption_label: "text-xl font-bold",
+                  head_row: "flex w-full border-b",
+                  head_cell: "text-muted-foreground font-medium text-sm flex-1 text-center pb-2 capitalize",
+                  body: "grid grid-cols-7 flex-1",
                   row: "contents",
-                  cell: "text-sm p-0 relative border-b focus-within:relative focus-within:z-20",
+                  cell: "text-sm p-0 relative border-r border-b focus-within:relative focus-within:z-20",
                   day: "h-full w-full p-0 rounded-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  day_selected: "bg-transparent",
-                  day_today: "",
+                  day_selected: "bg-primary/20 text-primary-foreground",
+                  day_today: "bg-accent text-accent-foreground",
                   day_outside: "",
               }}
             />
@@ -728,5 +722,7 @@ export default function AgendaPage() {
     </>
   );
 }
+
+    
 
     
