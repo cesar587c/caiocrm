@@ -23,7 +23,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { DayContentProps, useDayPicker } from 'react-day-picker';
+import { DayContentProps } from 'react-day-picker';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -411,7 +411,15 @@ export default function AgendaPage() {
             <Calendar
               mode="single"
               selected={selectedDate}
-              onSelect={setSelectedDate}
+              onSelect={(day) => {
+                if (day) {
+                    setSelectedDate(day);
+                    const dayAppointments = appointments.filter((appt) => isSameDay(appt.dateTime, day));
+                    if (dayAppointments.length === 0) {
+                        handleOpenForm(null);
+                    }
+                }
+              }}
               month={currentMonth}
               onMonthChange={setCurrentMonth}
               locale={ptBR}
@@ -722,7 +730,5 @@ export default function AgendaPage() {
     </>
   );
 }
-
-    
 
     
