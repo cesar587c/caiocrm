@@ -16,9 +16,10 @@ import {
   isSameMonth,
   isToday,
   isSameDay,
+  parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -55,21 +56,9 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Badge } from '@/components/ui/badge';
+import type { Appointment } from '@/lib/types';
 
-
-// Define the structure for a single appointment
-type Appointment = {
-  id: string;
-  time: string;
-  clientName: string;
-  address: string;
-  phone?: string;
-  contact: string;
-  assignedTo: string;
-  summary?: string;
-};
-
-// Define the schema for the appointment form using Zod
 const appointmentSchema = z.object({
   date: z.date({ required_error: 'A data é obrigatória.' }),
   time: z.string().min(1, 'O horário é obrigatório.'),
@@ -88,22 +77,29 @@ export default function AgendaPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
-  const [originalAppointmentDate, setOriginalAppointmentDate] = useState<Date | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  
   const [reminderStep, setReminderStep] = useState<'idle' | 'client' | 'internal'>('idle');
   const [appointmentForReminders, setAppointmentForReminders] = useState<Appointment | null>(null);
 
+  const [isJustificationDialogOpen, setIsJustificationDialogOpen] = useState(false);
+  const [appointmentToProcess, setAppointmentToProcess] = useState<Appointment | null>(null);
+  const [justification, setJustification] = useState('');
 
-  const [appointments, setAppointments] = useState<Record<string, Appointment[]>>({
-    [format(new Date(), 'yyyy-MM-dd')]: [
-        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana', assignedTo: 'user:user_1', summary: 'Reunião inicial para discutir o novo projeto do website.' },
-    ]
-  });
   const { toast } = useToast();
-  const { companyProfile, sectors, users } = useSettings();
+  const { companyProfile, sectors, users, appointments, addAppointment, updateAppointment, deleteAppointment } = useSettings();
+
+  const appointmentsByDate = useMemo(() => {
+    return appointments.reduce((acc, app) => {
+        const dateKey = app.date;
+        if (!acc[dateKey]) {
+            acc[dateKey] = [];
+        }
+        acc[dateKey].push(app);
+        return acc;
+    }, {} as Record<string, Appointment[]>);
+  }, [appointments]);
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
@@ -136,7 +132,6 @@ export default function AgendaPage() {
         const sector = sectors.find(s => s.id === id);
         return { type: 'sector', name: sector?.name || 'Setor' };
     }
-    // Fallback for old data
     const sector = sectors.find(s => s.name === appointmentForReminders.assignedTo);
     return { type: 'sector', name: sector?.name || appointmentForReminders.assignedTo };
   }, [appointmentForReminders, users, sectors]);
@@ -152,8 +147,16 @@ export default function AgendaPage() {
         const sector = sectors.find(s => s.id === id);
         return `Setor: ${sector?.name || 'Setor não encontrado'}`;
     }
-    return assignedToStr; // Fallback for old data
+    return assignedToStr;
   };
+
+  const getStatusBadge = (status: Appointment['status']) => {
+    switch(status) {
+        case 'completed': return <Badge variant="secondary" className="bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30"><CheckCircle2 className="h-3 w-3 mr-1" />Concluído</Badge>;
+        case 'missed': return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Não Compareceu</Badge>;
+        default: return <Badge variant="outline"><CalendarClock className="h-3 w-3 mr-1" />Agendado</Badge>;
+    }
+  }
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
@@ -196,10 +199,8 @@ export default function AgendaPage() {
 
   const handleEditClick = (appointment: Appointment, day: Date) => {
     setEditingAppointment(appointment);
-    setOriginalAppointmentDate(day);
-
+    
     let assignedToValue = appointment.assignedTo;
-    // Convert old data format (sector name) to new format (sector:id)
     if (assignedToValue && !assignedToValue.includes(':')) {
         const sector = sectors.find(s => s.name === assignedToValue);
         if (sector) {
@@ -208,7 +209,7 @@ export default function AgendaPage() {
     }
 
     form.reset({
-      date: day,
+      date: parse(appointment.date, 'yyyy-MM-dd', new Date()),
       clientName: appointment.clientName,
       address: appointment.address,
       phone: appointment.phone || '',
@@ -227,11 +228,7 @@ export default function AgendaPage() {
   const confirmDelete = () => {
     if (!appointmentToDelete) return;
     
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    setAppointments(prev => ({
-        ...prev,
-        [dateKey]: prev[dateKey].filter(app => app.id !== appointmentToDelete.id),
-    }));
+    deleteAppointment(appointmentToDelete.id);
 
     toast({
         title: "Agendamento Excluído!",
@@ -244,7 +241,6 @@ export default function AgendaPage() {
 
   const handleCancelEdit = () => {
     setEditingAppointment(null);
-    setOriginalAppointmentDate(null);
     setSelectedAppointment(null);
     form.reset({
       date: selectedDate,
@@ -262,7 +258,7 @@ export default function AgendaPage() {
     if (!appointmentForReminders) return;
 
     const { clientName, time, phone, contact } = appointmentForReminders;
-    const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
+    const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
 
     const template = companyProfile.whatsappReminderMessage || "Olá, {cliente}! 👋\n\nEste é um lembrete do seu agendamento com a {empresa} no dia {data} às {hora}.\n\nAté breve!";
     const message = template
@@ -295,7 +291,7 @@ export default function AgendaPage() {
     if (!appointmentForReminders) return;
 
     const { clientName, time, assignedTo, summary } = appointmentForReminders;
-    const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
+    const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
     
     const [type, id] = assignedTo.split(':');
     let targetName = '';
@@ -328,13 +324,13 @@ export default function AgendaPage() {
             });
         }
         toastDescription = `A mensagem para ${targetName} está pronta para ser enviada.`;
-    } else { // 'sector' or fallback
+    } else {
         let sectorName = '';
         if (type === 'sector') {
             const sector = sectors.find(s => s.id === id);
             sectorName = sector?.name || 'Setor';
         } else {
-            sectorName = assignedTo; // Fallback for old data format
+            sectorName = assignedTo;
         }
         targetName = `Setor ${sectorName}`;
         message = `*Lembrete de Agendamento para o Setor*\n\nUma visita foi agendada para o setor *${sectorName}*.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
@@ -358,76 +354,65 @@ export default function AgendaPage() {
     setReminderStep('idle');
   };
 
-  function onSubmit(values: AppointmentFormValues) {
-    const newDateKey = format(values.date, 'yyyy-MM-dd');
-    let savedAppointment: Appointment;
+  const handleMarkAsCompleted = () => {
+    if (!selectedAppointment) return;
+    updateAppointment({ ...selectedAppointment, status: 'completed' });
+    toast({ title: "Agendamento Concluído!", description: `O compromisso com ${selectedAppointment.clientName} foi marcado como concluído.` });
+    setSelectedAppointment(null);
+  }
+
+  const handleOpenJustificationDialog = () => {
+    if (!selectedAppointment) return;
+    setAppointmentToProcess(selectedAppointment);
+    setIsJustificationDialogOpen(true);
+  }
+  
+  const handleConfirmMissed = () => {
+    if (!appointmentToProcess || !justification.trim()) {
+        toast({ variant: 'destructive', title: 'Justificativa é obrigatória.'});
+        return;
+    }
+    updateAppointment({ ...appointmentToProcess, status: 'missed', justification: justification.trim() });
+    toast({ variant: 'destructive', title: "Agendamento Não Realizado", description: `O compromisso com ${appointmentToProcess.clientName} foi marcado como não comparecido.` });
     
-    if (editingAppointment && originalAppointmentDate) {
-        const originalDateKey = format(originalAppointmentDate, 'yyyy-MM-dd');
-        
+    setIsJustificationDialogOpen(false);
+    setAppointmentToProcess(null);
+    setJustification('');
+    setSelectedAppointment(null);
+  }
+
+  function onSubmit(values: AppointmentFormValues) {
+    const dateKey = format(values.date, 'yyyy-MM-dd');
+    const appointmentData = {
+        date: dateKey,
+        time: values.time,
+        clientName: values.clientName,
+        address: values.address,
+        phone: values.phone,
+        contact: values.contact,
+        assignedTo: values.assignedTo,
+        summary: values.summary,
+    };
+    
+    if (editingAppointment) {
         const updatedAppointment: Appointment = {
             id: editingAppointment.id,
-            time: values.time,
-            clientName: values.clientName,
-            address: values.address,
-            phone: values.phone,
-            contact: values.contact,
-            assignedTo: values.assignedTo,
-            summary: values.summary,
+            status: editingAppointment.status,
+            ...appointmentData
         };
-        savedAppointment = updatedAppointment;
-
-        setAppointments(prev => {
-            const newAppointments = { ...prev };
-
-            // Remove from original date if date changed
-            if (originalDateKey !== newDateKey) {
-                newAppointments[originalDateKey] = newAppointments[originalDateKey].filter(app => app.id !== editingAppointment.id);
-                if (newAppointments[originalDateKey].length === 0) {
-                    delete newAppointments[originalDateKey];
-                }
-            }
-
-            // Add/Update to new date
-            const dayAppointments = newAppointments[newDateKey] ? [...newAppointments[newDateKey]] : [];
-            const existingIndex = dayAppointments.findIndex(app => app.id === editingAppointment.id);
-            
-            if (existingIndex > -1) {
-                dayAppointments[existingIndex] = updatedAppointment;
-            } else {
-                dayAppointments.push(updatedAppointment);
-            }
-
-            dayAppointments.sort((a, b) => a.time.localeCompare(b.time));
-            newAppointments[newDateKey] = dayAppointments;
-
-            return newAppointments;
-        });
+        updateAppointment(updatedAppointment);
+        setAppointmentForReminders(updatedAppointment);
         toast({
             title: 'Agendamento Atualizado!',
             description: `Visita para ${values.clientName} atualizada.`,
         });
     } else {
-        // Create new appointment
-        const dateKey = format(values.date, 'yyyy-MM-dd');
-        const newAppointment: Appointment = {
-            id: new Date().toISOString(),
-            time: values.time,
-            clientName: values.clientName,
-            address: values.address,
-            phone: values.phone,
-            contact: values.contact,
-            assignedTo: values.assignedTo,
-            summary: values.summary,
-        };
-        savedAppointment = newAppointment;
-
-        setAppointments(prev => {
-            const dayAppointments = prev[dateKey] ? [...prev[dateKey], newAppointment] : [newAppointment];
-            dayAppointments.sort((a, b) => a.time.localeCompare(b.time));
-            return { ...prev, [dateKey]: dayAppointments };
-        });
-
+        const newAppointmentData = {
+          ...appointmentData,
+          status: 'scheduled' as const,
+        }
+        addAppointment(newAppointmentData);
+        setAppointmentForReminders({ id: 'temp', ...newAppointmentData}); // Use temp id for reminder flow
         toast({
             title: 'Agendamento Criado!',
             description: `Visita para ${values.clientName} agendada para as ${values.time}.`,
@@ -435,23 +420,19 @@ export default function AgendaPage() {
     }
 
     setEditingAppointment(null);
-    setOriginalAppointmentDate(null);
     setSelectedAppointment(null);
-    setIsModalOpen(false); // Close dialog on submit
-    
-    setAppointmentForReminders(savedAppointment);
+    setIsModalOpen(false);
     setReminderStep('client');
   }
 
   const selectedDayAppointments = useMemo(() => {
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    return appointments[dateKey] || [];
-  }, [selectedDate, appointments]);
+    return (appointmentsByDate[dateKey] || []).sort((a, b) => a.time.localeCompare(b.time));
+  }, [selectedDate, appointmentsByDate]);
 
   return (
     <>
       <div className="flex h-full flex-col bg-card shadow-xl rounded-2xl p-6 text-card-foreground">
-          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold capitalize text-foreground">
@@ -469,19 +450,16 @@ export default function AgendaPage() {
             </div>
           </div>
 
-          {/* Calendar Grid */}
           <div className="grid flex-1 grid-cols-7 text-center">
-            {/* Weekdays */}
             {weekdays.map((day, i) => (
               <div key={i} className="flex items-center justify-center text-sm font-medium text-muted-foreground py-2 border-b">
                 {day}
               </div>
             ))}
 
-            {/* Days */}
             {days.map((day) => {
               const dayKey = format(day, 'yyyy-MM-dd');
-              const dayEvents = appointments[dayKey] || [];
+              const dayEvents = appointmentsByDate[dayKey] || [];
               return (
                 <div
                   key={day.toString()}
@@ -532,7 +510,6 @@ export default function AgendaPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid flex-1 grid-cols-1 md:grid-cols-2 gap-6 py-4 overflow-y-auto">
-            {/* Existing Appointments */}
             <div className="space-y-4">
                  <h3 className="font-semibold text-lg text-foreground">Compromissos Agendados</h3>
                  <ScrollArea className="h-full pr-4">
@@ -558,11 +535,13 @@ export default function AgendaPage() {
                                             {app.time}
                                         </div>
                                     </div>
+                                    <div className="flex items-center gap-2">{getStatusBadge(app.status)}</div>
                                     <p className="text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>{app.address}</p>
                                     <p className="text-muted-foreground flex items-center gap-2"><User className="h-4 w-4"/>{app.contact}</p>
                                     <p className="text-muted-foreground flex items-center gap-2"><Briefcase className="h-4 w-4"/>{getAssignedToName(app.assignedTo)}</p>
                                     {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
                                     {app.summary && <p className="text-muted-foreground flex items-start gap-2 pt-2"><ClipboardList className="h-4 w-4 mt-0.5 shrink-0"/>{app.summary}</p>}
+                                    {app.status === 'missed' && app.justification && <p className="text-destructive/80 flex items-start gap-2 pt-2 border-t border-destructive/20 mt-2"><Info className="h-4 w-4 mt-0.5 shrink-0"/>{app.justification}</p>}
 
                                     <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditClick(app, selectedDate); }}>
@@ -583,7 +562,6 @@ export default function AgendaPage() {
                     )}
                  </ScrollArea>
             </div>
-            {/* New/Edit Appointment Form */}
             <div>
                  <h3 className="font-semibold text-lg text-foreground mb-4">{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
                  <Form {...form}>
@@ -748,6 +726,12 @@ export default function AgendaPage() {
                 </>
               ) : (
                 <>
+                    {selectedAppointment && !editingAppointment && selectedAppointment.status === 'scheduled' && (
+                        <>
+                            <Button type="button" variant="outline" className="mr-auto" onClick={handleOpenJustificationDialog}>Marcar Não Compareceu</Button>
+                            <Button type="button" variant="secondary" onClick={handleMarkAsCompleted}>Marcar Concluído</Button>
+                        </>
+                    )}
                     {selectedAppointment && !editingAppointment && (
                         <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>
                             <Pencil className="mr-2 h-4 w-4" />
@@ -777,7 +761,7 @@ export default function AgendaPage() {
             <AlertDialogAction onClick={confirmDelete}>Confirmar Exclusão</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
-    </AlertDialog>
+      </AlertDialog>
 
     <AlertDialog open={reminderStep === 'client'} onOpenChange={(isOpen) => {
         if (!isOpen) {
@@ -813,6 +797,29 @@ export default function AgendaPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
+    
+    <Dialog open={isJustificationDialogOpen} onOpenChange={setIsJustificationDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Justificar Ausência</DialogTitle>
+                <DialogDescription>
+                    Por favor, informe o motivo pelo qual o agendamento com <span className="font-medium">{appointmentToProcess?.clientName}</span> não foi realizado.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <Textarea 
+                    placeholder="Ex: Cliente cancelou, imprevisto, etc."
+                    value={justification}
+                    onChange={(e) => setJustification(e.target.value)}
+                    rows={4}
+                />
+            </div>
+            <DialogFooter>
+                <AlertDialogCancel onClick={() => { setJustification(''); setAppointmentToProcess(null); }}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmMissed}>Confirmar Ausência</AlertDialogAction>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }

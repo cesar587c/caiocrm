@@ -19,3 +19,17 @@ export type User = {
   whatsapp?: string;
   sectorIds: string[];
 };
+
+export type Appointment = {
+  id: string;
+  date: string; // 'yyyy-MM-dd'
+  time: string;
+  clientName: string;
+  address: string;
+  phone?: string;
+  contact: string;
+  assignedTo: string;
+  summary?: string;
+  status: 'scheduled' | 'completed' | 'missed';
+  justification?: string;
+};

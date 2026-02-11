@@ -7,6 +7,8 @@ import {
   ArrowUpCircle,
   BadgePercent,
   BookUser,
+  CalendarCheck,
+  CalendarPlus,
   Clock,
   DollarSign,
   FileCog,
@@ -44,7 +46,10 @@ import {
 } from "@/components/ui/tooltip";
 import { OpportunitySuggester } from "@/components/features/opportunity-suggester";
 import { cn } from "@/lib/utils";
-import React from "react";
+import React, { useMemo } from "react";
+import { useSettings } from "@/contexts/SettingsContext";
+import { startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { Progress } from "@/components/ui/progress";
 
 // Mock Data
 const salesKpis = [
@@ -77,7 +82,7 @@ const funnelData = [
   { name: "Oportunidades", value: 3000, fill: "hsl(var(--chart-3))" },
   { name: "Negociações", value: 1500, fill: "hsl(var(--chart-2))" },
   { name: "Vendas", value: 750, fill: "hsl(var(--chart-1))" },
-].reverse(); // Reverse for top-to-bottom display in vertical bar chart
+].reverse();
 
 const teamRankingData = [
   { rank: 1, team: "Equipe Alpha", sales: "R$ 350k", conversion: "32%", salesValue: 350000 },
@@ -106,7 +111,6 @@ type Kpi = {
 
 const KpiCard = ({ kpi }: { kpi: Kpi }) => {
   const isPositive = kpi.change >= 0;
-  // For TMA and Abandonment, a negative change is good.
   const isGood = (kpi.isTMA || kpi.isAbandonment) ? !isPositive : isPositive;
   const changeColor = isGood ? "text-green-500" : "text-destructive";
   const ChangeIcon = isPositive ? ArrowUp : ArrowDown;
@@ -141,6 +145,33 @@ const KpiCard = ({ kpi }: { kpi: Kpi }) => {
 
 
 export default function DashboardPage() {
+  const { appointments } = useSettings();
+
+  const agendaKpis = useMemo(() => {
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    
+    const appointmentsThisMonth = appointments.filter(app => {
+      const appDate = new Date(app.date);
+      // Adjust for timezone offset by comparing dates without time
+      return isWithinInterval(appDate, { start: monthStart, end: monthEnd });
+    });
+    
+    const completedThisMonth = appointmentsThisMonth.filter(app => app.status === 'completed');
+    
+    const total = appointmentsThisMonth.length;
+    const completed = completedThisMonth.length;
+    const completionRate = total > 0 ? (completed / total) * 100 : 0;
+    
+    return {
+      total,
+      completed,
+      completionRate,
+    };
+  }, [appointments]);
+
+
   return (
     <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
       <div className="flex items-center justify-between space-y-2">
@@ -173,55 +204,33 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="font-headline text-lg">Funil de Vendas e Atendimento</CardTitle>
-                <CardDescription>Visualização das etapas desde o visitante até a venda.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 -ml-4">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={funnelData} layout="vertical" margin={{ top: 5, right: 50, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={80} />
-                    <RechartsTooltip
-                      cursor={{ fill: 'hsl(var(--muted))' }}
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          return (
-                            <div className="rounded-lg border bg-background p-2 shadow-sm">
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="flex flex-col">
-                                  <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                    Etapa
-                                  </span>
-                                  <span className="font-bold text-muted-foreground">
-                                    {payload[0].payload.name}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                    Volume
-                                  </span>
-                                  <span className="font-bold">
-                                    {payload[0].value?.toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline text-lg">Indicadores da Agenda</CardTitle>
+                    <CardDescription>Performance dos agendamentos no mês atual.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center">
+                        <CalendarPlus className="h-6 w-6 text-primary mr-4"/>
+                        <div className="flex-1">
+                            <p className="text-sm text-muted-foreground">Agendamentos Realizados</p>
+                            <p className="text-2xl font-bold">{agendaKpis.total}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center">
+                        <CalendarCheck className="h-6 w-6 text-green-500 mr-4"/>
+                        <div className="flex-1">
+                            <div className="flex justify-between items-baseline">
+                                <p className="text-sm text-muted-foreground">Taxa de Conclusão</p>
+                                <p className="text-lg font-semibold text-green-400">{agendaKpis.completionRate.toFixed(1)}%</p>
                             </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar dataKey="value" background={{ fill: 'hsl(var(--muted))', radius: 4 }}>
-                      <LabelList dataKey="value" position="right" offset={8} className="fill-foreground" fontSize={12} formatter={(value: number) => value.toLocaleString()} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            
+                             <Progress value={agendaKpis.completionRate} className="h-2 mt-1 [&>div]:bg-green-500" />
+                            <p className="text-xs text-muted-foreground mt-1">{agendaKpis.completed} de {agendaKpis.total} concluídos</p>
+                        </div>
+                    </div>
+                </CardContent>
+             </Card>
+
             <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle className="font-headline text-lg">Ranking de Equipes</CardTitle>
