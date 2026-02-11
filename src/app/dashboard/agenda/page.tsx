@@ -64,7 +64,7 @@ type Appointment = {
   time: string;
   clientName: string;
   address: string;
-  phone: string;
+  phone?: string;
   contact: string;
 };
 
@@ -99,6 +99,12 @@ export default function AgendaPage() {
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
+    defaultValues: {
+      clientName: '',
+      address: '',
+      phone: '',
+      contact: '',
+    },
   });
 
   const monthStart = startOfMonth(currentMonth);
@@ -135,7 +141,7 @@ export default function AgendaPage() {
     form.reset({
       clientName: appointment.clientName,
       address: appointment.address,
-      phone: appointment.phone,
+      phone: appointment.phone || '',
       contact: appointment.contact,
       time: appointment.time,
     });
@@ -455,5 +461,3 @@ export default function AgendaPage() {
     </>
   );
 }
-
-    
