@@ -125,7 +125,13 @@ export default function AgendaPage() {
 
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
-    form.reset();
+    form.reset({
+      clientName: '',
+      address: '',
+      phone: '',
+      contact: '',
+      time: undefined,
+    });
     setEditingAppointment(null);
     setIsModalOpen(true);
   };
@@ -172,7 +178,13 @@ export default function AgendaPage() {
 
   const handleCancelEdit = () => {
     setEditingAppointment(null);
-    form.reset();
+    form.reset({
+      clientName: '',
+      address: '',
+      phone: '',
+      contact: '',
+      time: undefined,
+    });
   }
 
   function onSubmit(values: AppointmentFormValues) {
@@ -215,7 +227,13 @@ export default function AgendaPage() {
     }
 
     setEditingAppointment(null);
-    form.reset();
+    form.reset({
+      clientName: '',
+      address: '',
+      phone: '',
+      contact: '',
+      time: undefined,
+    });
     // Keep modal open after submit to see the updated list
   }
 
@@ -293,7 +311,13 @@ export default function AgendaPage() {
       <Dialog open={isModalOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
               setEditingAppointment(null);
-              form.reset();
+              form.reset({
+                clientName: '',
+                address: '',
+                phone: '',
+                contact: '',
+                time: undefined,
+              });
           }
           setIsModalOpen(isOpen);
       }}>
