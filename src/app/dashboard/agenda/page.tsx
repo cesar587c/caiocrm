@@ -26,25 +26,19 @@ export default function AgendaPage() {
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart, { locale: ptBR });
-  const endDate = endOfWeek(monthEnd, { locale: ptBR });
+  // weekStartsOn: 0 makes Sunday the first day of the week
+  const startDate = startOfWeek(monthStart, { locale: ptBR, weekStartsOn: 0 });
+  const endDate = endOfWeek(monthEnd, { locale: ptBR, weekStartsOn: 0 });
 
   const days = eachDayOfInterval({ start: startDate, end: endDate });
   const weekdays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
   const eventsMap = new Map();
-  // Mock events based on the image's visual cues
-  if (isSameMonth(currentMonth, new Date(2020, 0, 1))) {
-      eventsMap.set('2020-01-20', 'bg-red-500');
-      eventsMap.set('2020-01-24', 'bg-cyan-400');
-      eventsMap.set('2020-01-30', 'bg-yellow-500');
-  } else {
-      // Add some dynamic events for other months for demonstration
-      const firstDay = startOfMonth(currentMonth);
-      eventsMap.set(format(addDays(firstDay, 19), 'yyyy-MM-dd'), 'bg-red-500');
-      eventsMap.set(format(addDays(firstDay, 23), 'yyyy-MM-dd'), 'bg-cyan-400');
-      eventsMap.set(format(addDays(firstDay, 29), 'yyyy-MM-dd'), 'bg-yellow-500');
-  }
+  // Mock events using theme colors
+  const firstDayOfMonth = startOfMonth(currentMonth);
+  eventsMap.set(format(addDays(firstDayOfMonth, 19), 'yyyy-MM-dd'), 'bg-chart-3');
+  eventsMap.set(format(addDays(firstDayOfMonth, 23), 'yyyy-MM-dd'), 'bg-chart-2');
+  eventsMap.set(format(addDays(firstDayOfMonth, 29), 'yyyy-MM-dd'), 'bg-chart-5');
 
 
   const handlePrevMonth = () => {
@@ -56,56 +50,65 @@ export default function AgendaPage() {
   };
 
   return (
-    <div className="flex flex-col h-full p-4 bg-background">
-      <div className="flex flex-col w-full h-full rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-900/90 p-6 text-white shadow-2xl">
+    <div className="flex h-full flex-col p-4 bg-background">
+      {/* Use bg-card and text-card-foreground to match project theme */}
+      <div className="flex w-full flex-1 flex-col rounded-2xl bg-card p-6 text-card-foreground shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold capitalize">
+            {/* Increase font size for better visibility */}
+            <h2 className="text-2xl font-bold capitalize text-foreground">
               {format(currentMonth, 'MMMM', { locale: ptBR })}
             </h2>
-            <p className="text-white/60">{format(currentMonth, 'yyyy')}</p>
+            {/* Use muted-foreground for secondary text */}
+            <p className="text-lg text-muted-foreground">{format(currentMonth, 'yyyy')}</p>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="rounded-lg h-10 w-10 hover:bg-white/10">
+            {/* Use accent color for hover state */}
+            <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="rounded-lg h-10 w-10 hover:bg-accent/50">
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleNextMonth} className="rounded-lg h-10 w-10 hover:bg-white/10">
+            <Button variant="ghost" size="icon" onClick={handleNextMonth} className="rounded-lg h-10 w-10 hover:bg-accent/50">
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 text-center flex-1">
+        <div className="grid flex-1 grid-cols-7 text-center">
           {/* Weekdays */}
           {weekdays.map((day, i) => (
-            <div key={i} className="flex items-center justify-center text-sm font-medium text-white/50">
+            <div key={i} className="flex items-center justify-center text-sm font-medium text-muted-foreground">
               {day}
             </div>
           ))}
 
           {/* Days */}
-          {days.map((day, index) => {
+          {days.map((day) => {
             const eventColor = eventsMap.get(format(day, 'yyyy-MM-dd'));
             return (
               <div
-                key={index}
-                className="flex flex-col justify-start items-center pt-2"
+                key={day.toString()}
+                className="flex flex-col items-center justify-start py-2"
                 onClick={() => isSameMonth(day, currentMonth) && setSelectedDate(day)}
               >
                 <div
                   className={cn(
-                    "w-10 h-10 flex items-center justify-center rounded-xl transition-colors text-sm",
-                    isSameMonth(day, currentMonth) ? 'cursor-pointer' : 'text-white/30',
-                    !isSameDay(day, selectedDate) && isSameMonth(day, currentMonth) && 'hover:bg-white/10',
-                    isSameDay(day, selectedDate) && 'bg-cyan-400 text-slate-900 font-bold',
+                    "w-12 h-12 flex items-center justify-center rounded-full transition-colors text-base font-medium",
+                    // Use muted-foreground for days outside the current month
+                    isSameMonth(day, currentMonth) ? 'cursor-pointer' : 'text-muted-foreground/50',
+                    // Use accent for hover
+                    !isSameDay(day, selectedDate) && isSameMonth(day, currentMonth) && 'hover:bg-accent/50',
+                    // Use primary color for the selected day
+                    isSameDay(day, selectedDate) && 'bg-primary text-primary-foreground',
+                    // Add a subtle border for today's date if not selected
+                    isToday(day) && !isSameDay(day, selectedDate) && 'border-2 border-primary/50'
                   )}
                 >
                   {format(day, 'd')}
                 </div>
                  {eventColor && isSameMonth(day, currentMonth) && (
-                   <div className={cn("w-1.5 h-1.5 rounded-full mt-1", eventColor)}></div>
+                   <div className={cn("w-2 h-2 rounded-full mt-2", eventColor)}></div>
                  )}
               </div>
             );
