@@ -38,6 +38,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -739,5 +740,7 @@ export default function AgendaPage() {
     </>
   );
 }
+
+    
 
     
