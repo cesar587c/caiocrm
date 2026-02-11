@@ -56,8 +56,8 @@ export default function AgendaPage() {
   };
 
   return (
-    <div className="flex min-h-full items-center justify-center p-4 bg-background">
-      <div className="w-full max-w-sm rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-900/90 p-6 text-white shadow-2xl">
+    <div className="flex flex-col h-full p-4 bg-background">
+      <div className="flex flex-col w-full h-full rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-900/90 p-6 text-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -77,10 +77,10 @@ export default function AgendaPage() {
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 text-center">
+        <div className="grid grid-cols-7 text-center flex-1">
           {/* Weekdays */}
           {weekdays.map((day, i) => (
-            <div key={i} className="mb-4 text-sm font-medium text-white/50">
+            <div key={i} className="flex items-center justify-center text-sm font-medium text-white/50">
               {day}
             </div>
           ))}
@@ -91,7 +91,7 @@ export default function AgendaPage() {
             return (
               <div
                 key={index}
-                className="flex flex-col justify-start items-center h-12"
+                className="flex flex-col justify-start items-center pt-2"
                 onClick={() => isSameMonth(day, currentMonth) && setSelectedDate(day)}
               >
                 <div
@@ -105,7 +105,7 @@ export default function AgendaPage() {
                   {format(day, 'd')}
                 </div>
                  {eventColor && isSameMonth(day, currentMonth) && (
-                   <div className={cn("w-1.5 h-1.5 rounded-full -mt-2", eventColor)}></div>
+                   <div className={cn("w-1.5 h-1.5 rounded-full mt-1", eventColor)}></div>
                  )}
               </div>
             );
