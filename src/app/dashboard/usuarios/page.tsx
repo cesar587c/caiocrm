@@ -59,7 +59,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const userFormSchema = z.object({
   name: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
-  email: z.string().email('E-mail inválido.'),
+  email: z.string().email('E-mail inválido.').or(z.literal('')),
   whatsapp: z.string().optional(),
   sectorIds: z.array(z.string()).min(1, 'Selecione pelo menos um setor.'),
 });
@@ -93,7 +93,7 @@ export default function UsuariosPage() {
     setEditingUser(user);
     form.reset({
       name: user.name,
-      email: user.email,
+      email: user.email || '',
       whatsapp: user.whatsapp || '',
       sectorIds: user.sectorIds || [],
     });
@@ -160,7 +160,7 @@ export default function UsuariosPage() {
                   users.map(user => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.email || <span className="text-muted-foreground">N/A</span>}</TableCell>
                       <TableCell>{user.whatsapp || <span className="text-muted-foreground">N/A</span>}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
