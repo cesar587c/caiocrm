@@ -122,6 +122,7 @@ export default function AgendaPage() {
   const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
   const timeoutIdsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const [isClient, setIsClient] = useState(false);
+  const [today, setToday] = useState<Date | undefined>();
 
   const form = useForm<z.infer<typeof appointmentSchema>>({
     resolver: zodResolver(appointmentSchema),
@@ -137,6 +138,7 @@ export default function AgendaPage() {
   
   useEffect(() => {
     const now = new Date();
+    setToday(now);
     const dynamicInitialAppointments: Appointment[] = [
       {
         id: 'appt_1',
@@ -309,9 +311,9 @@ export default function AgendaPage() {
             .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
     }, [props.date, appointments]);
     
-    const { date, displayMonth } = props;
+    const { date, displayMonth, modifiers } = props;
     const isOutside = getMonth(date) !== getMonth(displayMonth);
-    const dayIsToday = isToday(date);
+    const dayIsToday = !!modifiers.today;
     const dayIsSelected = selectedDate ? isSameDay(date, selectedDate) : false;
 
     return (
@@ -367,6 +369,7 @@ export default function AgendaPage() {
               month={currentMonth}
               onMonthChange={setCurrentMonth}
               locale={ptBR}
+              today={today}
               components={{ DayContent: CustomDayContent }}
               className="border-r border-t"
               classNames={{
@@ -492,6 +495,7 @@ export default function AgendaPage() {
                                             onSelect={field.onChange}
                                             initialFocus
                                             locale={ptBR}
+                                            today={today}
                                         />
                                     </PopoverContent>
                                 </Popover>
