@@ -38,7 +38,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -79,15 +78,16 @@ import { ToastAction } from '@/components/ui/toast';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const eventTypes = {
-  visita: { label: 'Visita', className: 'border-transparent bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200' },
+  pagamento: { label: 'Pagamento', className: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200' },
+  recebimento: { label: 'Recebimento', className: 'border-transparent bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200' },
+  vencimento: { label: 'Vencimento', className: 'border-transparent bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200' },
   reuniao: { label: 'Reunião', className: 'border-transparent bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200' },
-  ligacao: { label: 'Ligação', className: 'border-transparent bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200' },
-  proposta: { label: 'Proposta', className: 'border-transparent bg-yellow-100 text-yellow-800 dark:bg-yellow-900/60 dark:text-yellow-200' },
-  outro: { label: 'Outro', className: 'border-transparent bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200' },
+  entrega: { label: 'Entrega', className: 'border-transparent bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200' },
+  relatorio: { label: 'Relatório', className: 'border-transparent bg-cyan-100 text-cyan-800 dark:bg-cyan-900/60 dark:text-cyan-200' },
 };
 type EventType = keyof typeof eventTypes;
 
-type Appointment = {
+type Event = {
   id: string;
   title: string;
   customerId: string;
@@ -111,7 +111,7 @@ const mockOpportunities = [
   { id: 'opp_4', name: 'ConstruBem Materiais - Lead' },
 ];
 
-const appointmentSchema = z.object({
+const eventSchema = z.object({
   title: z.string().min(1, 'O título é obrigatório.'),
   customerId: z.string({ required_error: 'Selecione um cliente.' }).min(1, 'Selecione um cliente.'),
   opportunityId: z.string().optional(),
@@ -125,12 +125,12 @@ const appointmentSchema = z.object({
 export default function AgendaPage() {
   const { companyProfile } = useSettings();
   const { toast } = useToast();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [currentMonth, setCurrentMonth] = useState<Date | undefined>();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
-  const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [deletingEvent, setDeletingEvent] = useState<Event | null>(null);
   const timeoutIdsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const [isClient, setIsClient] = useState(false);
   const [today, setToday] = useState<Date | undefined>();
@@ -138,8 +138,8 @@ export default function AgendaPage() {
   const [visibleEventTypes, setVisibleEventTypes] = useState<string[]>(Object.keys(eventTypes));
   const [dayModal, setDayModal] = useState<Date | null>(null);
 
-  const form = useForm<z.infer<typeof appointmentSchema>>({
-    resolver: zodResolver(appointmentSchema),
+  const form = useForm<z.infer<typeof eventSchema>>({
+    resolver: zodResolver(eventSchema),
     defaultValues: {
       title: '',
       customerId: '',
@@ -154,62 +154,71 @@ export default function AgendaPage() {
   useEffect(() => {
     const now = new Date();
     setToday(now);
-    const dynamicInitialAppointments: Appointment[] = [
+    const dynamicInitialEvents: Event[] = [
       {
-        id: 'appt_1',
-        title: 'Reunião de Follow-up',
+        id: 'evt_1',
+        title: 'Pagamento Fornecedor A',
         customerId: 'cust_1',
-        opportunityId: 'opp_1',
-        dateTime: add(now, { hours: 2 }),
+        dateTime: add(now, { days: 1, hours: 2 }),
         userIds: ['user_1'],
         reminder: 15,
         status: 'scheduled',
+        eventType: 'pagamento',
+      },
+      {
+        id: 'evt_2',
+        title: 'Recebimento NF #582',
+        customerId: 'cust_2',
+        opportunityId: 'opp_2',
+        dateTime: add(now, { days: 2, hours: 4 }),
+        userIds: ['user_1', 'user_2'],
+        reminder: 60,
+        status: 'completed',
+        eventType: 'recebimento',
+      },
+      {
+        id: 'evt_3',
+        title: 'Vencimento Contrato',
+        customerId: 'cust_4',
+        opportunityId: 'opp_4',
+        dateTime: add(now, { days: 5 }),
+        userIds: ['user_3'],
+        reminder: 0,
+        status: 'scheduled',
+        eventType: 'vencimento',
+      },
+      {
+        id: 'evt_4',
+        title: 'Reunião de Alinhamento',
+        customerId: 'cust_5',
+        dateTime: add(now, { days: -2, hours: 1 }),
+        userIds: ['user_2'],
+        reminder: 30,
+        status: 'completed',
         eventType: 'reuniao',
       },
       {
-        id: 'appt_2',
-        title: 'Apresentação da Proposta',
-        customerId: 'cust_2',
-        opportunityId: 'opp_2',
-        dateTime: add(now, { days: 1, hours: 3 }),
-        userIds: ['user_1', 'user_2'],
-        reminder: 60,
-        status: 'scheduled',
-        eventType: 'proposta',
-      },
-      {
-        id: 'appt_3',
-        title: 'Primeiro Contato',
-        customerId: 'cust_4',
-        opportunityId: 'opp_4',
-        dateTime: add(now, { days: -2, hours: 5 }),
-        userIds: ['user_3'],
-        reminder: 0,
-        status: 'completed',
-        eventType: 'ligacao',
-      },
-      {
-        id: 'appt_4',
-        title: 'Visita Técnica',
-        customerId: 'cust_5',
-        dateTime: add(now, { days: 2 }),
-        userIds: ['user_2'],
-        reminder: 30,
-        status: 'scheduled',
-        eventType: 'visita',
-      },
-      {
-        id: 'appt_5',
-        title: 'Almoço com diretoria',
+        id: 'evt_5',
+        title: 'Entrega Fase 1 Projeto',
         customerId: 'cust_1',
         dateTime: now,
         userIds: ['user_1', 'user_2'],
         reminder: 0,
         status: 'scheduled',
-        eventType: 'outro'
+        eventType: 'entrega'
+      },
+       {
+        id: 'evt_6',
+        title: 'Gerar Relatório Financeiro',
+        customerId: 'cust_3',
+        dateTime: add(now, { days: 3, hours: 6 }),
+        userIds: ['user_1'],
+        reminder: 0,
+        status: 'scheduled',
+        eventType: 'relatorio'
       },
     ];
-    setAppointments(dynamicInitialAppointments);
+    setEvents(dynamicInitialEvents);
     setSelectedDate(now);
     setCurrentMonth(startOfMonth(now));
     setIsClient(true);
@@ -220,23 +229,23 @@ export default function AgendaPage() {
     timeoutIdsRef.current.clear();
     const newTimeoutIds = new Map<string, NodeJS.Timeout>();
 
-    appointments
-      .filter((appt) => appt.status === 'scheduled' && appt.reminder > 0)
-      .forEach((appt) => {
-        const reminderTime = new Date(appt.dateTime).getTime() - appt.reminder * 60 * 1000;
+    events
+      .filter((evt) => evt.status === 'scheduled' && evt.reminder > 0)
+      .forEach((evt) => {
+        const reminderTime = new Date(evt.dateTime).getTime() - evt.reminder * 60 * 1000;
         const now = Date.now();
 
         if (reminderTime > now) {
           const timeoutId = setTimeout(() => {
-            const customer = initialCustomers.find(c => c.id === appt.customerId);
+            const customer = initialCustomers.find(c => c.id === evt.customerId);
             toast({
-              title: `Lembrete: ${appt.title}`,
-              description: `Seu compromisso com ${customer?.name} começa em ${appt.reminder} minutos.`,
+              title: `Lembrete: ${evt.title}`,
+              description: `Seu evento com ${customer?.name} começa em ${evt.reminder} minutos.`,
               duration: 15000,
               action: <ToastAction altText="Ok">Ok</ToastAction>,
             });
           }, reminderTime - now);
-          newTimeoutIds.set(appt.id, timeoutId);
+          newTimeoutIds.set(evt.id, timeoutId);
         }
       });
     
@@ -245,20 +254,20 @@ export default function AgendaPage() {
     return () => {
       timeoutIdsRef.current.forEach(clearTimeout);
     };
-  }, [appointments, toast]);
+  }, [events, toast]);
 
-  const handleOpenForm = (appointment: Appointment | null) => {
-    setEditingAppointment(appointment);
-    if (appointment) {
+  const handleOpenForm = (event: Event | null) => {
+    setEditingEvent(event);
+    if (event) {
       form.reset({
-        title: appointment.title,
-        customerId: appointment.customerId,
-        opportunityId: appointment.opportunityId,
-        date: appointment.dateTime,
-        time: format(appointment.dateTime, 'HH:mm'),
-        userIds: appointment.userIds,
-        reminder: appointment.reminder,
-        eventType: appointment.eventType,
+        title: event.title,
+        customerId: event.customerId,
+        opportunityId: event.opportunityId,
+        date: event.dateTime,
+        time: format(event.dateTime, 'HH:mm'),
+        userIds: event.userIds,
+        reminder: event.reminder,
+        eventType: event.eventType,
       });
     } else {
       form.reset({
@@ -275,44 +284,44 @@ export default function AgendaPage() {
     setIsFormOpen(true);
   };
 
-  const onSubmit = (values: z.infer<typeof appointmentSchema>) => {
+  const onSubmit = (values: z.infer<typeof eventSchema>) => {
     const [hours, minutes] = values.time.split(':').map(Number);
     const dateTime = new Date(values.date);
     dateTime.setHours(hours, minutes, 0, 0);
 
-    if (editingAppointment) {
-      const updatedAppointment: Appointment = {
-        ...editingAppointment,
+    if (editingEvent) {
+      const updatedEvent: Event = {
+        ...editingEvent,
         ...values,
         dateTime,
         eventType: values.eventType as EventType,
       };
-      setAppointments(
-        appointments.map((a) => (a.id === editingAppointment.id ? updatedAppointment : a))
+      setEvents(
+        events.map((a) => (a.id === editingEvent.id ? updatedEvent : a))
       );
-      toast({ title: 'Compromisso Atualizado!', description: 'As alterações foram salvas.' });
+      toast({ title: 'Evento Atualizado!', description: 'As alterações foram salvas.' });
     } else {
-      const newAppointment: Appointment = {
-        id: `appt_${Date.now()}`,
+      const newEvent: Event = {
+        id: `evt_${Date.now()}`,
         status: 'scheduled',
         ...values,
         dateTime,
         eventType: values.eventType as EventType,
       };
-      setAppointments([newAppointment, ...appointments]);
-      toast({ title: 'Compromisso Agendado!', description: 'O novo compromisso foi adicionado à sua agenda.' });
+      setEvents([newEvent, ...events]);
+      toast({ title: 'Evento Agendado!', description: 'O novo evento foi adicionado à sua agenda.' });
     }
     setIsFormOpen(false);
   };
 
   const confirmDelete = () => {
-    if (!deletingAppointment) return;
-    setAppointments(appointments.filter((a) => a.id !== deletingAppointment.id));
+    if (!deletingEvent) return;
+    setEvents(events.filter((a) => a.id !== deletingEvent.id));
     toast({
-        title: 'Compromisso Excluído!',
+        title: 'Evento Excluído!',
         variant: 'destructive'
     });
-    setDeletingAppointment(null);
+    setDeletingEvent(null);
   };
   
   const formatWeekdayName = (day: Date) => {
@@ -321,11 +330,11 @@ export default function AgendaPage() {
 
 
   function CustomDayContent(props: DayContentProps) {
-    const dayAppointments = useMemo(() => {
-        return appointments
-            .filter((appt) => isSameDay(appt.dateTime, props.date) && visibleEventTypes.includes(appt.eventType))
+    const dayEvents = useMemo(() => {
+        return events
+            .filter((evt) => isSameDay(evt.dateTime, props.date) && visibleEventTypes.includes(evt.eventType))
             .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
-    }, [props.date, appointments, visibleEventTypes]);
+    }, [props.date, events, visibleEventTypes]);
     
     const { date, displayMonth } = props;
     const isOutside = getMonth(date) !== getMonth(displayMonth);
@@ -336,23 +345,23 @@ export default function AgendaPage() {
                 {format(props.date, 'd')}
             </div>
             <div className="w-full flex-grow space-y-1 overflow-hidden mt-1 text-left">
-                {dayAppointments.slice(0, 2).map(appt => (
+                {dayEvents.slice(0, 2).map(evt => (
                     <div
-                        key={appt.id}
+                        key={evt.id}
                         onClick={(e) => {
                             e.stopPropagation();
-                            handleOpenForm(appt);
+                            handleOpenForm(evt);
                         }}
                         className={cn(
                           "text-xs rounded-lg border-l-4 px-1.5 py-1 truncate cursor-pointer",
-                          eventTypes[appt.eventType]?.className,
-                          appt.status === 'completed' && 'bg-muted/80 line-through text-muted-foreground border-transparent'
+                          eventTypes[evt.eventType]?.className,
+                          evt.status === 'completed' && 'bg-muted/80 line-through text-muted-foreground border-transparent'
                         )}
                     >
-                        {appt.title}
+                        {evt.title}
                     </div>
                 ))}
-                {dayAppointments.length > 2 && (
+                {dayEvents.length > 2 && (
                     <button
                         className="text-xs text-muted-foreground text-left hover:underline"
                         onClick={(e) => {
@@ -360,7 +369,7 @@ export default function AgendaPage() {
                             setDayModal(props.date);
                         }}
                     >
-                        + {dayAppointments.length - 2} mais
+                        + {dayEvents.length - 2} mais
                     </button>
                 )}
             </div>
@@ -372,7 +381,7 @@ export default function AgendaPage() {
     <>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 h-full flex flex-col">
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight font-headline">Agenda</h2>
+          <h2 className="text-3xl font-bold tracking-tight font-headline">Agenda Financeira e Operacional</h2>
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -401,7 +410,7 @@ export default function AgendaPage() {
             </DropdownMenu>
             <Button onClick={() => handleOpenForm(null)}>
               <PlusCircle className="mr-2 h-4 w-4" />
-              Adicionar Compromisso
+              Adicionar Evento
             </Button>
           </div>
         </div>
@@ -414,8 +423,8 @@ export default function AgendaPage() {
               onSelect={(day) => {
                 if (day) {
                     setSelectedDate(day);
-                    const dayAppointments = appointments.filter((appt) => isSameDay(appt.dateTime, day));
-                    if (dayAppointments.length === 0) {
+                    const dayEvents = events.filter((evt) => isSameDay(evt.dateTime, day));
+                    if (dayEvents.length === 0) {
                         handleOpenForm(null);
                     }
                 }
@@ -456,7 +465,7 @@ export default function AgendaPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <DialogHeader>
-                <DialogTitle>{editingAppointment ? 'Editar Compromisso' : 'Novo Compromisso'}</DialogTitle>
+                <DialogTitle>{editingEvent ? 'Editar Evento' : 'Novo Evento'}</DialogTitle>
                 <DialogDescription>
                   Preencha os detalhes abaixo.
                 </DialogDescription>
@@ -661,18 +670,18 @@ export default function AgendaPage() {
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)}>Cancelar</Button>
-                <Button type="submit">{editingAppointment ? 'Salvar Alterações' : 'Agendar'}</Button>
+                <Button type="submit">{editingEvent ? 'Salvar Alterações' : 'Agendar'}</Button>
               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
-      <AlertDialog open={!!deletingAppointment} onOpenChange={() => setDeletingAppointment(null)}>
+      <AlertDialog open={!!deletingEvent} onOpenChange={() => setDeletingEvent(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. O compromisso será excluído permanentemente.
+                    Esta ação não pode ser desfeita. O evento será excluído permanentemente.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -685,24 +694,24 @@ export default function AgendaPage() {
       <Dialog open={!!dayModal} onOpenChange={() => setDayModal(null)}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Compromissos para {dayModal && format(dayModal, 'PPP', { locale: ptBR })}</DialogTitle>
+                <DialogTitle>Eventos para {dayModal && format(dayModal, 'PPP', { locale: ptBR })}</DialogTitle>
                  <DialogDescription>
                     Todos os eventos agendados para este dia.
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
-                {dayModal && appointments
-                    .filter(appt => isSameDay(appt.dateTime, dayModal) && visibleEventTypes.includes(appt.eventType))
+                {dayModal && events
+                    .filter(evt => isSameDay(evt.dateTime, dayModal) && visibleEventTypes.includes(evt.eventType))
                     .sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime())
-                    .map(appt => {
-                        const customer = initialCustomers.find(c => c.id === appt.customerId);
+                    .map(evt => {
+                        const customer = initialCustomers.find(c => c.id === evt.customerId);
                         return (
-                            <div key={appt.id} className="p-3 rounded-lg border bg-card/50 flex items-start gap-4">
+                            <div key={evt.id} className="p-3 rounded-lg border bg-card/50 flex items-start gap-4">
                                 <div className="flex-1 space-y-1">
-                                    <p className="font-semibold">{appt.title}</p>
+                                    <p className="font-semibold">{evt.title}</p>
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                         <Clock className="h-3.5 w-3.5" />
-                                        <span>{format(appt.dateTime, 'HH:mm')}</span>
+                                        <span>{format(evt.dateTime, 'HH:mm')}</span>
                                     </div>
                                     {customer && (
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -710,13 +719,13 @@ export default function AgendaPage() {
                                             <span>{customer.name}</span>
                                         </div>
                                     )}
-                                    <Badge variant="outline" className={cn("mt-2", eventTypes[appt.eventType].className)}>
-                                      {eventTypes[appt.eventType].label}
+                                    <Badge variant="outline" className={cn("mt-2", eventTypes[evt.eventType].className)}>
+                                      {eventTypes[evt.eventType].label}
                                     </Badge>
                                 </div>
                                 <Button variant="outline" size="sm" onClick={() => {
                                     setDayModal(null);
-                                    handleOpenForm(appt);
+                                    handleOpenForm(evt);
                                 }}>
                                     Editar
                                 </Button>
