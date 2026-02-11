@@ -434,9 +434,10 @@ export default function AgendaPage() {
               month={currentMonth}
               onMonthChange={setCurrentMonth}
               locale={ptBR}
+              fixedWeeks
               weekStartsOn={0}
               today={today}
-              formatters={{ formatWeekdayName }}
+              formatters={{ formatWeekdayName: (day) => format(day, "EEEEEE", { locale: ptBR }) }}
               components={{ DayContent: CustomDayContent }}
               classNames={{
                 root: 'flex-1 flex flex-col',
@@ -449,13 +450,13 @@ export default function AgendaPage() {
                 nav_button_previous: 'absolute left-4 top-4',
                 nav_button_next: 'absolute right-4 top-4',
 
-                table: 'w-full border-collapse',
+                table: 'w-full border-collapse h-full',
                 head_row: '',
-                head_cell: 'text-muted-foreground capitalize font-medium text-sm text-center py-2 border border-border/50',
+                head_cell: 'text-muted-foreground capitalize font-medium text-sm text-center py-2 border-t border-x first:border-l-0 last:border-r-0 border-border/50',
                 
-                body: '',
-                row: '',
-                cell: 'aspect-[20/14] relative bg-card p-0 text-sm align-top border border-border/50',
+                body: 'h-full',
+                row: 'h-full',
+                cell: 'relative bg-card p-0 text-sm align-top border-t border-x first:border-l-0 last:border-r-0 border-border/50',
 
                 day: 'h-full w-full p-0 focus-visible:outline-none focus:ring-1 focus:ring-ring focus:z-10',
                 day_selected: 'bg-primary/10',
