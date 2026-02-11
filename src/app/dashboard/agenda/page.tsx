@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import {
   addMonths,
   subMonths,
@@ -13,33 +16,91 @@ import {
   isSameMonth,
   isToday,
   isSameDay,
-  addDays,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+// Define the structure for a single appointment
+type Appointment = {
+  id: string;
+  time: string;
+  clientName: string;
+  address: string;
+  phone: string;
+  contact: string;
+};
+
+// Define the schema for the appointment form using Zod
+const appointmentSchema = z.object({
+  clientName: z.string().min(1, 'O nome do cliente é obrigatório.'),
+  address: z.string().min(1, 'O endereço é obrigatório.'),
+  phone: z.string().optional(),
+  contact: z.string().min(1, 'O nome do contato na visita é obrigatório.'),
+  time: z.string({ required_error: 'Por favor, selecione um horário.' }),
+});
+
+type AppointmentFormValues = z.infer<typeof appointmentSchema>;
+
+// Generate time slots from 8:00 to 20:00
+const timeSlots = Array.from({ length: 13 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
 
 export default function AgendaPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  // State to hold all appointments, keyed by date string 'yyyy-MM-dd'
+  const [appointments, setAppointments] = useState<Record<string, Appointment[]>>({
+    [format(new Date(), 'yyyy-MM-dd')]: [
+        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana' },
+    ]
+  });
+  const { toast } = useToast();
+
+  const form = useForm<AppointmentFormValues>({
+    resolver: zodResolver(appointmentSchema),
+    defaultValues: {
+      clientName: '',
+      address: '',
+      phone: '',
+      contact: '',
+    },
+  });
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
-  // weekStartsOn: 0 makes Sunday the first day of the week
   const startDate = startOfWeek(monthStart, { locale: ptBR, weekStartsOn: 0 });
   const endDate = endOfWeek(monthEnd, { locale: ptBR, weekStartsOn: 0 });
 
   const days = eachDayOfInterval({ start: startDate, end: endDate });
   const weekdays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-
-  const eventsMap = new Map();
-  // Mock events using theme colors
-  const firstDayOfMonth = startOfMonth(currentMonth);
-  eventsMap.set(format(addDays(firstDayOfMonth, 19), 'yyyy-MM-dd'), 'bg-chart-3');
-  eventsMap.set(format(addDays(firstDayOfMonth, 23), 'yyyy-MM-dd'), 'bg-chart-2');
-  eventsMap.set(format(addDays(firstDayOfMonth, 29), 'yyyy-MM-dd'), 'bg-chart-5');
-
 
   const handlePrevMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
@@ -49,72 +110,240 @@ export default function AgendaPage() {
     setCurrentMonth(addMonths(currentMonth, 1));
   };
 
+  const handleDayClick = (day: Date) => {
+    if (isSameMonth(day, currentMonth)) {
+      setSelectedDate(day);
+      form.reset(); // Reset form when opening for a new/different day
+      setIsModalOpen(true);
+    }
+  };
+
+  function onSubmit(values: AppointmentFormValues) {
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    const newAppointment: Appointment = {
+      id: new Date().toISOString(),
+      ...values,
+    };
+
+    setAppointments(prev => {
+      const dayAppointments = prev[dateKey] ? [...prev[dateKey], newAppointment] : [newAppointment];
+      // Sort appointments by time
+      dayAppointments.sort((a, b) => a.time.localeCompare(b.time));
+      return {
+        ...prev,
+        [dateKey]: dayAppointments,
+      };
+    });
+
+    toast({
+      title: 'Agendamento Criado!',
+      description: `Visita para ${values.clientName} agendada para as ${values.time}.`,
+    });
+    setIsModalOpen(false);
+  }
+
+  const selectedDayAppointments = useMemo(() => {
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    return appointments[dateKey] || [];
+  }, [selectedDate, appointments]);
+
   return (
-    <div className="flex h-full flex-col p-4 bg-background">
-      {/* Use bg-card and text-card-foreground to match project theme */}
-      <div className="flex w-full flex-1 flex-col rounded-2xl bg-card p-6 text-card-foreground shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            {/* Increase font size for better visibility */}
-            <h2 className="text-2xl font-bold capitalize text-foreground">
-              {format(currentMonth, 'MMMM', { locale: ptBR })}
-            </h2>
-            {/* Use muted-foreground for secondary text */}
-            <p className="text-lg text-muted-foreground">{format(currentMonth, 'yyyy')}</p>
-          </div>
-          <div className="flex items-center gap-1">
-            {/* Use accent color for hover state */}
-            <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="rounded-lg h-10 w-10 hover:bg-accent/50">
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleNextMonth} className="rounded-lg h-10 w-10 hover:bg-accent/50">
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="grid flex-1 grid-cols-7 text-center">
-          {/* Weekdays */}
-          {weekdays.map((day, i) => (
-            <div key={i} className="flex items-center justify-center text-sm font-medium text-muted-foreground">
-              {day}
+    <>
+      <div className="flex h-full flex-col p-4 bg-background">
+        <div className="flex w-full flex-1 flex-col rounded-2xl bg-card p-6 text-card-foreground shadow-xl">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold capitalize text-foreground">
+                {format(currentMonth, 'MMMM', { locale: ptBR })}
+              </h2>
+              <p className="text-lg text-muted-foreground">{format(currentMonth, 'yyyy')}</p>
             </div>
-          ))}
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="rounded-lg h-10 w-10 hover:bg-accent/50">
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleNextMonth} className="rounded-lg h-10 w-10 hover:bg-accent/50">
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
 
-          {/* Days */}
-          {days.map((day) => {
-            const eventColor = eventsMap.get(format(day, 'yyyy-MM-dd'));
-            return (
-              <div
-                key={day.toString()}
-                className="flex flex-col items-center justify-start py-2"
-                onClick={() => isSameMonth(day, currentMonth) && setSelectedDate(day)}
-              >
-                <div
-                  className={cn(
-                    "w-12 h-12 flex items-center justify-center rounded-full transition-colors text-base font-medium",
-                    // Use muted-foreground for days outside the current month
-                    isSameMonth(day, currentMonth) ? 'cursor-pointer' : 'text-muted-foreground/50',
-                    // Use accent for hover
-                    !isSameDay(day, selectedDate) && isSameMonth(day, currentMonth) && 'hover:bg-accent/50',
-                    // Use primary color for the selected day
-                    isSameDay(day, selectedDate) && 'bg-primary text-primary-foreground',
-                    // Add a subtle border for today's date if not selected
-                    isToday(day) && !isSameDay(day, selectedDate) && 'border-2 border-primary/50'
-                  )}
-                >
-                  {format(day, 'd')}
-                </div>
-                 {eventColor && isSameMonth(day, currentMonth) && (
-                   <div className={cn("w-2 h-2 rounded-full mt-2", eventColor)}></div>
-                 )}
+          {/* Calendar Grid */}
+          <div className="grid flex-1 grid-cols-7 text-center">
+            {/* Weekdays */}
+            {weekdays.map((day, i) => (
+              <div key={i} className="flex items-center justify-center text-sm font-medium text-muted-foreground">
+                {day}
               </div>
-            );
-          })}
+            ))}
+
+            {/* Days */}
+            {days.map((day) => {
+              const dayKey = format(day, 'yyyy-MM-dd');
+              const dayEvents = appointments[dayKey] || [];
+              return (
+                <div
+                  key={day.toString()}
+                  className="flex flex-col items-center justify-start py-2"
+                  onClick={() => handleDayClick(day)}
+                >
+                  <div
+                    className={cn(
+                      "w-12 h-12 flex items-center justify-center rounded-full transition-colors text-base font-medium",
+                      isSameMonth(day, currentMonth) ? 'cursor-pointer' : 'text-muted-foreground/50',
+                      !isSameDay(day, selectedDate) && isSameMonth(day, currentMonth) && 'hover:bg-accent/50',
+                      isSameDay(day, selectedDate) && 'bg-primary text-primary-foreground',
+                      isToday(day) && !isSameDay(day, selectedDate) && 'border-2 border-primary/50'
+                    )}
+                  >
+                    {format(day, 'd')}
+                  </div>
+                  {isSameMonth(day, currentMonth) && (
+                    <div className="flex items-center gap-1 mt-2 h-2">
+                      {dayEvents.slice(0, 3).map((event, index) => (
+                        <div key={index} className={cn("w-2 h-2 rounded-full", ["bg-chart-1", "bg-chart-2", "bg-chart-3"][index % 3])}></div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Agenda para {format(selectedDate, 'dd/MM/yyyy', { locale: ptBR })}
+            </DialogTitle>
+            <DialogDescription>
+              Visualize e adicione novos agendamentos para este dia.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+            {/* Existing Appointments */}
+            <div className="space-y-4">
+                 <h3 className="font-semibold text-lg text-foreground">Compromissos Agendados</h3>
+                 <ScrollArea className="h-72">
+                    {selectedDayAppointments.length > 0 ? (
+                        <div className="space-y-4 pr-4">
+                            {selectedDayAppointments.map(app => (
+                                <div key={app.id} className="p-3 bg-muted/50 rounded-lg text-sm space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <p className="font-semibold text-base">{app.clientName}</p>
+                                        <div className="flex items-center gap-2 text-primary font-bold">
+                                            <Clock className="h-4 w-4"/>
+                                            {app.time}
+                                        </div>
+                                    </div>
+                                    <p className="text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>{app.address}</p>
+                                    <p className="text-muted-foreground flex items-center gap-2"><User className="h-4 w-4"/>{app.contact}</p>
+                                    {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground border-2 border-dashed rounded-lg p-8">
+                            <p>Nenhum compromisso para este dia.</p>
+                            <p className="text-xs">Use o formulário para adicionar um.</p>
+                        </div>
+                    )}
+                 </ScrollArea>
+            </div>
+            {/* New Appointment Form */}
+            <div>
+                 <h3 className="font-semibold text-lg text-foreground mb-4">Novo Agendamento</h3>
+                 <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField
+                        control={form.control}
+                        name="time"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Horário</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione um horário" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {timeSlots.map(slot => (
+                                    <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="clientName"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Nome do Cliente</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Ex: Tech Solutions Ltda." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="address"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Endereço</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Ex: Rua das Inovações, 123" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Telefone de Contato</FormLabel>
+                            <FormControl>
+                                <Input placeholder="(00) 00000-0000" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="contact"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Contato na Visita</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Ex: Sr. Carlos" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                         <DialogFooter className="pt-4">
+                            <Button type="submit">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Agendar
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
