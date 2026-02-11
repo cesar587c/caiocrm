@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -437,7 +436,6 @@ export default function AgendaPage() {
               onMonthChange={setCurrentMonth}
               locale={ptBR}
               today={today}
-              fixedWeeks
               formatters={{ formatWeekdayName }}
               components={{ DayContent: CustomDayContent }}
               classNames={{
