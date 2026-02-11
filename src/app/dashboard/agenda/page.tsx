@@ -435,6 +435,7 @@ export default function AgendaPage() {
               month={currentMonth}
               onMonthChange={setCurrentMonth}
               locale={ptBR}
+              weekStartsOn={0}
               today={today}
               formatters={{ formatWeekdayName }}
               components={{ DayContent: CustomDayContent }}
