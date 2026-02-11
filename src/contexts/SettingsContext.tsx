@@ -13,7 +13,7 @@ const initialSectors: Sector[] = [
 ];
 
 const initialUsers: User[] = [
-    { id: 'user_1', name: 'Admin', email: 'admin@vendaspro.com', sectorId: 'sec_1' }
+    { id: 'user_1', name: 'Admin', email: 'admin@vendaspro.com', whatsapp: '5511999999999', sectorIds: ['sec_1'] }
 ];
 
 interface SettingsContextType {
@@ -53,7 +53,15 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         if (parsedSectors.length > 0) setSectors(parsedSectors);
       }
       if (savedUsers) {
-        const parsedUsers = JSON.parse(savedUsers);
+        let parsedUsers = JSON.parse(savedUsers);
+        // Migration from old data structure (sectorId) to new (sectorIds)
+        if (parsedUsers.length > 0 && parsedUsers[0].sectorId !== undefined) {
+            parsedUsers = parsedUsers.map((user: any) => ({
+                ...user,
+                sectorIds: user.sectorId ? [user.sectorId] : [],
+                sectorId: undefined,
+            }));
+        }
         if (parsedUsers.length > 0) setUsers(parsedUsers);
       }
     } catch (error) {
@@ -94,7 +102,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteSector = (id: string) => {
       // Un-assign users from this sector
-      const updatedUsers = users.map(u => u.sectorId === id ? {...u, sectorId: ''} : u);
+      const updatedUsers = users.map(u => ({
+          ...u,
+          sectorIds: u.sectorIds.filter(sectorId => sectorId !== id),
+      }));
       handleSetUsers(updatedUsers);
       handleSetSectors(sectors.filter(s => s.id !== id));
   };

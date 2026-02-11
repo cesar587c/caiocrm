@@ -91,7 +91,7 @@ export default function AgendaPage() {
 
   const [appointments, setAppointments] = useState<Record<string, Appointment[]>>({
     [format(new Date(), 'yyyy-MM-dd')]: [
-        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana', assignedTo: 'sector:sec_2' },
+        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana', assignedTo: 'user:user_1' },
     ]
   });
   const { toast } = useToast();
@@ -277,11 +277,30 @@ export default function AgendaPage() {
     const [type, id] = assignedTo.split(':');
     let targetName = '';
     let message = '';
+    let whatsAppUrl = `https://api.whatsapp.com/send?text=`;
+    let toastDescription = '';
 
     if (type === 'user') {
         const user = users.find(u => u.id === id);
-        targetName = user?.name || 'Usuário';
+        if (!user) {
+            toast({ title: 'Erro', description: 'Usuário não encontrado.', variant: 'destructive'});
+            setReminderStep('idle');
+            return;
+        }
+        targetName = user.name;
         message = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}\n\nPor favor, verifique a agenda para mais detalhes.`;
+        
+        const cleanPhone = user.whatsapp?.replace(/\D/g, '') || '';
+        if (cleanPhone.length >= 10) {
+            const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
+            whatsAppUrl += `&phone=${phoneWithCountryCode}`;
+        } else {
+             toast({
+                title: "Usuário sem WhatsApp",
+                description: `O usuário ${targetName} não tem um número de WhatsApp cadastrado. A mensagem será aberta para compartilhamento.`,
+            });
+        }
+        toastDescription = `A mensagem para ${targetName} está pronta para ser enviada.`;
     } else { // 'sector' or fallback
         let sectorName = '';
         if (type === 'sector') {
@@ -292,16 +311,17 @@ export default function AgendaPage() {
         }
         targetName = `Setor ${sectorName}`;
         message = `*Lembrete de Agendamento para o Setor*\n\nUma visita foi agendada para o setor *${sectorName}*.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}\n\nPor favor, verifique a agenda para mais detalhes.`;
+        toastDescription = `A mensagem para ${targetName.replace('Setor ','o setor ')} está pronta para ser enviada.`;
     }
 
     const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+    whatsAppUrl = `${whatsAppUrl.replace('text=','text='+encodedMessage)}`;
 
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    window.open(whatsAppUrl, '_blank', 'noopener,noreferrer');
 
     toast({
         title: "Notificação Interna Pronta",
-        description: `A mensagem para ${targetName.replace('Setor ','o setor ')} está pronta para ser enviada.`,
+        description: toastDescription,
     });
 
     setReminderStep('idle');
@@ -610,7 +630,7 @@ export default function AgendaPage() {
                                                 <SelectLabel>{sector.name}</SelectLabel>
                                                 <SelectItem value={`sector:${sector.id}`}>{`Todo o setor`}</SelectItem>
                                                 {users
-                                                    .filter(u => u.sectorId === sector.id)
+                                                    .filter(u => u.sectorIds.includes(sector.id))
                                                     .map(user => (
                                                         <SelectItem key={user.id} value={`user:${user.id}`}>{user.name}</SelectItem>
                                                     ))

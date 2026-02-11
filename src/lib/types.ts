@@ -15,5 +15,6 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  sectorId: string;
+  whatsapp?: string;
+  sectorIds: string[];
 };

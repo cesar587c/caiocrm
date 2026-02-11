@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { User, Sector } from '@/lib/types';
+import type { User } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -46,17 +46,22 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuCheckboxItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
   } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, PlusCircle, MoreHorizontal } from "lucide-react";
+import { UserCog, PlusCircle, MoreHorizontal, Check } from "lucide-react";
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const userFormSchema = z.object({
   name: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
   email: z.string().email('E-mail inválido.'),
-  sectorId: z.string().min(1, 'É obrigatório selecionar um setor.'),
+  whatsapp: z.string().optional(),
+  sectorIds: z.array(z.string()).min(1, 'Selecione pelo menos um setor.'),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
@@ -71,7 +76,7 @@ export default function UsuariosPage() {
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
-    defaultValues: { name: '', email: '', sectorId: '' },
+    defaultValues: { name: '', email: '', whatsapp: '', sectorIds: [] },
   });
 
   const sectorMap = useMemo(() => {
@@ -80,7 +85,7 @@ export default function UsuariosPage() {
 
   const handleAddNew = () => {
     setEditingUser(null);
-    form.reset({ name: '', email: '', sectorId: '' });
+    form.reset({ name: '', email: '', whatsapp: '', sectorIds: [] });
     setIsDialogOpen(true);
   };
 
@@ -89,7 +94,8 @@ export default function UsuariosPage() {
     form.reset({
       name: user.name,
       email: user.email,
-      sectorId: user.sectorId,
+      whatsapp: user.whatsapp || '',
+      sectorIds: user.sectorIds || [],
     });
     setIsDialogOpen(true);
   };
@@ -144,7 +150,8 @@ export default function UsuariosPage() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>E-mail</TableHead>
-                  <TableHead>Setor</TableHead>
+                  <TableHead>WhatsApp</TableHead>
+                  <TableHead>Setores</TableHead>
                   <TableHead className="text-right w-[80px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -154,7 +161,18 @@ export default function UsuariosPage() {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>{sectorMap.get(user.sectorId) || <span className="text-muted-foreground">N/A</span>}</TableCell>
+                      <TableCell>{user.whatsapp || <span className="text-muted-foreground">N/A</span>}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {user.sectorIds.length > 0 ? (
+                            user.sectorIds.map(id => (
+                                <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -173,7 +191,7 @@ export default function UsuariosPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">Nenhum usuário cadastrado.</TableCell>
+                    <TableCell colSpan={5} className="h-24 text-center">Nenhum usuário cadastrado.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -219,24 +237,62 @@ export default function UsuariosPage() {
                   </FormItem>
                 )}
               />
-              <FormField
+               <FormField
                 control={form.control}
-                name="sectorId"
+                name="whatsapp"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Setor</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um setor" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {sectors.map(sector => (
-                          <SelectItem key={sector.id} value={sector.id}>{sector.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>WhatsApp</FormLabel>
+                    <FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="sectorIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Setores</FormLabel>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <FormControl>
+                                <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10">
+                                    {field.value?.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {field.value.map(id => (
+                                                <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <span className="text-muted-foreground">Selecione os setores</span>
+                                    )}
+                                </Button>
+                            </FormControl>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-full max-w-[var(--radix-dropdown-menu-trigger-width)]">
+                            <DropdownMenuLabel>Setores Disponíveis</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <ScrollArea className="max-h-40">
+                                {sectors.map(sector => (
+                                <DropdownMenuCheckboxItem
+                                    key={sector.id}
+                                    checked={field.value?.includes(sector.id)}
+                                    onCheckedChange={(checked) => {
+                                        const currentIds = field.value || [];
+                                        const newIds = checked 
+                                            ? [...currentIds, sector.id]
+                                            : currentIds.filter(id => id !== sector.id);
+                                        field.onChange(newIds);
+                                    }}
+                                    onSelect={(e) => e.preventDefault()} // Prevent closing on select
+                                >
+                                    {sector.name}
+                                </DropdownMenuCheckboxItem>
+                                ))}
+                            </ScrollArea>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <FormMessage />
                   </FormItem>
                 )}
