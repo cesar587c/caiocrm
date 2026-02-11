@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { add, format, isSameDay, parse, startOfDay, getMonth, startOfMonth } from 'date-fns';
+import { add, format, isSameDay, parse, startOfDay, getMonth, startOfMonth, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   BellRing,
@@ -168,6 +168,15 @@ export default function AgendaPage() {
         reminder: 0,
         status: 'completed',
       },
+      {
+        id: 'appt_4',
+        title: 'Call de Alinhamento',
+        customerId: 'cust_5',
+        dateTime: add(now, { days: 2 }),
+        userIds: ['user_2'],
+        reminder: 30,
+        status: 'scheduled',
+      },
     ];
     setAppointments(dynamicInitialAppointments);
     setSelectedDate(now);
@@ -302,12 +311,20 @@ export default function AgendaPage() {
     
     const { date, displayMonth } = props;
     const isOutside = getMonth(date) !== getMonth(displayMonth);
+    const dayIsToday = isToday(date);
+    const dayIsSelected = selectedDate ? isSameDay(date, selectedDate) : false;
 
     return (
-        <div className={cn("h-full w-full p-1 flex flex-col", isOutside && "text-muted-foreground/50")}>
-            <div className="self-end text-sm">{format(props.date, 'd')}</div>
-            <div className="flex-grow space-y-1 overflow-hidden mt-1 text-left">
-                {dayAppointments.slice(0, 3).map(appt => (
+        <div className={cn("h-full w-full p-1 flex flex-col", isOutside && "text-muted-foreground/40")}>
+            <div className={cn(
+                "ml-auto text-sm",
+                 dayIsSelected && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center font-bold",
+                 !dayIsSelected && dayIsToday && "text-primary font-bold"
+            )}>
+                {format(props.date, 'd')}
+            </div>
+            <div className="w-full flex-grow space-y-1 overflow-hidden mt-1 text-left">
+                {dayAppointments.slice(0, 2).map(appt => (
                     <div
                         key={appt.id}
                         onClick={(e) => {
@@ -315,15 +332,15 @@ export default function AgendaPage() {
                             handleOpenForm(appt);
                         }}
                         className={cn(
-                          "bg-chart-4/20 text-xs rounded px-1.5 py-0.5 truncate cursor-pointer hover:bg-chart-4/30",
-                          appt.status === 'completed' && 'bg-muted-foreground/20 line-through'
+                          "text-xs rounded px-1.5 py-0.5 truncate cursor-pointer bg-[hsl(var(--chart-4))]/20 text-foreground/90 hover:bg-[hsl(var(--chart-4))]/30",
+                          appt.status === 'completed' && 'bg-muted/80 line-through text-muted-foreground'
                         )}
                     >
                         {appt.title}
                     </div>
                 ))}
-                {dayAppointments.length > 3 && (
-                    <div className="text-xs text-muted-foreground">+ {dayAppointments.length - 3} mais</div>
+                {dayAppointments.length > 2 && (
+                    <div className="text-xs text-muted-foreground">+ {dayAppointments.length - 2} mais</div>
                 )}
             </div>
         </div>
@@ -341,7 +358,7 @@ export default function AgendaPage() {
           </Button>
         </div>
 
-        <Card className="flex-1 flex flex-col">
+        <Card className="flex-1 flex flex-col p-0">
           {isClient ? (
             <Calendar
               mode="single"
@@ -351,19 +368,21 @@ export default function AgendaPage() {
               onMonthChange={setCurrentMonth}
               locale={ptBR}
               components={{ DayContent: CustomDayContent }}
-              className="h-full w-full"
+              className="border-r border-t"
               classNames={{
-                  months: "h-full flex flex-col",
-                  month: "h-full flex flex-col",
+                  months: "flex flex-col",
+                  month: "flex flex-col",
+                  caption: "flex justify-center items-center relative p-4 border-b",
                   caption_label: "text-lg font-bold",
-                  head_row: "flex border-b",
-                  head_cell: "text-muted-foreground w-[14.28%] text-sm font-normal py-3",
-                  body: "flex-1 grid grid-cols-7 grid-rows-5",
-                  row: "flex w-full mt-0",
-                  cell: "h-auto text-center text-sm p-0 relative focus-within:relative focus-within:z-20 w-full border-l border-t first:border-l-0",
-                  day: "h-full w-full p-0 rounded-none focus:bg-accent/50",
-                  day_selected: "bg-accent text-accent-foreground",
-                  day_today: "bg-primary/10 text-primary",
+                  head_row: "flex w-full",
+                  head_cell: "text-muted-foreground font-normal text-sm w-[calc(100%/7)] p-2 text-center border-b",
+                  body: "grid grid-cols-7",
+                  row: "contents",
+                  cell: "h-28 lg:h-32 text-sm p-0 relative border-b border-l",
+                  day: "h-full w-full p-0 rounded-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                  day_selected: "bg-accent/50",
+                  day_today: "",
+                  day_outside: "",
               }}
             />
           ) : (
