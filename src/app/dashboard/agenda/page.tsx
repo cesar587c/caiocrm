@@ -566,6 +566,47 @@ export default function AgendaPage() {
                  <h3 className="font-semibold text-lg text-foreground mb-4">{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
                  <Form {...form}>
                     <form id="appointment-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        {editingAppointment && (
+                            <FormField
+                            control={form.control}
+                            name="date"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Data do Agendamento</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {field.value ? (
+                                            format(field.value, "PPP", { locale: ptBR })
+                                        ) : (
+                                            <span>Escolha uma data</span>
+                                        )}
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                        locale={ptBR}
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                        )}
                         <FormField
                         control={form.control}
                         name="time"
