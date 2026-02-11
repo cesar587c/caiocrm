@@ -18,7 +18,7 @@ import {
   isSameDay,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -29,6 +29,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Form,
   FormControl,
@@ -76,7 +86,10 @@ export default function AgendaPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // State to hold all appointments, keyed by date string 'yyyy-MM-dd'
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
   const [appointments, setAppointments] = useState<Record<string, Appointment[]>>({
     [format(new Date(), 'yyyy-MM-dd')]: [
         { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana' },
@@ -86,12 +99,6 @@ export default function AgendaPage() {
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
-    defaultValues: {
-      clientName: '',
-      address: '',
-      phone: '',
-      contact: '',
-    },
   });
 
   const monthStart = startOfMonth(currentMonth);
@@ -110,36 +117,100 @@ export default function AgendaPage() {
     setCurrentMonth(addMonths(currentMonth, 1));
   };
 
+  const openModalForDay = (day: Date) => {
+    setSelectedDate(day);
+    form.reset();
+    setEditingAppointment(null);
+    setIsModalOpen(true);
+  };
+  
   const handleDayClick = (day: Date) => {
     if (isSameMonth(day, currentMonth)) {
-      setSelectedDate(day);
-      form.reset(); // Reset form when opening for a new/different day
-      setIsModalOpen(true);
+        openModalForDay(day);
     }
   };
 
-  function onSubmit(values: AppointmentFormValues) {
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
-    const newAppointment: Appointment = {
-      id: new Date().toISOString(),
-      ...values,
-    };
-
-    setAppointments(prev => {
-      const dayAppointments = prev[dateKey] ? [...prev[dateKey], newAppointment] : [newAppointment];
-      // Sort appointments by time
-      dayAppointments.sort((a, b) => a.time.localeCompare(b.time));
-      return {
-        ...prev,
-        [dateKey]: dayAppointments,
-      };
+  const handleEditClick = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    form.reset({
+      clientName: appointment.clientName,
+      address: appointment.address,
+      phone: appointment.phone,
+      contact: appointment.contact,
+      time: appointment.time,
     });
+  };
+
+  const handleDeleteClick = (appointment: Appointment) => {
+    setAppointmentToDelete(appointment);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!appointmentToDelete) return;
+    
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    setAppointments(prev => ({
+        ...prev,
+        [dateKey]: prev[dateKey].filter(app => app.id !== appointmentToDelete.id),
+    }));
 
     toast({
-      title: 'Agendamento Criado!',
-      description: `Visita para ${values.clientName} agendada para as ${values.time}.`,
+        title: "Agendamento Excluído!",
+        description: `O compromisso com ${appointmentToDelete.clientName} foi removido.`,
+        variant: "destructive"
     });
-    setIsModalOpen(false);
+    setIsDeleteDialogOpen(false);
+    setAppointmentToDelete(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingAppointment(null);
+    form.reset();
+  }
+
+  function onSubmit(values: AppointmentFormValues) {
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    
+    if (editingAppointment) {
+        // Update existing appointment
+        const updatedAppointment: Appointment = {
+            id: editingAppointment.id,
+            ...values,
+        };
+        setAppointments(prev => {
+            const dayAppointments = prev[dateKey].map(app => 
+                app.id === editingAppointment.id ? updatedAppointment : app
+            );
+            dayAppointments.sort((a, b) => a.time.localeCompare(b.time));
+            return { ...prev, [dateKey]: dayAppointments };
+        });
+        toast({
+            title: 'Agendamento Atualizado!',
+            description: `Visita para ${values.clientName} atualizada.`,
+        });
+    } else {
+        // Create new appointment
+        const newAppointment: Appointment = {
+            id: new Date().toISOString(),
+            ...values,
+        };
+
+        setAppointments(prev => {
+            const dayAppointments = prev[dateKey] ? [...prev[dateKey], newAppointment] : [newAppointment];
+            dayAppointments.sort((a, b) => a.time.localeCompare(b.time));
+            return { ...prev, [dateKey]: dayAppointments };
+        });
+
+        toast({
+            title: 'Agendamento Criado!',
+            description: `Visita para ${values.clientName} agendada para as ${values.time}.`,
+        });
+    }
+
+    setEditingAppointment(null);
+    form.reset();
+    // Keep modal open after submit to see the updated list
   }
 
   const selectedDayAppointments = useMemo(() => {
@@ -213,27 +284,33 @@ export default function AgendaPage() {
         </div>
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px] md:max-w-2xl">
+      <Dialog open={isModalOpen} onOpenChange={(isOpen) => {
+          if (!isOpen) {
+              setEditingAppointment(null);
+              form.reset();
+          }
+          setIsModalOpen(isOpen);
+      }}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-3xl">
           <DialogHeader>
             <DialogTitle>
               Agenda para {format(selectedDate, 'dd/MM/yyyy', { locale: ptBR })}
             </DialogTitle>
             <DialogDescription>
-              Visualize e adicione novos agendamentos para este dia.
+              Visualize, adicione ou edite compromissos para este dia.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
             {/* Existing Appointments */}
             <div className="space-y-4">
                  <h3 className="font-semibold text-lg text-foreground">Compromissos Agendados</h3>
-                 <ScrollArea className="h-72">
+                 <ScrollArea className="h-96">
                     {selectedDayAppointments.length > 0 ? (
                         <div className="space-y-4 pr-4">
                             {selectedDayAppointments.map(app => (
-                                <div key={app.id} className="p-3 bg-muted/50 rounded-lg text-sm space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <p className="font-semibold text-base">{app.clientName}</p>
+                                <div key={app.id} className="relative group p-3 bg-muted/50 rounded-lg text-sm space-y-2">
+                                    <div className="flex justify-between items-start">
+                                        <p className="font-semibold text-base pr-16">{app.clientName}</p>
                                         <div className="flex items-center gap-2 text-primary font-bold">
                                             <Clock className="h-4 w-4"/>
                                             {app.time}
@@ -242,6 +319,15 @@ export default function AgendaPage() {
                                     <p className="text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>{app.address}</p>
                                     <p className="text-muted-foreground flex items-center gap-2"><User className="h-4 w-4"/>{app.contact}</p>
                                     {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
+                                    
+                                    <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(app)}>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteClick(app)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -253,9 +339,9 @@ export default function AgendaPage() {
                     )}
                  </ScrollArea>
             </div>
-            {/* New Appointment Form */}
+            {/* New/Edit Appointment Form */}
             <div>
-                 <h3 className="font-semibold text-lg text-foreground mb-4">Novo Agendamento</h3>
+                 <h3 className="font-semibold text-lg text-foreground mb-4">{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
@@ -264,7 +350,7 @@ export default function AgendaPage() {
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Horário</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecione um horário" />
@@ -332,10 +418,17 @@ export default function AgendaPage() {
                             </FormItem>
                         )}
                         />
-                         <DialogFooter className="pt-4">
+                         <DialogFooter className="pt-4 gap-2">
+                             {editingAppointment && (
+                                <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancelar</Button>
+                             )}
                             <Button type="submit">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Agendar
+                                {editingAppointment ? 'Salvar Alterações' : (
+                                    <>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Agendar
+                                    </>
+                                )}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -344,6 +437,23 @@ export default function AgendaPage() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Essa ação não pode ser desfeita. Isso excluirá permanentemente o compromisso com <span className="font-medium">{appointmentToDelete?.clientName}</span>.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setAppointmentToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Confirmar Exclusão</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
+
+    
