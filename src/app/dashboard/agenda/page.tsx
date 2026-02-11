@@ -19,6 +19,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -145,7 +146,7 @@ export default function AgendaPage() {
   const { companyProfile } = useSettings();
   const { toast } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
@@ -169,6 +170,10 @@ export default function AgendaPage() {
       .filter((appt) => isSameDay(appt.dateTime, selectedDate))
       .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
   }, [appointments, selectedDate]);
+  
+  useEffect(() => {
+    setSelectedDate(new Date());
+  }, []);
 
   useEffect(() => {
     timeoutIdsRef.current.forEach(clearTimeout);
