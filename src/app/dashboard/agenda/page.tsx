@@ -243,12 +243,12 @@ export default function AgendaPage() {
   const handleSendWhatsAppReminder = () => {
     if (!appointmentForReminders) return;
 
-    const { clientName, time, phone } = appointmentForReminders;
+    const { clientName, time, phone, contact } = appointmentForReminders;
     const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
 
     const template = companyProfile.whatsappReminderMessage || "Olá, {cliente}! 👋\n\nEste é um lembrete do seu agendamento com a {empresa} no dia {data} às {hora}.\n\nAté breve!";
     const message = template
-      .replace('{cliente}', clientName)
+      .replace('{cliente}', contact)
       .replace('{empresa}', companyProfile.name)
       .replace('{data}', dateStr)
       .replace('{hora}', time);
@@ -267,7 +267,7 @@ export default function AgendaPage() {
 
     toast({
         title: "Pronto para Enviar!",
-        description: `Sua mensagem para ${clientName} está pronta no WhatsApp.`,
+        description: `Sua mensagem para ${contact} está pronta no WhatsApp.`,
     });
 
     setReminderStep('internal');
@@ -703,8 +703,8 @@ export default function AgendaPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Agendamento Concluído!</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Deseja enviar um lembrete via WhatsApp para o cliente{" "}
-                    <span className="font-medium">{appointmentForReminders?.clientName}</span>?
+                    Deseja enviar um lembrete via WhatsApp para{" "}
+                    <span className="font-medium">{appointmentForReminders?.contact}</span>?
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
