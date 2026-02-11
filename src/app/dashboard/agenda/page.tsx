@@ -316,7 +316,7 @@ export default function AgendaPage() {
   };
   
   const formatWeekdayName = (day: Date) => {
-    return format(day, "cccc", { locale: ptBR });
+    return format(day, "cccc", { locale: ptBR }).replace('-feira', '');
   };
 
 
@@ -424,17 +424,17 @@ export default function AgendaPage() {
               today={today}
               formatters={{ formatWeekdayName }}
               components={{ DayContent: CustomDayContent }}
-              className="border-r border-t"
+              className="border"
               classNames={{
-                  months: "flex flex-col",
-                  month: "flex flex-col",
+                  months: "flex flex-col flex-1",
+                  month: "flex flex-col flex-1",
                   caption: "flex justify-center items-center relative p-4 border-b",
                   caption_label: "text-lg font-bold",
-                  head_row: "flex w-full",
+                  head_row: "flex w-full divide-x divide-border",
                   head_cell: "text-muted-foreground font-normal text-xs md:text-sm flex-1 text-center border-b p-2 capitalize",
-                  body: "grid grid-cols-7",
+                  body: "grid grid-cols-7 flex-1 divide-x divide-border",
                   row: "contents",
-                  cell: "h-28 lg:h-36 text-sm p-0 relative border-b border-l focus-within:relative focus-within:z-20",
+                  cell: "text-sm p-0 relative border-b focus-within:relative focus-within:z-20",
                   day: "h-full w-full p-0 rounded-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                   day_selected: "bg-transparent",
                   day_today: "",
