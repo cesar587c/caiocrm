@@ -194,7 +194,11 @@ export default function AgendaPage() {
         // Update existing appointment
         const updatedAppointment: Appointment = {
             id: editingAppointment.id,
-            ...values,
+            time: values.time,
+            clientName: values.clientName,
+            address: values.address,
+            phone: values.phone,
+            contact: values.contact,
         };
         setAppointments(prev => {
             const dayAppointments = prev[dateKey].map(app => 
@@ -211,7 +215,11 @@ export default function AgendaPage() {
         // Create new appointment
         const newAppointment: Appointment = {
             id: new Date().toISOString(),
-            ...values,
+            time: values.time,
+            clientName: values.clientName,
+            address: values.address,
+            phone: values.phone,
+            contact: values.contact,
         };
 
         setAppointments(prev => {
@@ -321,7 +329,7 @@ export default function AgendaPage() {
           }
           setIsModalOpen(isOpen);
       }}>
-        <DialogContent className="sm:max-w-[425px] md:max-w-3xl">
+        <DialogContent className="sm:max-w-[425px] md:max-w-3xl flex flex-col max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>
               Agenda para {format(selectedDate, 'dd/MM/yyyy', { locale: ptBR })}
@@ -330,7 +338,7 @@ export default function AgendaPage() {
               Visualize, adicione ou edite compromissos para este dia.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+          <div className="grid flex-1 grid-cols-1 md:grid-cols-2 gap-6 py-4 overflow-y-auto">
             {/* Existing Appointments */}
             <div className="space-y-4">
                  <h3 className="font-semibold text-lg text-foreground">Compromissos Agendados</h3>
@@ -373,7 +381,7 @@ export default function AgendaPage() {
             <div>
                  <h3 className="font-semibold text-lg text-foreground mb-4">{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form id="appointment-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
                         control={form.control}
                         name="time"
@@ -429,7 +437,7 @@ export default function AgendaPage() {
                             <FormItem>
                             <FormLabel>Telefone de Contato</FormLabel>
                             <FormControl>
-                                <Input placeholder="(00) 00000-0000" {...field} />
+                                <Input placeholder="(00) 00000-0000" {...field} value={field.value || ''}/>
                             </FormControl>
                             <FormMessage />
                             </FormItem>
@@ -448,23 +456,23 @@ export default function AgendaPage() {
                             </FormItem>
                         )}
                         />
-                         <DialogFooter className="pt-4 gap-2">
-                             {editingAppointment && (
-                                <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancelar</Button>
-                             )}
-                            <Button type="submit">
-                                {editingAppointment ? 'Salvar Alterações' : (
-                                    <>
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Agendar
-                                    </>
-                                )}
-                            </Button>
-                        </DialogFooter>
                     </form>
                 </Form>
             </div>
           </div>
+          <DialogFooter className="pt-4 gap-2 border-t">
+              {editingAppointment && (
+                <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancelar</Button>
+              )}
+            <Button type="submit" form="appointment-form">
+                {editingAppointment ? 'Salvar Alterações' : (
+                    <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Agendar
+                    </>
+                )}
+            </Button>
+        </DialogFooter>
         </DialogContent>
       </Dialog>
       
