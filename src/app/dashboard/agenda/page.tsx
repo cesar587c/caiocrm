@@ -151,6 +151,7 @@ export default function AgendaPage() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
   const timeoutIdsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const [today, setToday] = useState<Date | undefined>();
 
   const form = useForm<z.infer<typeof appointmentSchema>>({
     resolver: zodResolver(appointmentSchema),
@@ -172,7 +173,9 @@ export default function AgendaPage() {
   }, [appointments, selectedDate]);
   
   useEffect(() => {
-    setSelectedDate(new Date());
+    const now = new Date();
+    setSelectedDate(now);
+    setToday(now);
   }, []);
 
   useEffect(() => {
@@ -320,6 +323,7 @@ export default function AgendaPage() {
                             className="p-3"
                             modifiers={{ appointments: dayWithAppointments }}
                             modifiersClassNames={{ appointments: 'day-with-appointment' }}
+                            today={today}
                         />
                     </CardContent>
                 </Card>
@@ -510,9 +514,10 @@ export default function AgendaPage() {
                                             mode="single"
                                             selected={field.value}
                                             onSelect={field.onChange}
-                                            disabled={(date) => date < startOfDay(new Date())}
+                                            disabled={(date) => today ? date < startOfDay(today) : true}
                                             initialFocus
                                             locale={ptBR}
+                                            today={today}
                                         />
                                     </PopoverContent>
                                 </Popover>
