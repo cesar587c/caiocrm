@@ -77,11 +77,12 @@ import { Badge } from '@/components/ui/badge';
 import { useSettings } from '@/contexts/SettingsContext';
 import { ToastAction } from '@/components/ui/toast';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { buttonVariants } from '@/components/ui/button';
 
 const eventTypes = {
   pagamento: { label: 'Pagamento', className: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200' },
-  recebimento: { label: 'Recebimento', className: 'border-transparent bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200' },
-  vencimento: { label: 'Vencimento', className: 'border-transparent bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200' },
+  recebimento: { label: 'Receita', className: 'border-transparent bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200' },
+  vencimento: { label: 'Despesa', className: 'border-transparent bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200' },
   reuniao: { label: 'Reunião', className: 'border-transparent bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200' },
   entrega: { label: 'Entrega', className: 'border-transparent bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200' },
   relatorio: { label: 'Relatório', className: 'border-transparent bg-cyan-100 text-cyan-800 dark:bg-cyan-900/60 dark:text-cyan-200' },
@@ -168,7 +169,7 @@ export default function AgendaPage() {
       },
       {
         id: 'evt_2',
-        title: 'Recebimento NF #582',
+        title: 'Receita de consultoria',
         customerId: 'cust_2',
         opportunityId: 'opp_2',
         dateTime: add(now, { days: 2, hours: 4 }),
@@ -179,7 +180,7 @@ export default function AgendaPage() {
       },
       {
         id: 'evt_3',
-        title: 'Vencimento Contrato',
+        title: 'Pagamento de Software',
         customerId: 'cust_4',
         opportunityId: 'opp_4',
         dateTime: add(now, { days: 5 }),
@@ -326,7 +327,7 @@ export default function AgendaPage() {
   };
   
   const formatWeekdayName = (day: Date) => {
-    return format(day, "cccc", { locale: ptBR }).replace('-feira', '');
+    return format(day, "cccc", { locale: ptBR });
   };
 
 
@@ -339,39 +340,43 @@ export default function AgendaPage() {
     
     const { date, displayMonth } = props;
     const isOutside = getMonth(date) !== getMonth(displayMonth);
+    const isTodayDate = isToday(date);
 
     return (
-        <div className={cn("h-full w-full p-2 flex flex-col relative", isOutside && "opacity-40")}>
-            <div className="text-sm font-semibold text-right">
+        <div className={cn("h-full w-full flex flex-col", isOutside && "opacity-40")}>
+            <div className={cn(
+                "self-end text-sm w-7 h-7 flex items-center justify-center rounded-lg",
+                isTodayDate && "bg-muted font-bold",
+            )}>
                 {format(props.date, 'd')}
             </div>
-            <div className="w-full flex-grow space-y-1 overflow-hidden mt-1 text-left">
+            <div className="flex-grow space-y-1 overflow-hidden mt-1 text-left">
                 {dayEvents.slice(0, 2).map(evt => (
-                    <div
+                    <button
                         key={evt.id}
                         onClick={(e) => {
                             e.stopPropagation();
                             handleOpenForm(evt);
                         }}
                         className={cn(
-                          "text-xs rounded-lg border-l-4 px-1.5 py-1 truncate cursor-pointer",
+                          "w-full text-xs rounded-md px-1.5 py-1 truncate text-left",
                           eventTypes[evt.eventType]?.className,
-                          evt.status === 'completed' && 'bg-muted/80 line-through text-muted-foreground border-transparent'
+                          evt.status === 'completed' && 'bg-muted/80 line-through text-muted-foreground'
                         )}
                     >
-                        {evt.title}
-                    </div>
+                        {eventTypes[evt.eventType].label}
+                    </button>
                 ))}
                 {dayEvents.length > 2 && (
-                    <button
-                        className="text-xs text-muted-foreground text-left hover:underline"
+                    <p
+                        className="text-xs text-muted-foreground cursor-pointer hover:underline"
                         onClick={(e) => {
                             e.stopPropagation();
                             setDayModal(props.date);
                         }}
                     >
                         + {dayEvents.length - 2} mais
-                    </button>
+                    </p>
                 )}
             </div>
         </div>
@@ -424,10 +429,7 @@ export default function AgendaPage() {
               onSelect={(day) => {
                 if (day) {
                     setSelectedDate(day);
-                    const dayEvents = events.filter((evt) => isSameDay(evt.dateTime, day));
-                    if (dayEvents.length === 0) {
-                        handleOpenForm(null);
-                    }
+                    setDayModal(day);
                 }
               }}
               month={currentMonth}
@@ -441,15 +443,19 @@ export default function AgendaPage() {
                   months: "flex flex-col flex-1",
                   month: "flex flex-col flex-1 space-y-0",
                   caption: "flex justify-center items-center relative p-4",
-                  caption_label: "text-xl font-bold",
-                  head_row: "flex w-full border-b",
-                  head_cell: "text-muted-foreground font-medium text-sm flex-1 text-center pb-2 capitalize",
-                  body: "grid grid-cols-7 flex-1",
+                  caption_label: "text-lg font-bold uppercase",
+                  nav: 'space-x-1 flex items-center',
+                  nav_button: cn(buttonVariants({ variant: 'outline' }), 'h-7 w-7 bg-transparent p-0'),
+                  nav_button_previous: 'absolute left-4',
+                  nav_button_next: 'absolute right-4',
+                  head_row: "flex w-full mt-2",
+                  head_cell: "text-muted-foreground w-full font-normal text-sm text-center",
+                  body: "grid grid-cols-7 flex-1 border-t border-l",
                   row: "contents",
-                  cell: "text-sm p-0 relative border-r border-b focus-within:relative focus-within:z-20",
-                  day: "h-full w-full p-0 rounded-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  day_selected: "bg-primary/20 text-primary-foreground",
-                  day_today: "bg-accent text-accent-foreground",
+                  cell: "h-32 text-sm p-0 relative border-r border-b focus-within:relative focus-within:z-20",
+                  day: "h-full w-full p-1 rounded-none focus-visible:outline-none",
+                  day_selected: "bg-primary/10",
+                  day_today: "",
                   day_outside: "",
               }}
             />
@@ -734,13 +740,24 @@ export default function AgendaPage() {
                         )
                     })
                 }
+                {dayModal && events.filter(evt => isSameDay(evt.dateTime, dayModal)).length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">Nenhum evento para este dia.</p>
+                )}
             </div>
+             <DialogFooter>
+                <Button variant="outline" onClick={() => setDayModal(null)}>Fechar</Button>
+                <Button onClick={() => {
+                    setDayModal(null);
+                    handleOpenForm(null);
+                }}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Novo Evento
+                </Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
   );
 }
-
-    
 
     
