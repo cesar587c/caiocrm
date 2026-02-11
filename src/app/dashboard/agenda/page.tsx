@@ -598,6 +598,7 @@ export default function AgendaPage() {
                                             onSelect={field.onChange}
                                             initialFocus
                                             locale={ptBR}
+                                            hideHead
                                         />
                                         </PopoverContent>
                                     </Popover>
