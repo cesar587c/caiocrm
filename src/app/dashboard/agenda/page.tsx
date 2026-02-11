@@ -386,7 +386,7 @@ export default function AgendaPage() {
     <>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 h-full flex flex-col">
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight font-headline">Agenda Financeira e Operacional</h2>
+          <h2 className="text-3xl font-bold tracking-tight font-headline">Agenda Operacional</h2>
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -449,13 +449,13 @@ export default function AgendaPage() {
                 nav_button_previous: 'absolute left-4 top-4',
                 nav_button_next: 'absolute right-4 top-4',
 
-                table: 'w-full',
-                head_row: 'grid grid-cols-7 divide-x divide-border/30 border-x border-t border-border/30',
-                head_cell: 'text-muted-foreground capitalize font-medium text-sm text-center py-2',
+                table: 'w-full border-collapse',
+                head_row: '',
+                head_cell: 'text-muted-foreground capitalize font-medium text-sm text-center py-2 border border-border/50',
                 
-                body: 'grid grid-cols-7 divide-x divide-y divide-border/30 border-x border-b border-border/30',
-                row: 'contents',
-                cell: 'aspect-[20/14] relative bg-card p-0 text-sm align-top',
+                body: '',
+                row: '',
+                cell: 'aspect-[20/14] relative bg-card p-0 text-sm align-top border border-border/50',
 
                 day: 'h-full w-full p-0 focus-visible:outline-none focus:ring-1 focus:ring-ring focus:z-10',
                 day_selected: 'bg-primary/10',
