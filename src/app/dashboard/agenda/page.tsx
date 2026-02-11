@@ -14,6 +14,7 @@ import {
   CalendarPlus,
   Check,
   Clock,
+  Loader2,
   PlusCircle,
   Send,
   Trash2,
@@ -99,39 +100,6 @@ const mockOpportunities = [
   { id: 'opp_4', name: 'ConstruBem Materiais - Lead' },
 ];
 
-const initialAppointments: Appointment[] = [
-  {
-    id: 'appt_1',
-    title: 'Reunião de Follow-up',
-    customerId: 'cust_1',
-    opportunityId: 'opp_1',
-    dateTime: add(new Date(), { hours: 2 }),
-    userIds: ['user_1'],
-    reminder: 15,
-    status: 'scheduled',
-  },
-  {
-    id: 'appt_2',
-    title: 'Apresentação da Proposta',
-    customerId: 'cust_2',
-    opportunityId: 'opp_2',
-    dateTime: add(new Date(), { days: 1, hours: 3 }),
-    userIds: ['user_1', 'user_2'],
-    reminder: 60,
-    status: 'scheduled',
-  },
-    {
-    id: 'appt_3',
-    title: 'Primeiro Contato',
-    customerId: 'cust_4',
-    opportunityId: 'opp_4',
-    dateTime: add(new Date(), { days: -2, hours: 5 }),
-    userIds: ['user_3'],
-    reminder: 0,
-    status: 'completed',
-  },
-];
-
 const appointmentSchema = z.object({
   title: z.string().min(1, 'O título é obrigatório.'),
   customerId: z.string({ required_error: 'Selecione um cliente.' }).min(1, 'Selecione um cliente.'),
@@ -145,18 +113,14 @@ const appointmentSchema = z.object({
 export default function AgendaPage() {
   const { companyProfile } = useSettings();
   const { toast } = useToast();
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [currentMonth, setCurrentMonth] = useState<Date | undefined>();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
   const timeoutIdsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const form = useForm<z.infer<typeof appointmentSchema>>({
     resolver: zodResolver(appointmentSchema),
@@ -164,12 +128,52 @@ export default function AgendaPage() {
       title: '',
       customerId: '',
       opportunityId: '',
-      time: format(new Date(), 'HH:mm'),
+      time: '09:00',
       userIds: [],
       reminder: 15,
     },
   });
   
+  useEffect(() => {
+    const now = new Date();
+    const dynamicInitialAppointments: Appointment[] = [
+      {
+        id: 'appt_1',
+        title: 'Reunião de Follow-up',
+        customerId: 'cust_1',
+        opportunityId: 'opp_1',
+        dateTime: add(now, { hours: 2 }),
+        userIds: ['user_1'],
+        reminder: 15,
+        status: 'scheduled',
+      },
+      {
+        id: 'appt_2',
+        title: 'Apresentação da Proposta',
+        customerId: 'cust_2',
+        opportunityId: 'opp_2',
+        dateTime: add(now, { days: 1, hours: 3 }),
+        userIds: ['user_1', 'user_2'],
+        reminder: 60,
+        status: 'scheduled',
+      },
+        {
+        id: 'appt_3',
+        title: 'Primeiro Contato',
+        customerId: 'cust_4',
+        opportunityId: 'opp_4',
+        dateTime: add(now, { days: -2, hours: 5 }),
+        userIds: ['user_3'],
+        reminder: 0,
+        status: 'completed',
+      },
+    ];
+    setAppointments(dynamicInitialAppointments);
+    setSelectedDate(now);
+    setCurrentMonth(startOfMonth(now));
+    setIsClient(true);
+  }, []);
+
   useEffect(() => {
     timeoutIdsRef.current.forEach(clearTimeout);
     timeoutIdsRef.current.clear();
@@ -337,29 +341,35 @@ export default function AgendaPage() {
         </div>
 
         <Card className="flex-1 flex flex-col">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            month={currentMonth}
-            onMonthChange={setCurrentMonth}
-            locale={ptBR}
-            components={{ DayContent: CustomDayContent }}
-            className="h-full w-full"
-            classNames={{
-                months: "h-full flex flex-col",
-                month: "h-full flex flex-col",
-                caption_label: "text-lg font-bold",
-                head_row: "flex border-b",
-                head_cell: "text-muted-foreground w-[14.28%] text-sm font-normal py-3",
-                body: "flex-1 grid grid-cols-7 grid-rows-5",
-                row: "flex w-full mt-0",
-                cell: "h-auto text-center text-sm p-0 relative focus-within:relative focus-within:z-20 w-full border-l border-t first:border-l-0",
-                day: "h-full w-full p-0 rounded-none focus:bg-accent/50",
-                day_selected: "bg-accent text-accent-foreground",
-                day_today: "bg-primary/10 text-primary",
-            }}
-          />
+          {isClient ? (
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              month={currentMonth}
+              onMonthChange={setCurrentMonth}
+              locale={ptBR}
+              components={{ DayContent: CustomDayContent }}
+              className="h-full w-full"
+              classNames={{
+                  months: "h-full flex flex-col",
+                  month: "h-full flex flex-col",
+                  caption_label: "text-lg font-bold",
+                  head_row: "flex border-b",
+                  head_cell: "text-muted-foreground w-[14.28%] text-sm font-normal py-3",
+                  body: "flex-1 grid grid-cols-7 grid-rows-5",
+                  row: "flex w-full mt-0",
+                  cell: "h-auto text-center text-sm p-0 relative focus-within:relative focus-within:z-20 w-full border-l border-t first:border-l-0",
+                  day: "h-full w-full p-0 rounded-none focus:bg-accent/50",
+                  day_selected: "bg-accent text-accent-foreground",
+                  day_today: "bg-primary/10 text-primary",
+              }}
+            />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
         </Card>
       </div>
 
@@ -573,5 +583,7 @@ export default function AgendaPage() {
     </>
   );
 }
+
+    
 
     
