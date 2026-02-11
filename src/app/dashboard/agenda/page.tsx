@@ -50,6 +50,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useSettings } from '@/contexts/SettingsContext';
 
 // Define the structure for a single appointment
 type Appointment = {
@@ -80,6 +81,8 @@ export default function AgendaPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [appointmentForReminder, setAppointmentForReminder] = useState<Appointment | null>(null);
+
 
   const [appointments, setAppointments] = useState<Record<string, Appointment[]>>({
     [format(new Date(), 'yyyy-MM-dd')]: [
@@ -87,6 +90,7 @@ export default function AgendaPage() {
     ]
   });
   const { toast } = useToast();
+  const { companyProfile } = useSettings();
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
@@ -181,8 +185,37 @@ export default function AgendaPage() {
     });
   }
 
+  const handleSendWhatsAppReminder = () => {
+    if (!appointmentForReminder) return;
+
+    const { clientName, time, phone } = appointmentForReminder;
+    const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
+
+    const message = `Olá, ${clientName}! 👋\n\nEste é um lembrete do seu agendamento com a ${companyProfile.name} no dia ${dateStr} às ${time}.\n\nAté breve!`;
+    
+    const encodedMessage = encodeURIComponent(message);
+    
+    const cleanPhone = phone?.replace(/\D/g, '') || '';
+    let whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+
+    if (cleanPhone.length >= 10) {
+        const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
+        whatsappUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodedMessage}`;
+    }
+
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+
+    toast({
+        title: "Pronto para Enviar!",
+        description: `Sua mensagem para ${clientName} está pronta no WhatsApp.`,
+    });
+
+    setAppointmentForReminder(null); // Close the dialog
+  };
+
   function onSubmit(values: AppointmentFormValues) {
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    let savedAppointment: Appointment;
     
     if (editingAppointment) {
         // Update existing appointment
@@ -194,6 +227,7 @@ export default function AgendaPage() {
             phone: values.phone,
             contact: values.contact,
         };
+        savedAppointment = updatedAppointment;
         setAppointments(prev => {
             const dayAppointments = prev[dateKey].map(app => 
                 app.id === editingAppointment.id ? updatedAppointment : app
@@ -215,6 +249,7 @@ export default function AgendaPage() {
             phone: values.phone,
             contact: values.contact,
         };
+        savedAppointment = newAppointment;
 
         setAppointments(prev => {
             const dayAppointments = prev[dateKey] ? [...prev[dateKey], newAppointment] : [newAppointment];
@@ -237,7 +272,8 @@ export default function AgendaPage() {
       contact: '',
       time: '',
     });
-    // Keep modal open after submit to see the updated list
+    
+    setAppointmentForReminder(savedAppointment);
   }
 
   const selectedDayAppointments = useMemo(() => {
@@ -492,6 +528,22 @@ export default function AgendaPage() {
             <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setAppointmentToDelete(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete}>Confirmar Exclusão</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={!!appointmentForReminder} onOpenChange={(isOpen) => !isOpen && setAppointmentForReminder(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Agendamento Concluído!</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Deseja enviar um lembrete via WhatsApp para o cliente{" "}
+                    <span className="font-medium">{appointmentForReminder?.clientName}</span>?
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setAppointmentForReminder(null)}>Não, obrigado</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSendWhatsAppReminder}>Enviar Lembrete</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
