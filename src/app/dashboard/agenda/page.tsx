@@ -18,7 +18,7 @@ import {
   isSameDay,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -53,6 +53,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+
 
 // Define the structure for a single appointment
 type Appointment = {
@@ -68,11 +71,12 @@ type Appointment = {
 
 // Define the schema for the appointment form using Zod
 const appointmentSchema = z.object({
+  date: z.date({ required_error: 'A data é obrigatória.' }),
+  time: z.string().min(1, 'O horário é obrigatório.'),
   clientName: z.string().min(1, 'O nome do cliente é obrigatório.'),
   address: z.string().min(1, 'O endereço é obrigatório.'),
   phone: z.string().optional(),
   contact: z.string().min(1, 'O nome do contato na visita é obrigatório.'),
-  time: z.string().min(1, 'O horário é obrigatório.'),
   assignedTo: z.string().min(1, 'O setor/responsável é obrigatório.'),
   summary: z.string().optional(),
 });
@@ -84,6 +88,7 @@ export default function AgendaPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [originalAppointmentDate, setOriginalAppointmentDate] = useState<Date | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -103,6 +108,7 @@ export default function AgendaPage() {
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
+      date: new Date(),
       clientName: '',
       address: '',
       phone: '',
@@ -168,6 +174,7 @@ export default function AgendaPage() {
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
     form.reset({
+      date: day,
       clientName: '',
       address: '',
       phone: '',
@@ -187,8 +194,9 @@ export default function AgendaPage() {
     }
   };
 
-  const handleEditClick = (appointment: Appointment) => {
+  const handleEditClick = (appointment: Appointment, day: Date) => {
     setEditingAppointment(appointment);
+    setOriginalAppointmentDate(day);
 
     let assignedToValue = appointment.assignedTo;
     // Convert old data format (sector name) to new format (sector:id)
@@ -200,6 +208,7 @@ export default function AgendaPage() {
     }
 
     form.reset({
+      date: day,
       clientName: appointment.clientName,
       address: appointment.address,
       phone: appointment.phone || '',
@@ -235,8 +244,10 @@ export default function AgendaPage() {
 
   const handleCancelEdit = () => {
     setEditingAppointment(null);
+    setOriginalAppointmentDate(null);
     setSelectedAppointment(null);
     form.reset({
+      date: selectedDate,
       clientName: '',
       address: '',
       phone: '',
@@ -348,11 +359,12 @@ export default function AgendaPage() {
   };
 
   function onSubmit(values: AppointmentFormValues) {
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    const newDateKey = format(values.date, 'yyyy-MM-dd');
     let savedAppointment: Appointment;
     
-    if (editingAppointment) {
-        // Update existing appointment
+    if (editingAppointment && originalAppointmentDate) {
+        const originalDateKey = format(originalAppointmentDate, 'yyyy-MM-dd');
+        
         const updatedAppointment: Appointment = {
             id: editingAppointment.id,
             time: values.time,
@@ -364,12 +376,32 @@ export default function AgendaPage() {
             summary: values.summary,
         };
         savedAppointment = updatedAppointment;
+
         setAppointments(prev => {
-            const dayAppointments = prev[dateKey].map(app => 
-                app.id === editingAppointment.id ? updatedAppointment : app
-            );
+            const newAppointments = { ...prev };
+
+            // Remove from original date if date changed
+            if (originalDateKey !== newDateKey) {
+                newAppointments[originalDateKey] = newAppointments[originalDateKey].filter(app => app.id !== editingAppointment.id);
+                if (newAppointments[originalDateKey].length === 0) {
+                    delete newAppointments[originalDateKey];
+                }
+            }
+
+            // Add/Update to new date
+            const dayAppointments = newAppointments[newDateKey] ? [...newAppointments[newDateKey]] : [];
+            const existingIndex = dayAppointments.findIndex(app => app.id === editingAppointment.id);
+            
+            if (existingIndex > -1) {
+                dayAppointments[existingIndex] = updatedAppointment;
+            } else {
+                dayAppointments.push(updatedAppointment);
+            }
+
             dayAppointments.sort((a, b) => a.time.localeCompare(b.time));
-            return { ...prev, [dateKey]: dayAppointments };
+            newAppointments[newDateKey] = dayAppointments;
+
+            return newAppointments;
         });
         toast({
             title: 'Agendamento Atualizado!',
@@ -377,6 +409,7 @@ export default function AgendaPage() {
         });
     } else {
         // Create new appointment
+        const dateKey = format(values.date, 'yyyy-MM-dd');
         const newAppointment: Appointment = {
             id: new Date().toISOString(),
             time: values.time,
@@ -402,16 +435,9 @@ export default function AgendaPage() {
     }
 
     setEditingAppointment(null);
+    setOriginalAppointmentDate(null);
     setSelectedAppointment(null);
-    form.reset({
-      clientName: '',
-      address: '',
-      phone: '',
-      contact: '',
-      time: '',
-      assignedTo: '',
-      summary: '',
-    });
+    setIsModalOpen(false); // Close dialog on submit
     
     setAppointmentForReminders(savedAppointment);
     setReminderStep('client');
@@ -492,17 +518,7 @@ export default function AgendaPage() {
 
       <Dialog open={isModalOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
-              setEditingAppointment(null);
-              setSelectedAppointment(null);
-              form.reset({
-                clientName: '',
-                address: '',
-                phone: '',
-                contact: '',
-                time: '',
-                assignedTo: '',
-                summary: '',
-              });
+              handleCancelEdit();
           }
           setIsModalOpen(isOpen);
       }}>
@@ -549,10 +565,10 @@ export default function AgendaPage() {
                                     {app.summary && <p className="text-muted-foreground flex items-start gap-2 pt-2"><ClipboardList className="h-4 w-4 mt-0.5 shrink-0"/>{app.summary}</p>}
 
                                     <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(app)}>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditClick(app, selectedDate); }}>
                                             <Pencil className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteClick(app)}>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteClick(app); }}>
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -572,6 +588,44 @@ export default function AgendaPage() {
                  <h3 className="font-semibold text-lg text-foreground mb-4">{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
                  <Form {...form}>
                     <form id="appointment-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="date"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Data</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-full pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                            >
+                                            {field.value ? (
+                                                format(field.value, "PPP", { locale: ptBR })
+                                            ) : (
+                                                <span>Escolha uma data</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            initialFocus
+                                        />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <FormField
                         control={form.control}
                         name="time"
@@ -695,7 +749,7 @@ export default function AgendaPage() {
               ) : (
                 <>
                     {selectedAppointment && !editingAppointment && (
-                        <Button type="button" onClick={() => handleEditClick(selectedAppointment)}>
+                        <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                         </Button>
@@ -726,8 +780,6 @@ export default function AgendaPage() {
     </AlertDialog>
 
     <AlertDialog open={reminderStep === 'client'} onOpenChange={(isOpen) => {
-        // This logic ensures the flow isn't interrupted by accidental dismissal (e.g., clicking outside).
-        // The flow must proceed to the 'internal' step or be explicitly cancelled there.
         if (!isOpen) {
             setReminderStep('internal');
         }
