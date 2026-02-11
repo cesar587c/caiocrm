@@ -450,14 +450,14 @@ export default function AgendaPage() {
                 nav_button_next: 'absolute right-4 top-4',
 
                 table: 'w-full',
-                head_row: 'grid grid-cols-7 gap-2 pb-2',
-                head_cell: 'text-muted-foreground capitalize font-medium text-sm text-center',
+                head_row: 'grid grid-cols-7 divide-x divide-border/30 border-x border-t border-border/30',
+                head_cell: 'text-muted-foreground capitalize font-medium text-sm text-center py-2',
                 
-                body: 'grid grid-cols-7 gap-2',
+                body: 'grid grid-cols-7 divide-x divide-y divide-border/30 border-x border-b border-border/30',
                 row: 'contents',
-                cell: 'aspect-[10/7] relative rounded-lg border bg-card p-0 text-sm align-top',
+                cell: 'aspect-[20/14] relative bg-card p-0 text-sm align-top',
 
-                day: 'h-full w-full p-0 rounded-lg focus-visible:outline-none focus:ring-1 focus:ring-ring focus:z-10',
+                day: 'h-full w-full p-0 focus-visible:outline-none focus:ring-1 focus:ring-ring focus:z-10',
                 day_selected: 'bg-primary/10',
                 day_today: '',
                 day_outside: 'text-muted-foreground/50 pointer-events-none opacity-50',
