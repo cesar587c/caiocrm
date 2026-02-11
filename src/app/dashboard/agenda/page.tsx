@@ -18,7 +18,7 @@ import {
   isSameDay,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -52,6 +52,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 // Define the structure for a single appointment
 type Appointment = {
@@ -62,6 +63,7 @@ type Appointment = {
   phone?: string;
   contact: string;
   assignedTo: string;
+  summary?: string;
 };
 
 // Define the schema for the appointment form using Zod
@@ -72,6 +74,7 @@ const appointmentSchema = z.object({
   contact: z.string().min(1, 'O nome do contato na visita é obrigatório.'),
   time: z.string().min(1, 'O horário é obrigatório.'),
   assignedTo: z.string().min(1, 'O setor/responsável é obrigatório.'),
+  summary: z.string().optional(),
 });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -91,7 +94,7 @@ export default function AgendaPage() {
 
   const [appointments, setAppointments] = useState<Record<string, Appointment[]>>({
     [format(new Date(), 'yyyy-MM-dd')]: [
-        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana', assignedTo: 'user:user_1' },
+        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana', assignedTo: 'user:user_1', summary: 'Reunião inicial para discutir o novo projeto do website.' },
     ]
   });
   const { toast } = useToast();
@@ -106,6 +109,7 @@ export default function AgendaPage() {
       contact: '',
       time: '',
       assignedTo: '',
+      summary: '',
     },
   });
 
@@ -170,6 +174,7 @@ export default function AgendaPage() {
       contact: '',
       time: '',
       assignedTo: '',
+      summary: '',
     });
     setEditingAppointment(null);
     setSelectedAppointment(null);
@@ -201,6 +206,7 @@ export default function AgendaPage() {
       contact: appointment.contact,
       time: appointment.time,
       assignedTo: assignedToValue,
+      summary: appointment.summary || '',
     });
   };
 
@@ -237,6 +243,7 @@ export default function AgendaPage() {
       contact: '',
       time: '',
       assignedTo: '',
+      summary: '',
     });
   }
 
@@ -276,7 +283,7 @@ export default function AgendaPage() {
   const handleSendInternalWhatsAppReminder = () => {
     if (!appointmentForReminders) return;
 
-    const { clientName, time, assignedTo } = appointmentForReminders;
+    const { clientName, time, assignedTo, summary } = appointmentForReminders;
     const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
     
     const [type, id] = assignedTo.split(':');
@@ -293,7 +300,11 @@ export default function AgendaPage() {
             return;
         }
         targetName = user.name;
-        message = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}\n\nPor favor, verifique a agenda para mais detalhes.`;
+        message = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
+        if (summary) {
+            message += `\n*Resumo:* ${summary}`;
+        }
+        message += `\n\nPor favor, verifique a agenda para mais detalhes.`;
         
         const cleanPhone = user.whatsapp?.replace(/\D/g, '') || '';
         if (cleanPhone.length >= 10) {
@@ -315,7 +326,11 @@ export default function AgendaPage() {
             sectorName = assignedTo; // Fallback for old data format
         }
         targetName = `Setor ${sectorName}`;
-        message = `*Lembrete de Agendamento para o Setor*\n\nUma visita foi agendada para o setor *${sectorName}*.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}\n\nPor favor, verifique a agenda para mais detalhes.`;
+        message = `*Lembrete de Agendamento para o Setor*\n\nUma visita foi agendada para o setor *${sectorName}*.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
+        if (summary) {
+            message += `\n*Resumo:* ${summary}`;
+        }
+        message += `\n\nPor favor, verifique a agenda para mais detalhes.`;
         toastDescription = `A mensagem para ${targetName.replace('Setor ','o setor ')} está pronta para ser enviada.`;
     }
 
@@ -346,6 +361,7 @@ export default function AgendaPage() {
             phone: values.phone,
             contact: values.contact,
             assignedTo: values.assignedTo,
+            summary: values.summary,
         };
         savedAppointment = updatedAppointment;
         setAppointments(prev => {
@@ -369,6 +385,7 @@ export default function AgendaPage() {
             phone: values.phone,
             contact: values.contact,
             assignedTo: values.assignedTo,
+            summary: values.summary,
         };
         savedAppointment = newAppointment;
 
@@ -393,6 +410,7 @@ export default function AgendaPage() {
       contact: '',
       time: '',
       assignedTo: '',
+      summary: '',
     });
     
     setAppointmentForReminders(savedAppointment);
@@ -483,6 +501,7 @@ export default function AgendaPage() {
                 contact: '',
                 time: '',
                 assignedTo: '',
+                summary: '',
               });
           }
           setIsModalOpen(isOpen);
@@ -527,7 +546,8 @@ export default function AgendaPage() {
                                     <p className="text-muted-foreground flex items-center gap-2"><User className="h-4 w-4"/>{app.contact}</p>
                                     <p className="text-muted-foreground flex items-center gap-2"><Briefcase className="h-4 w-4"/>{getAssignedToName(app.assignedTo)}</p>
                                     {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
-                                    
+                                    {app.summary && <p className="text-muted-foreground flex items-start gap-2 pt-2"><ClipboardList className="h-4 w-4 mt-0.5 shrink-0"/>{app.summary}</p>}
+
                                     <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(app)}>
                                             <Pencil className="h-4 w-4" />
@@ -616,6 +636,19 @@ export default function AgendaPage() {
                             <FormMessage />
                             </FormItem>
                         )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="summary"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Resumo da Visita</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder="Ex: Apresentar novo produto, resolver pendência..." {...field} value={field.value || ''} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
                         />
                          <FormField
                             control={form.control}
