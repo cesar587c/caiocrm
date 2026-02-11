@@ -20,6 +20,7 @@ import {
   Trash2,
   Users,
   X,
+  Filter,
 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { DayContentProps, useDayPicker } from 'react-day-picker';
@@ -75,9 +76,17 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useSettings } from '@/contexts/SettingsContext';
 import { ToastAction } from '@/components/ui/toast';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-// Tipos e Dados Mock
+const eventTypes = {
+  visita: { label: 'Visita', className: 'border-transparent bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200' },
+  reuniao: { label: 'Reunião', className: 'border-transparent bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200' },
+  ligacao: { label: 'Ligação', className: 'border-transparent bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200' },
+  proposta: { label: 'Proposta', className: 'border-transparent bg-yellow-100 text-yellow-800 dark:bg-yellow-900/60 dark:text-yellow-200' },
+  outro: { label: 'Outro', className: 'border-transparent bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200' },
+};
+type EventType = keyof typeof eventTypes;
+
 type Appointment = {
   id: string;
   title: string;
@@ -87,6 +96,7 @@ type Appointment = {
   userIds: string[];
   reminder: number; // in minutes
   status: 'scheduled' | 'completed' | 'canceled';
+  eventType: EventType;
 };
 
 const mockUsers = [
@@ -109,6 +119,7 @@ const appointmentSchema = z.object({
   time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato de hora inválido (HH:MM)."),
   userIds: z.array(z.string()).min(1, 'Atribua pelo menos um usuário.'),
   reminder: z.coerce.number().min(0),
+  eventType: z.string().min(1, "Selecione um tipo de evento."),
 });
 
 export default function AgendaPage() {
@@ -123,6 +134,9 @@ export default function AgendaPage() {
   const timeoutIdsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const [isClient, setIsClient] = useState(false);
   const [today, setToday] = useState<Date | undefined>();
+  
+  const [visibleEventTypes, setVisibleEventTypes] = useState<string[]>(Object.keys(eventTypes));
+  const [dayModal, setDayModal] = useState<Date | null>(null);
 
   const form = useForm<z.infer<typeof appointmentSchema>>({
     resolver: zodResolver(appointmentSchema),
@@ -133,6 +147,7 @@ export default function AgendaPage() {
       time: '09:00',
       userIds: [],
       reminder: 15,
+      eventType: 'reuniao',
     },
   });
   
@@ -149,6 +164,7 @@ export default function AgendaPage() {
         userIds: ['user_1'],
         reminder: 15,
         status: 'scheduled',
+        eventType: 'reuniao',
       },
       {
         id: 'appt_2',
@@ -159,8 +175,9 @@ export default function AgendaPage() {
         userIds: ['user_1', 'user_2'],
         reminder: 60,
         status: 'scheduled',
+        eventType: 'proposta',
       },
-        {
+      {
         id: 'appt_3',
         title: 'Primeiro Contato',
         customerId: 'cust_4',
@@ -169,15 +186,27 @@ export default function AgendaPage() {
         userIds: ['user_3'],
         reminder: 0,
         status: 'completed',
+        eventType: 'ligacao',
       },
       {
         id: 'appt_4',
-        title: 'Call de Alinhamento',
+        title: 'Visita Técnica',
         customerId: 'cust_5',
         dateTime: add(now, { days: 2 }),
         userIds: ['user_2'],
         reminder: 30,
         status: 'scheduled',
+        eventType: 'visita',
+      },
+      {
+        id: 'appt_5',
+        title: 'Almoço com diretoria',
+        customerId: 'cust_1',
+        dateTime: now,
+        userIds: ['user_1', 'user_2'],
+        reminder: 0,
+        status: 'scheduled',
+        eventType: 'outro'
       },
     ];
     setAppointments(dynamicInitialAppointments);
@@ -229,6 +258,7 @@ export default function AgendaPage() {
         time: format(appointment.dateTime, 'HH:mm'),
         userIds: appointment.userIds,
         reminder: appointment.reminder,
+        eventType: appointment.eventType,
       });
     } else {
       form.reset({
@@ -239,6 +269,7 @@ export default function AgendaPage() {
         time: format(add(new Date(), { hours: 1 }), 'HH:mm'),
         userIds: [],
         reminder: 15,
+        eventType: 'reuniao'
       });
     }
     setIsFormOpen(true);
@@ -254,6 +285,7 @@ export default function AgendaPage() {
         ...editingAppointment,
         ...values,
         dateTime,
+        eventType: values.eventType as EventType,
       };
       setAppointments(
         appointments.map((a) => (a.id === editingAppointment.id ? updatedAppointment : a))
@@ -265,6 +297,7 @@ export default function AgendaPage() {
         status: 'scheduled',
         ...values,
         dateTime,
+        eventType: values.eventType as EventType,
       };
       setAppointments([newAppointment, ...appointments]);
       toast({ title: 'Compromisso Agendado!', description: 'O novo compromisso foi adicionado à sua agenda.' });
@@ -281,35 +314,18 @@ export default function AgendaPage() {
     });
     setDeletingAppointment(null);
   };
-
-  const handleWhatsAppConfirmation = (appointment: Appointment) => {
-    const customer = initialCustomers.find(c => c.id === appointment.customerId);
-    if (!customer) return;
-
-    const message = `Olá, ${customer.name}! Gostaríamos de confirmar seu compromisso "${appointment.title}" agendado para ${format(appointment.dateTime, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}. Por favor, responda a esta mensagem para confirmar. Atenciosamente, ${companyProfile.name}`;
-
-    const encodedMessage = encodeURIComponent(message);
-    const phone = customer.telefone?.replace(/\D/g, '') || '';
-    
-    let whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-    if (phone) {
-        whatsappUrl = `https://wa.me/55${phone}?text=${encodedMessage}`;
-    }
-    
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    
-    toast({
-        title: "Confirmação preparada!",
-        description: `Uma mensagem para ${customer.name} está pronta no WhatsApp.`
-    });
+  
+  const formatWeekdayName = (day: Date) => {
+    return format(day, "cccc", { locale: ptBR });
   };
+
 
   function CustomDayContent(props: DayContentProps) {
     const dayAppointments = useMemo(() => {
         return appointments
-            .filter((appt) => isSameDay(appt.dateTime, props.date))
+            .filter((appt) => isSameDay(appt.dateTime, props.date) && visibleEventTypes.includes(appt.eventType))
             .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
-    }, [props.date, appointments]);
+    }, [props.date, appointments, visibleEventTypes]);
     
     const { date, displayMonth, modifiers } = props;
     const isOutside = getMonth(date) !== getMonth(displayMonth);
@@ -317,11 +333,11 @@ export default function AgendaPage() {
     const dayIsSelected = selectedDate ? isSameDay(date, selectedDate) : false;
 
     return (
-        <div className={cn("h-full w-full p-1 flex flex-col", isOutside && "text-muted-foreground/40")}>
+        <div className={cn("h-full w-full p-1 flex flex-col relative", isOutside && "opacity-40", dayIsToday && !dayIsSelected && "bg-accent/20")}>
             <div className={cn(
-                "ml-auto text-sm",
-                 dayIsSelected && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center font-bold",
-                 !dayIsSelected && dayIsToday && "text-primary font-bold"
+                "ml-auto text-sm h-6 w-6 flex items-center justify-center font-bold",
+                 dayIsSelected && "bg-primary text-primary-foreground rounded-full",
+                 !dayIsSelected && dayIsToday && "text-primary"
             )}>
                 {format(props.date, 'd')}
             </div>
@@ -334,15 +350,24 @@ export default function AgendaPage() {
                             handleOpenForm(appt);
                         }}
                         className={cn(
-                          "text-xs rounded px-1.5 py-0.5 truncate cursor-pointer bg-[hsl(var(--chart-4))]/20 text-foreground/90 hover:bg-[hsl(var(--chart-4))]/30",
-                          appt.status === 'completed' && 'bg-muted/80 line-through text-muted-foreground'
+                          "text-xs rounded-md border px-1.5 py-0.5 truncate cursor-pointer",
+                          eventTypes[appt.eventType]?.className,
+                          appt.status === 'completed' && 'bg-muted/80 line-through text-muted-foreground border-transparent'
                         )}
                     >
                         {appt.title}
                     </div>
                 ))}
                 {dayAppointments.length > 2 && (
-                    <div className="text-xs text-muted-foreground">+ {dayAppointments.length - 2} mais</div>
+                    <button
+                        className="text-xs text-muted-foreground text-left hover:underline"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setDayModal(props.date);
+                        }}
+                    >
+                        + {dayAppointments.length - 2} mais
+                    </button>
                 )}
             </div>
         </div>
@@ -354,10 +379,37 @@ export default function AgendaPage() {
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 h-full flex flex-col">
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight font-headline">Agenda</h2>
-          <Button onClick={() => handleOpenForm(null)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Adicionar Compromisso
-          </Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="mr-2 h-4 w-4" />
+                  Filtrar Eventos
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {Object.entries(eventTypes).map(([key, { label }]) => (
+                    <DropdownMenuCheckboxItem
+                        key={key}
+                        checked={visibleEventTypes.includes(key)}
+                        onCheckedChange={(checked) => {
+                            setVisibleEventTypes(prev => 
+                                checked ? [...prev, key] : prev.filter(t => t !== key)
+                            )
+                        }}
+                    >
+                        {label}
+                    </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={() => handleOpenForm(null)}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Adicionar Compromisso
+            </Button>
+          </div>
         </div>
 
         <Card className="flex-1 flex flex-col p-0">
@@ -370,6 +422,7 @@ export default function AgendaPage() {
               onMonthChange={setCurrentMonth}
               locale={ptBR}
               today={today}
+              formatters={{ formatWeekdayName }}
               components={{ DayContent: CustomDayContent }}
               className="border-r border-t"
               classNames={{
@@ -378,12 +431,12 @@ export default function AgendaPage() {
                   caption: "flex justify-center items-center relative p-4 border-b",
                   caption_label: "text-lg font-bold",
                   head_row: "flex w-full",
-                  head_cell: "text-muted-foreground font-normal text-sm w-[calc(100%/7)] p-2 text-center border-b",
+                  head_cell: "text-muted-foreground font-normal text-xs md:text-sm flex-1 text-center border-b p-2 capitalize",
                   body: "grid grid-cols-7",
                   row: "contents",
-                  cell: "h-28 lg:h-32 text-sm p-0 relative border-b border-l",
+                  cell: "h-28 lg:h-36 text-sm p-0 relative border-b border-l focus-within:relative focus-within:z-20",
                   day: "h-full w-full p-0 rounded-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  day_selected: "bg-accent/50",
+                  day_selected: "bg-transparent",
                   day_today: "",
                   day_outside: "",
               }}
@@ -556,24 +609,22 @@ export default function AgendaPage() {
                         </FormItem>
                         )}
                     />
-                     <FormField
+                    <FormField
                         control={form.control}
-                        name="reminder"
+                        name="eventType"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Lembrete</FormLabel>
-                                <Select onValueChange={(val) => field.onChange(Number(val))} defaultValue={String(field.value)}>
+                            <FormLabel>Tipo de Evento</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
                                         <SelectTrigger>
-                                            <SelectValue />
+                                            <SelectValue placeholder="Selecione um tipo" />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="0">Sem lembrete</SelectItem>
-                                        <SelectItem value="5">5 minutos antes</SelectItem>
-                                        <SelectItem value="15">15 minutos antes</SelectItem>
-                                        <SelectItem value="30">30 minutos antes</SelectItem>
-                                        <SelectItem value="60">1 hora antes</SelectItem>
+                                        {Object.entries(eventTypes).map(([key, { label }]) => (
+                                          <SelectItem key={key} value={key}>{label}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             <FormMessage />
@@ -581,6 +632,30 @@ export default function AgendaPage() {
                         )}
                     />
                 </div>
+                 <FormField
+                    control={form.control}
+                    name="reminder"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Lembrete</FormLabel>
+                            <Select onValueChange={(val) => field.onChange(Number(val))} value={String(field.value)}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="0">Sem lembrete</SelectItem>
+                                    <SelectItem value="5">5 minutos antes</SelectItem>
+                                    <SelectItem value="15">15 minutos antes</SelectItem>
+                                    <SelectItem value="30">30 minutos antes</SelectItem>
+                                    <SelectItem value="60">1 hora antes</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)}>Cancelar</Button>
@@ -604,6 +679,54 @@ export default function AgendaPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <Dialog open={!!dayModal} onOpenChange={() => setDayModal(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Compromissos para {dayModal && format(dayModal, 'PPP', { locale: ptBR })}</DialogTitle>
+                 <DialogDescription>
+                    Todos os eventos agendados para este dia.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
+                {dayModal && appointments
+                    .filter(appt => isSameDay(appt.dateTime, dayModal) && visibleEventTypes.includes(appt.eventType))
+                    .sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime())
+                    .map(appt => {
+                        const customer = initialCustomers.find(c => c.id === appt.customerId);
+                        return (
+                            <div key={appt.id} className="p-3 rounded-lg border bg-card/50 flex items-start gap-4">
+                                <div className="flex-1 space-y-1">
+                                    <p className="font-semibold">{appt.title}</p>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Clock className="h-3.5 w-3.5" />
+                                        <span>{format(appt.dateTime, 'HH:mm')}</span>
+                                    </div>
+                                    {customer && (
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Users className="h-3.5 w-3.5" />
+                                            <span>{customer.name}</span>
+                                        </div>
+                                    )}
+                                    <Badge variant="outline" className={cn("mt-2", eventTypes[appt.eventType].className)}>
+                                      {eventTypes[appt.eventType].label}
+                                    </Badge>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={() => {
+                                    setDayModal(null);
+                                    handleOpenForm(appt);
+                                }}>
+                                    Editar
+                                </Button>
+                            </div>
+                        )
+                    })
+                }
+            </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
+
+    
