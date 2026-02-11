@@ -342,7 +342,7 @@ export default function AgendaPage() {
     const isSelected = modifiers.selected;
 
     return (
-        <div className={cn("h-full w-full flex flex-col p-1.5", isOutside && "text-muted-foreground/50")}>
+        <div className={cn("h-full w-full flex flex-col p-1.5 align-top", isOutside && "text-muted-foreground/50")}>
             <div className={cn(
                 "self-end text-sm w-7 h-7 flex items-center justify-center rounded-full",
                 isTodayDate && !isSelected && "bg-accent text-accent-foreground",
@@ -449,8 +449,10 @@ export default function AgendaPage() {
                   nav_button_previous: 'absolute left-4 top-4',
                   nav_button_next: 'absolute right-4 top-4',
                   table: 'w-full border-collapse',
+                  head_row: 'grid grid-cols-7',
                   head_cell: "text-muted-foreground capitalize font-medium text-sm text-center py-2 border",
-                  cell: "h-32 text-sm p-0 relative border focus-within:relative focus-within:z-20",
+                  row: 'grid grid-cols-7',
+                  cell: "h-32 text-sm p-0 relative border align-top",
                   day: "h-full w-full p-0 rounded-none focus-visible:outline-none focus:ring-1 focus:ring-ring focus:z-10",
                   day_selected: "bg-primary/10",
                   day_today: "",
