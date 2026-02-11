@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { add, format, isSameDay, parse, startOfDay } from 'date-fns';
+import { add, format, isSameDay, parse, startOfDay, getMonth, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   BellRing,
@@ -20,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { DayContentProps, useDayPicker } from 'react-day-picker';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -27,7 +29,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -35,7 +36,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -146,12 +146,17 @@ export default function AgendaPage() {
   const { companyProfile } = useSettings();
   const { toast } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
   const timeoutIdsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-  const [today, setToday] = useState<Date | undefined>();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const form = useForm<z.infer<typeof appointmentSchema>>({
     resolver: zodResolver(appointmentSchema),
@@ -164,20 +169,7 @@ export default function AgendaPage() {
       reminder: 15,
     },
   });
-
-  const dailyAppointments = useMemo(() => {
-    if (!selectedDate) return [];
-    return appointments
-      .filter((appt) => isSameDay(appt.dateTime, selectedDate))
-      .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
-  }, [appointments, selectedDate]);
   
-  useEffect(() => {
-    const now = new Date();
-    setSelectedDate(now);
-    setToday(now);
-  }, []);
-
   useEffect(() => {
     timeoutIdsRef.current.forEach(clearTimeout);
     timeoutIdsRef.current.clear();
@@ -296,131 +288,79 @@ export default function AgendaPage() {
     });
   };
 
-  const dayWithAppointments = useMemo(() => {
-    return appointments.map(a => startOfDay(a.dateTime));
-  }, [appointments]);
+  function CustomDayContent(props: DayContentProps) {
+    const dayAppointments = useMemo(() => {
+        return appointments
+            .filter((appt) => isSameDay(appt.dateTime, props.date))
+            .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
+    }, [props.date, appointments]);
+    
+    const { date, displayMonth } = props;
+    const isOutside = getMonth(date) !== getMonth(displayMonth);
+
+    return (
+        <div className={cn("h-full w-full p-1 flex flex-col", isOutside && "text-muted-foreground/50")}>
+            <div className="self-end text-sm">{format(props.date, 'd')}</div>
+            <div className="flex-grow space-y-1 overflow-hidden mt-1 text-left">
+                {dayAppointments.slice(0, 3).map(appt => (
+                    <div
+                        key={appt.id}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenForm(appt);
+                        }}
+                        className={cn(
+                          "bg-chart-4/20 text-xs rounded px-1.5 py-0.5 truncate cursor-pointer hover:bg-chart-4/30",
+                          appt.status === 'completed' && 'bg-muted-foreground/20 line-through'
+                        )}
+                    >
+                        {appt.title}
+                    </div>
+                ))}
+                {dayAppointments.length > 3 && (
+                    <div className="text-xs text-muted-foreground">+ {dayAppointments.length - 3} mais</div>
+                )}
+            </div>
+        </div>
+    );
+  }
 
   return (
     <>
-      <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 h-full flex flex-col">
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight font-headline">Agenda e Compromissos</h2>
+          <h2 className="text-3xl font-bold tracking-tight font-headline">Agenda</h2>
           <Button onClick={() => handleOpenForm(null)}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Adicionar Compromisso
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="md:col-span-1">
-                <Card>
-                    <CardContent className="p-0">
-                        <Calendar
-                            mode="single"
-                            selected={selectedDate}
-                            onSelect={setSelectedDate}
-                            locale={ptBR}
-                            className="p-3"
-                            modifiers={{ appointments: dayWithAppointments }}
-                            modifiersClassNames={{ appointments: 'day-with-appointment' }}
-                            today={today}
-                        />
-                    </CardContent>
-                </Card>
-                <Card className="mt-6">
-                    <CardHeader>
-                        <CardTitle>Integração com Google</CardTitle>
-                        <CardDescription>Conecte sua conta para sincronizar eventos.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                            A integração completa para sincronização automática com o Google Calendar será implementada em breve.
-                        </p>
-                        <Button className="w-full mt-4" variant="outline">
-                            <CalendarPlus className="mr-2 h-4 w-4" />
-                            Conectar com Google Calendar
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-            <div className="md:col-span-1">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>
-                            Compromissos para {selectedDate ? format(selectedDate, 'dd \'de\' MMMM', {locale: ptBR}) : 'a data selecionada'}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {dailyAppointments.length > 0 ? (
-                            dailyAppointments.map(appt => {
-                                const customer = initialCustomers.find(c => c.id === appt.customerId);
-                                const assignedUsers = mockUsers.filter(u => appt.userIds.includes(u.id));
-                                return (
-                                <Card key={appt.id} className={cn("transition-all", appt.status === 'completed' && 'bg-muted/50 text-muted-foreground')}>
-                                    <CardHeader className='pb-3'>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <CardTitle className="text-lg flex items-center gap-2">
-                                                     <Badge className={cn(
-                                                         appt.status === 'scheduled' && 'bg-chart-2',
-                                                         appt.status === 'completed' && 'bg-chart-4',
-                                                         appt.status === 'canceled' && 'bg-destructive',
-                                                     )}>
-                                                        {appt.status === 'scheduled' ? 'Agendado' : appt.status === 'completed' ? 'Concluído' : 'Cancelado'}
-                                                    </Badge>
-                                                    <span>{appt.title}</span>
-                                                </CardTitle>
-                                                <CardDescription className="flex items-center gap-2 pt-2">
-                                                    <Clock className="h-4 w-4" /> {format(appt.dateTime, 'HH:mm')}h
-                                                </CardDescription>
-                                            </div>
-                                             <div className="flex gap-2">
-                                                <Button variant="outline" size="sm" onClick={() => handleOpenForm(appt)}>Editar</Button>
-                                                <Button variant="destructive" size="sm" onClick={() => setDeletingAppointment(appt)}>Excluir</Button>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3">
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <BookUser className="h-4 w-4" />
-                                            Cliente: <span className="font-semibold">{customer?.name || 'Não informado'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <Users className="h-4 w-4" />
-                                            Participantes: {assignedUsers.map(u => u.name).join(', ')}
-                                        </div>
-                                        {appt.reminder > 0 && (
-                                            <div className="flex items-center gap-2 text-sm text-amber-500">
-                                                <BellRing className="h-4 w-4" />
-                                                Lembrete {appt.reminder} min. antes
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                    <CardFooter>
-                                        <Button variant="secondary" onClick={() => handleWhatsAppConfirmation(appt)}>
-                                            <Send className="mr-2 h-4 w-4" />
-                                            Confirmar por WhatsApp
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
-                            )})
-                        ) : (
-                            <div className="flex h-full min-h-[50vh] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center">
-                                <CalendarIcon className="h-12 w-12 text-muted-foreground" />
-                                <h3 className="mt-4 text-lg font-semibold">Nenhum compromisso agendado</h3>
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    Não há eventos para a data selecionada.
-                                </p>
-                                <Button className="mt-6" onClick={() => handleOpenForm(null)}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Agendar novo compromisso
-                                </Button>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+        <Card className="flex-1 flex flex-col">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            month={currentMonth}
+            onMonthChange={setCurrentMonth}
+            locale={ptBR}
+            components={{ DayContent: CustomDayContent }}
+            className="h-full w-full"
+            classNames={{
+                months: "h-full flex flex-col",
+                month: "h-full flex flex-col",
+                caption_label: "text-lg font-bold",
+                head_row: "flex border-b",
+                head_cell: "text-muted-foreground w-[14.28%] text-sm font-normal py-3",
+                body: "flex-1 grid grid-cols-7 grid-rows-5",
+                row: "flex w-full mt-0",
+                cell: "h-auto text-center text-sm p-0 relative focus-within:relative focus-within:z-20 w-full border-l border-t first:border-l-0",
+                day: "h-full w-full p-0 rounded-none focus:bg-accent/50",
+                day_selected: "bg-accent text-accent-foreground",
+                day_today: "bg-primary/10 text-primary",
+            }}
+          />
+        </Card>
       </div>
 
        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -506,7 +446,7 @@ export default function AgendaPage() {
                                                 !field.value && "text-muted-foreground"
                                             )}
                                             >
-                                            {field.value ? (
+                                            {isClient && field.value ? (
                                                 format(field.value, "PPP", { locale: ptBR })
                                             ) : (
                                                 <span>Escolha uma data</span>
@@ -520,10 +460,8 @@ export default function AgendaPage() {
                                             mode="single"
                                             selected={field.value}
                                             onSelect={field.onChange}
-                                            disabled={(date) => today ? date < startOfDay(today) : true}
                                             initialFocus
                                             locale={ptBR}
-                                            today={today}
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -632,26 +570,8 @@ export default function AgendaPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-        <style jsx global>{`
-            .day-with-appointment {
-                position: relative;
-            }
-            .day-with-appointment::after {
-                content: '';
-                position: absolute;
-                bottom: 4px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 4px;
-                height: 4px;
-                border-radius: 50%;
-                background-color: hsl(var(--primary));
-            }
-            .rdp-day_selected.day-with-appointment::after {
-                 background-color: hsl(var(--primary-foreground));
-            }
-        `}</style>
     </>
   );
 }
+
+    
