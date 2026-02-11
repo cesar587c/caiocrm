@@ -327,7 +327,7 @@ export default function AgendaPage() {
   };
   
   const formatWeekdayName = (day: Date) => {
-    return format(day, "cccc", { locale: ptBR });
+    return format(day, "cccc", { locale: ptBR }).replace('-feira', '');
   };
 
 
