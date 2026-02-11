@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,7 +18,7 @@ import {
   isSameDay,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -51,6 +51,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettings } from '@/contexts/SettingsContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Define the structure for a single appointment
 type Appointment = {
@@ -60,6 +61,7 @@ type Appointment = {
   address: string;
   phone?: string;
   contact: string;
+  assignedTo: string;
 };
 
 // Define the schema for the appointment form using Zod
@@ -69,6 +71,7 @@ const appointmentSchema = z.object({
   phone: z.string().optional(),
   contact: z.string().min(1, 'O nome do contato na visita é obrigatório.'),
   time: z.string().min(1, 'O horário é obrigatório.'),
+  assignedTo: z.string().min(1, 'O setor/responsável é obrigatório.'),
 });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -81,12 +84,14 @@ export default function AgendaPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [appointmentForReminder, setAppointmentForReminder] = useState<Appointment | null>(null);
+  
+  const [reminderStep, setReminderStep] = useState<'idle' | 'client' | 'internal'>('idle');
+  const [appointmentForReminders, setAppointmentForReminders] = useState<Appointment | null>(null);
 
 
   const [appointments, setAppointments] = useState<Record<string, Appointment[]>>({
     [format(new Date(), 'yyyy-MM-dd')]: [
-        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana' },
+        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana', assignedTo: 'Comercial' },
     ]
   });
   const { toast } = useToast();
@@ -100,8 +105,15 @@ export default function AgendaPage() {
       phone: '',
       contact: '',
       time: '',
+      assignedTo: '',
     },
   });
+
+  useEffect(() => {
+    if (reminderStep === 'idle') {
+      setAppointmentForReminders(null);
+    }
+  }, [reminderStep]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
@@ -127,6 +139,7 @@ export default function AgendaPage() {
       phone: '',
       contact: '',
       time: '',
+      assignedTo: '',
     });
     setEditingAppointment(null);
     setSelectedAppointment(null);
@@ -147,6 +160,7 @@ export default function AgendaPage() {
       phone: appointment.phone || '',
       contact: appointment.contact,
       time: appointment.time,
+      assignedTo: appointment.assignedTo,
     });
   };
 
@@ -182,13 +196,14 @@ export default function AgendaPage() {
       phone: '',
       contact: '',
       time: '',
+      assignedTo: '',
     });
   }
 
   const handleSendWhatsAppReminder = () => {
-    if (!appointmentForReminder) return;
+    if (!appointmentForReminders) return;
 
-    const { clientName, time, phone } = appointmentForReminder;
+    const { clientName, time, phone } = appointmentForReminders;
     const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
 
     const message = `Olá, ${clientName}! 👋\n\nEste é um lembrete do seu agendamento com a ${companyProfile.name} no dia ${dateStr} às ${time}.\n\nAté breve!`;
@@ -210,7 +225,29 @@ export default function AgendaPage() {
         description: `Sua mensagem para ${clientName} está pronta no WhatsApp.`,
     });
 
-    setAppointmentForReminder(null); // Close the dialog
+    setReminderStep('internal');
+  };
+
+  const handleSendInternalWhatsAppReminder = () => {
+    if (!appointmentForReminders) return;
+
+    const { clientName, time, assignedTo } = appointmentForReminders;
+    const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
+
+    const message = `*Lembrete de Agendamento Interno*\n\nUma visita foi agendada para o setor *${assignedTo}*.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}\n\nPor favor, verifique a agenda para mais detalhes.`;
+    
+    const encodedMessage = encodeURIComponent(message);
+    
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+
+    toast({
+        title: "Notificação Interna Pronta",
+        description: `A mensagem para o setor ${assignedTo} está pronta para ser enviada.`,
+    });
+
+    setReminderStep('idle');
   };
 
   function onSubmit(values: AppointmentFormValues) {
@@ -226,6 +263,7 @@ export default function AgendaPage() {
             address: values.address,
             phone: values.phone,
             contact: values.contact,
+            assignedTo: values.assignedTo,
         };
         savedAppointment = updatedAppointment;
         setAppointments(prev => {
@@ -248,6 +286,7 @@ export default function AgendaPage() {
             address: values.address,
             phone: values.phone,
             contact: values.contact,
+            assignedTo: values.assignedTo,
         };
         savedAppointment = newAppointment;
 
@@ -271,9 +310,11 @@ export default function AgendaPage() {
       phone: '',
       contact: '',
       time: '',
+      assignedTo: '',
     });
     
-    setAppointmentForReminder(savedAppointment);
+    setAppointmentForReminders(savedAppointment);
+    setReminderStep('client');
   }
 
   const selectedDayAppointments = useMemo(() => {
@@ -359,6 +400,7 @@ export default function AgendaPage() {
                 phone: '',
                 contact: '',
                 time: '',
+                assignedTo: '',
               });
           }
           setIsModalOpen(isOpen);
@@ -401,9 +443,13 @@ export default function AgendaPage() {
                                     </div>
                                     <p className="text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>{app.address}</p>
                                     <p className="text-muted-foreground flex items-center gap-2"><User className="h-4 w-4"/>{app.contact}</p>
+                                    <p className="text-muted-foreground flex items-center gap-2"><Briefcase className="h-4 w-4"/>{app.assignedTo}</p>
                                     {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
                                     
                                     <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(app)}>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
                                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteClick(app)}>
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -489,6 +535,29 @@ export default function AgendaPage() {
                             </FormItem>
                         )}
                         />
+                         <FormField
+                            control={form.control}
+                            name="assignedTo"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Setor/Responsável</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione um setor" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    <SelectItem value="Comercial">Comercial</SelectItem>
+                                    <SelectItem value="Técnico">Técnico</SelectItem>
+                                    <SelectItem value="Financeiro">Financeiro</SelectItem>
+                                    <SelectItem value="Administrativo">Administrativo</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </form>
                 </Form>
             </div>
@@ -501,12 +570,6 @@ export default function AgendaPage() {
                 </>
               ) : (
                 <>
-                    {selectedAppointment && (
-                        <Button type="button" variant="outline" onClick={() => handleEditClick(selectedAppointment)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar
-                        </Button>
-                    )}
                     <Button type="submit" form="appointment-form">
                         <Plus className="mr-2 h-4 w-4" />
                         Agendar
@@ -532,18 +595,33 @@ export default function AgendaPage() {
         </AlertDialogContent>
     </AlertDialog>
 
-    <AlertDialog open={!!appointmentForReminder} onOpenChange={(isOpen) => !isOpen && setAppointmentForReminder(null)}>
+    <AlertDialog open={reminderStep === 'client'} onOpenChange={(isOpen) => !isOpen && setReminderStep('idle')}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Agendamento Concluído!</AlertDialogTitle>
                 <AlertDialogDescription>
                     Deseja enviar um lembrete via WhatsApp para o cliente{" "}
-                    <span className="font-medium">{appointmentForReminder?.clientName}</span>?
+                    <span className="font-medium">{appointmentForReminders?.clientName}</span>?
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setAppointmentForReminder(null)}>Não, obrigado</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setReminderStep('internal')}>Não, obrigado</AlertDialogCancel>
                 <AlertDialogAction onClick={handleSendWhatsAppReminder}>Enviar Lembrete</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={reminderStep === 'internal'} onOpenChange={(isOpen) => !isOpen && setReminderStep('idle')}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Notificar Equipe Interna</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Deseja notificar o setor <span className="font-medium">{appointmentForReminders?.assignedTo}</span> sobre este agendamento via WhatsApp?
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setReminderStep('idle')}>Não</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSendInternalWhatsAppReminder}>Notificar Equipe</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
