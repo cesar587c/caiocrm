@@ -51,7 +51,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Define the structure for a single appointment
 type Appointment = {
@@ -91,11 +91,11 @@ export default function AgendaPage() {
 
   const [appointments, setAppointments] = useState<Record<string, Appointment[]>>({
     [format(new Date(), 'yyyy-MM-dd')]: [
-        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana', assignedTo: 'Comercial' },
+        { id: '1', time: '10:00', clientName: 'Tech Solutions', address: 'Rua das Inovações, 123', phone: '1199999999', contact: 'Ana', assignedTo: 'sector:sec_2' },
     ]
   });
   const { toast } = useToast();
-  const { companyProfile, sectors } = useSettings();
+  const { companyProfile, sectors, users } = useSettings();
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
@@ -114,6 +114,36 @@ export default function AgendaPage() {
       setAppointmentForReminders(null);
     }
   }, [reminderStep]);
+  
+  const assignedToDisplay = useMemo(() => {
+    if (!appointmentForReminders?.assignedTo) return { type: '', name: ''};
+    const [type, id] = appointmentForReminders.assignedTo.split(':');
+    if (type === 'user') {
+        const user = users.find(u => u.id === id);
+        return { type: 'user', name: user?.name || 'Usuário' };
+    }
+    if (type === 'sector') {
+        const sector = sectors.find(s => s.id === id);
+        return { type: 'sector', name: sector?.name || 'Setor' };
+    }
+    // Fallback for old data
+    const sector = sectors.find(s => s.name === appointmentForReminders.assignedTo);
+    return { type: 'sector', name: sector?.name || appointmentForReminders.assignedTo };
+  }, [appointmentForReminders, users, sectors]);
+
+  const getAssignedToName = (assignedToStr: string) => {
+    if (!assignedToStr) return 'N/A';
+    const [type, id] = assignedToStr.split(':');
+    if (type === 'user') {
+        const user = users.find(u => u.id === id);
+        return user?.name || 'Usuário não encontrado';
+    }
+    if (type === 'sector') {
+        const sector = sectors.find(s => s.id === id);
+        return `Setor: ${sector?.name || 'Setor não encontrado'}`;
+    }
+    return assignedToStr; // Fallback for old data
+  };
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
@@ -154,13 +184,23 @@ export default function AgendaPage() {
 
   const handleEditClick = (appointment: Appointment) => {
     setEditingAppointment(appointment);
+
+    let assignedToValue = appointment.assignedTo;
+    // Convert old data format (sector name) to new format (sector:id)
+    if (assignedToValue && !assignedToValue.includes(':')) {
+        const sector = sectors.find(s => s.name === assignedToValue);
+        if (sector) {
+            assignedToValue = `sector:${sector.id}`;
+        }
+    }
+
     form.reset({
       clientName: appointment.clientName,
       address: appointment.address,
       phone: appointment.phone || '',
       contact: appointment.contact,
       time: appointment.time,
-      assignedTo: appointment.assignedTo,
+      assignedTo: assignedToValue,
     });
   };
 
@@ -233,18 +273,35 @@ export default function AgendaPage() {
 
     const { clientName, time, assignedTo } = appointmentForReminders;
     const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
+    
+    const [type, id] = assignedTo.split(':');
+    let targetName = '';
+    let message = '';
 
-    const message = `*Lembrete de Agendamento Interno*\n\nUma visita foi agendada para o setor *${assignedTo}*.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}\n\nPor favor, verifique a agenda para mais detalhes.`;
-    
+    if (type === 'user') {
+        const user = users.find(u => u.id === id);
+        targetName = user?.name || 'Usuário';
+        message = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}\n\nPor favor, verifique a agenda para mais detalhes.`;
+    } else { // 'sector' or fallback
+        let sectorName = '';
+        if (type === 'sector') {
+            const sector = sectors.find(s => s.id === id);
+            sectorName = sector?.name || 'Setor';
+        } else {
+            sectorName = assignedTo; // Fallback for old data format
+        }
+        targetName = `Setor ${sectorName}`;
+        message = `*Lembrete de Agendamento para o Setor*\n\nUma visita foi agendada para o setor *${sectorName}*.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}\n\nPor favor, verifique a agenda para mais detalhes.`;
+    }
+
     const encodedMessage = encodeURIComponent(message);
-    
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
 
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
 
     toast({
         title: "Notificação Interna Pronta",
-        description: `A mensagem para o setor ${assignedTo} está pronta para ser enviada.`,
+        description: `A mensagem para ${targetName.replace('Setor ','o setor ')} está pronta para ser enviada.`,
     });
 
     setReminderStep('idle');
@@ -443,7 +500,7 @@ export default function AgendaPage() {
                                     </div>
                                     <p className="text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>{app.address}</p>
                                     <p className="text-muted-foreground flex items-center gap-2"><User className="h-4 w-4"/>{app.contact}</p>
-                                    <p className="text-muted-foreground flex items-center gap-2"><Briefcase className="h-4 w-4"/>{app.assignedTo}</p>
+                                    <p className="text-muted-foreground flex items-center gap-2"><Briefcase className="h-4 w-4"/>{getAssignedToName(app.assignedTo)}</p>
                                     {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
                                     
                                     <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
@@ -541,16 +598,26 @@ export default function AgendaPage() {
                             render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Setor/Responsável</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                     <FormControl>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Selecione um setor" />
+                                        <SelectValue placeholder="Selecione um setor ou usuário" />
                                     </SelectTrigger>
                                     </FormControl>
-                                    <SelectContent>
-                                    {sectors.map(sector => (
-                                        <SelectItem key={sector.id} value={sector.name}>{sector.name}</SelectItem>
-                                    ))}
+                                    <SelectContent className="max-h-60">
+                                        {sectors.map(sector => (
+                                            <SelectGroup key={sector.id}>
+                                                <SelectLabel>{sector.name}</SelectLabel>
+                                                <SelectItem value={`sector:${sector.id}`}>{`Todo o setor`}</SelectItem>
+                                                {users
+                                                    .filter(u => u.sectorId === sector.id)
+                                                    .map(user => (
+                                                        <SelectItem key={user.id} value={`user:${user.id}`}>{user.name}</SelectItem>
+                                                    ))
+                                                }
+                                            </SelectGroup>
+                                        ))}
+                                        {sectors.length === 0 && <p className='p-2 text-xs text-muted-foreground'>Nenhum setor cadastrado.</p>}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -621,7 +688,7 @@ export default function AgendaPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Notificar Equipe Interna</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Deseja notificar o setor <span className="font-medium">{appointmentForReminders?.assignedTo}</span> sobre este agendamento via WhatsApp?
+                    Deseja notificar {assignedToDisplay.type === 'sector' ? 'o setor' : ''} <span className="font-medium">{assignedToDisplay.name}</span> sobre este agendamento via WhatsApp?
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
