@@ -153,7 +153,7 @@ export default function AgendaPage() {
   const getStatusBadge = (status: Appointment['status']) => {
     switch(status) {
         case 'completed': return <Badge variant="secondary" className="bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30"><CheckCircle2 className="h-3 w-3 mr-1" />Concluído</Badge>;
-        case 'missed': return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Não Compareceu</Badge>;
+        case 'missed': return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Não Concluído</Badge>;
         default: return <Badge variant="outline"><CalendarClock className="h-3 w-3 mr-1" />Agendado</Badge>;
     }
   }
@@ -373,7 +373,7 @@ export default function AgendaPage() {
         return;
     }
     updateAppointment({ ...appointmentToProcess, status: 'missed', justification: justification.trim() });
-    toast({ variant: 'destructive', title: "Agendamento Não Realizado", description: `O compromisso com ${appointmentToProcess.clientName} foi marcado como não comparecido.` });
+    toast({ variant: 'destructive', title: "Agendamento Não Concluído", description: `O compromisso com ${appointmentToProcess.clientName} foi marcado como não concluído.` });
     
     setIsJustificationDialogOpen(false);
     setAppointmentToProcess(null);
@@ -728,7 +728,7 @@ export default function AgendaPage() {
                 <>
                     {selectedAppointment && !editingAppointment && selectedAppointment.status === 'scheduled' && (
                         <>
-                            <Button type="button" variant="outline" className="mr-auto" onClick={handleOpenJustificationDialog}>Marcar Não Compareceu</Button>
+                            <Button type="button" variant="outline" className="mr-auto" onClick={handleOpenJustificationDialog}>Marcar Não Concluído</Button>
                             <Button type="button" variant="secondary" onClick={handleMarkAsCompleted}>Marcar Concluído</Button>
                         </>
                     )}
@@ -801,9 +801,9 @@ export default function AgendaPage() {
     <Dialog open={isJustificationDialogOpen} onOpenChange={setIsJustificationDialogOpen}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Justificar Ausência</DialogTitle>
+                <DialogTitle>Justificar Não Conclusão</DialogTitle>
                 <DialogDescription>
-                    Por favor, informe o motivo pelo qual o agendamento com <span className="font-medium">{appointmentToProcess?.clientName}</span> não foi realizado.
+                    Por favor, informe o motivo pelo qual o agendamento com <span className="font-medium">{appointmentToProcess?.clientName}</span> não foi concluído.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -816,7 +816,7 @@ export default function AgendaPage() {
             </div>
             <DialogFooter>
                 <AlertDialogCancel onClick={() => { setJustification(''); setAppointmentToProcess(null); }}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmMissed}>Confirmar Ausência</AlertDialogAction>
+                <AlertDialogAction onClick={handleConfirmMissed}>Confirmar Não Conclusão</AlertDialogAction>
             </DialogFooter>
         </DialogContent>
     </Dialog>
