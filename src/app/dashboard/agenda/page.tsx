@@ -124,6 +124,10 @@ const eventSchema = z.object({
   eventType: z.string().min(1, "Selecione um tipo de evento."),
 });
 
+const formatWeekdayName = (day: Date) => {
+  return format(day, "EEEE", { locale: ptBR }).replace('-feira', '');
+};
+
 export default function AgendaPage() {
   const { companyProfile } = useSettings();
   const { toast } = useToast();
@@ -325,11 +329,6 @@ export default function AgendaPage() {
     });
     setDeletingEvent(null);
   };
-  
-  const formatWeekdayName = (day: Date) => {
-    return format(day, "EEEE", { locale: ptBR }).split('-')[0];
-  };
-
 
   function CustomDayContent(props: DayContentProps) {
     const dayEvents = useMemo(() => {
@@ -451,15 +450,13 @@ export default function AgendaPage() {
                   nav_button: cn(buttonVariants({ variant: 'outline' }), 'h-8 w-8 bg-transparent p-0'),
                   nav_button_previous: 'absolute left-4 top-4',
                   nav_button_next: 'absolute right-4 top-4',
-                  head_row: "grid grid-cols-7 w-full",
-                  head_cell: "text-muted-foreground capitalize font-medium text-sm text-center py-2",
-                  body: "grid grid-cols-7 flex-1 border-t border-l",
-                  row: "contents",
-                  cell: "h-32 text-sm p-0 relative border-r border-b focus-within:relative focus-within:z-20",
+                  table: 'w-full border-collapse',
+                  head_cell: "text-muted-foreground capitalize font-medium text-sm text-center py-2 border",
+                  cell: "h-32 text-sm p-0 relative border focus-within:relative focus-within:z-20",
                   day: "h-full w-full p-0 rounded-none focus-visible:outline-none focus:ring-1 focus:ring-ring focus:z-10",
                   day_selected: "bg-primary/10",
                   day_today: "",
-                  day_outside: "pointer-events-none",
+                  day_outside: "text-muted-foreground/50 pointer-events-none",
               }}
             />
           ) : (
