@@ -46,7 +46,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       const savedUsers = localStorage.getItem('users');
       
       if (savedProfile) {
-        setCompanyProfile(JSON.parse(savedProfile));
+        const parsedProfile = JSON.parse(savedProfile);
+        // Ensure new fields exist on old saved data by merging with defaults
+        setCompanyProfile({ ...initialCompanyProfileData, ...parsedProfile });
       }
       if (savedSectors) {
         const parsedSectors = JSON.parse(savedSectors);

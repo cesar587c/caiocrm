@@ -4,6 +4,7 @@ export type CompanyProfile = {
   phone: string;
   address: string;
   logoUrl?: string;
+  whatsappReminderMessage?: string;
 };
 
 export type Sector = {

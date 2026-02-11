@@ -246,7 +246,12 @@ export default function AgendaPage() {
     const { clientName, time, phone } = appointmentForReminders;
     const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
 
-    const message = `Olá, ${clientName}! 👋\n\nEste é um lembrete do seu agendamento com a ${companyProfile.name} no dia ${dateStr} às ${time}.\n\nAté breve!`;
+    const template = companyProfile.whatsappReminderMessage || "Olá, {cliente}! 👋\n\nEste é um lembrete do seu agendamento com a {empresa} no dia {data} às {hora}.\n\nAté breve!";
+    const message = template
+      .replace('{cliente}', clientName)
+      .replace('{empresa}', companyProfile.name)
+      .replace('{data}', dateStr)
+      .replace('{hora}', time);
     
     const encodedMessage = encodeURIComponent(message);
     

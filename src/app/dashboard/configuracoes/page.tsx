@@ -40,6 +40,7 @@ const formSchema = z.object({
   phone: z.string().min(1, 'O telefone é obrigatório.'),
   address: z.string().min(1, 'O endereço é obrigatório.'),
   logoUrl: z.string().optional(),
+  whatsappReminderMessage: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -203,6 +204,27 @@ export default function ConfiguracoesPage() {
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="whatsappReminderMessage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Mensagem de Lembrete (WhatsApp)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Texto do lembrete para o cliente..."
+                            rows={5}
+                            {...field}
+                            value={field.value || ''}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Você pode usar as variáveis: {"{cliente}"}, {"{empresa}"}, {"{data}"}, e {"{hora}"}.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormItem>
                     <FormLabel>Logo da Empresa</FormLabel>
                     <Tabs defaultValue="url" className="w-full">
@@ -217,7 +239,7 @@ export default function ConfiguracoesPage() {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormControl>
-                                            <Input placeholder="https://suaempresa.com/logo.png" {...(field as any)} />
+                                            <Input placeholder="https://suaempresa.com/logo.png" {...(field as any)} value={field.value ?? ''} />
                                         </FormControl>
                                         <FormDescription>
                                             Insira a URL completa da imagem do seu logo.
