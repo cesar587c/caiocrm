@@ -1,23 +1,269 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserCog } from "lucide-react";
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useSettings } from '@/contexts/SettingsContext';
+import type { User, Sector } from '@/lib/types';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { UserCog, PlusCircle, MoreHorizontal } from "lucide-react";
+
+const userFormSchema = z.object({
+  name: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
+  email: z.string().email('E-mail inválido.'),
+  sectorId: z.string().min(1, 'É obrigatório selecionar um setor.'),
+});
+
+type UserFormValues = z.infer<typeof userFormSchema>;
 
 export default function UsuariosPage() {
+  const { users, sectors, addUser, updateUser, deleteUser } = useSettings();
+  const { toast } = useToast();
+  
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+
+  const form = useForm<UserFormValues>({
+    resolver: zodResolver(userFormSchema),
+    defaultValues: { name: '', email: '', sectorId: '' },
+  });
+
+  const sectorMap = useMemo(() => {
+    return new Map(sectors.map(s => [s.id, s.name]));
+  }, [sectors]);
+
+  const handleAddNew = () => {
+    setEditingUser(null);
+    form.reset({ name: '', email: '', sectorId: '' });
+    setIsDialogOpen(true);
+  };
+
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    form.reset({
+      name: user.name,
+      email: user.email,
+      sectorId: user.sectorId,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = (user: User) => {
+    setDeletingUser(user);
+  };
+
+  const confirmDelete = () => {
+    if (!deletingUser) return;
+    deleteUser(deletingUser.id);
+    toast({
+      title: "Usuário Excluído!",
+      description: `O usuário ${deletingUser.name} foi removido.`,
+      variant: 'destructive'
+    });
+    setDeletingUser(null);
+  };
+
+  function onSubmit(values: UserFormValues) {
+    if (editingUser) {
+      updateUser({ ...editingUser, ...values });
+      toast({ title: 'Usuário Atualizado!', description: `Os dados de ${values.name} foram salvos.` });
+    } else {
+      addUser(values);
+      toast({ title: 'Usuário Adicionado!', description: `${values.name} foi adicionado à equipe.` });
+    }
+    setIsDialogOpen(false);
+  }
+
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight font-headline">Usuários e Permissões</h2>
+    <>
+      <div className="flex-1 space-y-4 p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+          <h2 className="text-3xl font-bold tracking-tight font-headline">Usuários e Permissões</h2>
+          <Button onClick={handleAddNew}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Novo Usuário
+          </Button>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCog className="h-5 w-5" />
+              <span>Gerenciamento de Equipe</span>
+            </CardTitle>
+            <CardDescription>Adicione, edite e remova usuários do sistema.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>E-mail</TableHead>
+                  <TableHead>Setor</TableHead>
+                  <TableHead className="text-right w-[80px]">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.length > 0 ? (
+                  users.map(user => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{sectorMap.get(user.sectorId) || <span className="text-muted-foreground">N/A</span>}</TableCell>
+                      <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(user)}>Editar</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDelete(user)} className="text-destructive">Excluir</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">Nenhum usuário cadastrado.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+          <CardFooter>
+            <div className="text-xs text-muted-foreground">
+                Mostrando <strong>{users.length}</strong> usuário(s).
+            </div>
+          </CardFooter>
+        </Card>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserCog className="h-5 w-5" />
-            <span>Usuários</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Funcionalidades para cadastro, edição e gerenciamento de perfis de usuário e permissões serão implementadas aqui.</p>
-        </CardContent>
-      </Card>
-    </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
+            <DialogDescription>
+              {editingUser ? 'Altere os dados do usuário abaixo.' : 'Preencha os dados para adicionar um novo usuário à equipe.'}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome Completo</FormLabel>
+                    <FormControl><Input placeholder="Nome do usuário" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl><Input type="email" placeholder="email@vendaspro.com" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="sectorId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Setor</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um setor" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {sectors.map(sector => (
+                          <SelectItem key={sector.id} value={sector.id}>{sector.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                <Button type="submit">Salvar</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. Isso excluirá permanentemente o usuário <span className="font-medium">{deletingUser?.name}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Confirmar Exclusão</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

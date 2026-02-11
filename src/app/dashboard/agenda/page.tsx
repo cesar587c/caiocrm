@@ -95,7 +95,7 @@ export default function AgendaPage() {
     ]
   });
   const { toast } = useToast();
-  const { companyProfile } = useSettings();
+  const { companyProfile, sectors } = useSettings();
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
@@ -548,10 +548,9 @@ export default function AgendaPage() {
                                     </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                    <SelectItem value="Comercial">Comercial</SelectItem>
-                                    <SelectItem value="Técnico">Técnico</SelectItem>
-                                    <SelectItem value="Financeiro">Financeiro</SelectItem>
-                                    <SelectItem value="Administrativo">Administrativo</SelectItem>
+                                    {sectors.map(sector => (
+                                        <SelectItem key={sector.id} value={sector.name}>{sector.name}</SelectItem>
+                                    ))}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -570,6 +569,12 @@ export default function AgendaPage() {
                 </>
               ) : (
                 <>
+                    {selectedAppointment && !editingAppointment && (
+                        <Button type="button" onClick={() => handleEditClick(selectedAppointment)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                        </Button>
+                    )}
                     <Button type="submit" form="appointment-form">
                         <Plus className="mr-2 h-4 w-4" />
                         Agendar

@@ -1,10 +1,4 @@
-export type CompanyProfile = {
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  logoUrl?: string;
-};
+import type { CompanyProfile } from '@/lib/types';
 
 export const companyProfile: CompanyProfile = {
   name: "Sua Empresa de CRM",

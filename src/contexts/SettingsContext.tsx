@@ -1,45 +1,125 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import type { CompanyProfile } from '@/lib/company-profile';
-import { companyProfile as initialCompanyProfile } from '@/lib/company-profile';
+import type { CompanyProfile, Sector, User } from '@/lib/types';
+import { companyProfile as initialCompanyProfileData } from '@/lib/company-profile';
+
+// Initial Data
+const initialSectors: Sector[] = [
+    { id: 'sec_1', name: 'Administrativo'},
+    { id: 'sec_2', name: 'Comercial'},
+    { id: 'sec_3', name: 'Técnico'},
+    { id: 'sec_4', name: 'Financeiro'},
+];
+
+const initialUsers: User[] = [
+    { id: 'user_1', name: 'Admin', email: 'admin@vendaspro.com', sectorId: 'sec_1' }
+];
 
 interface SettingsContextType {
   companyProfile: CompanyProfile;
   setCompanyProfile: (profile: CompanyProfile) => void;
+  sectors: Sector[];
+  addSector: (name: string) => void;
+  deleteSector: (id: string) => void;
+  users: User[];
+  addUser: (user: Omit<User, 'id'>) => void;
+  updateUser: (user: User) => void;
+  deleteUser: (id: string) => void;
   isLoaded: boolean;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+const generateId = (prefix: string) => `${prefix}_${new Date().getTime()}`;
+
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(initialCompanyProfile);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(initialCompanyProfileData);
+  const [sectors, setSectors] = useState<Sector[]>(initialSectors);
+  const [users, setUsers] = useState<User[]>(initialUsers);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     try {
       const savedProfile = localStorage.getItem('companyProfile');
+      const savedSectors = localStorage.getItem('sectors');
+      const savedUsers = localStorage.getItem('users');
+      
       if (savedProfile) {
         setCompanyProfile(JSON.parse(savedProfile));
       }
+      if (savedSectors) {
+        const parsedSectors = JSON.parse(savedSectors);
+        if (parsedSectors.length > 0) setSectors(parsedSectors);
+      }
+      if (savedUsers) {
+        const parsedUsers = JSON.parse(savedUsers);
+        if (parsedUsers.length > 0) setUsers(parsedUsers);
+      }
     } catch (error) {
-      console.error("Failed to load company profile from localStorage", error);
+      console.error("Failed to load settings from localStorage", error);
     } finally {
       setIsLoaded(true);
     }
   }, []);
+  
+  const saveDataToLocalStorage = <T,>(key: string, data: T) => {
+      try {
+          localStorage.setItem(key, JSON.stringify(data));
+      } catch (error) {
+          console.error(`Failed to save ${key} to localStorage`, error);
+      }
+  }
 
   const handleSetProfile = (profile: CompanyProfile) => {
     setCompanyProfile(profile);
-    try {
-      localStorage.setItem('companyProfile', JSON.stringify(profile));
-    } catch (error) {
-        console.error("Failed to save company profile to localStorage", error);
-    }
+    saveDataToLocalStorage('companyProfile', profile);
+  };
+  
+  const handleSetSectors = (newSectors: Sector[]) => {
+      setSectors(newSectors);
+      saveDataToLocalStorage('sectors', newSectors);
+  };
+  
+  const handleSetUsers = (newUsers: User[]) => {
+      setUsers(newUsers);
+      saveDataToLocalStorage('users', newUsers);
+  }
+
+  // Sector actions
+  const addSector = (name: string) => {
+      const newSector: Sector = { id: generateId('sec'), name };
+      handleSetSectors([...sectors, newSector]);
   };
 
+  const deleteSector = (id: string) => {
+      // Un-assign users from this sector
+      const updatedUsers = users.map(u => u.sectorId === id ? {...u, sectorId: ''} : u);
+      handleSetUsers(updatedUsers);
+      handleSetSectors(sectors.filter(s => s.id !== id));
+  };
+
+  // User actions
+  const addUser = (user: Omit<User, 'id'>) => {
+      const newUser: User = { id: generateId('user'), ...user };
+      handleSetUsers([...users, newUser]);
+  }
+
+  const updateUser = (user: User) => {
+      handleSetUsers(users.map(u => u.id === user.id ? user : u));
+  }
+
+  const deleteUser = (id: string) => {
+      handleSetUsers(users.filter(u => u.id !== id));
+  }
+
   return (
-    <SettingsContext.Provider value={{ companyProfile, setCompanyProfile: handleSetProfile, isLoaded }}>
+    <SettingsContext.Provider value={{ 
+        companyProfile, setCompanyProfile: handleSetProfile,
+        sectors, addSector, deleteSector,
+        users, addUser, updateUser, deleteUser,
+        isLoaded 
+    }}>
       {children}
     </SettingsContext.Provider>
   );
