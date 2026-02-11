@@ -692,7 +692,13 @@ export default function AgendaPage() {
         </AlertDialogContent>
     </AlertDialog>
 
-    <AlertDialog open={reminderStep === 'client'} onOpenChange={(isOpen) => !isOpen && setReminderStep('idle')}>
+    <AlertDialog open={reminderStep === 'client'} onOpenChange={(isOpen) => {
+        // This logic ensures the flow isn't interrupted by accidental dismissal (e.g., clicking outside).
+        // The flow must proceed to the 'internal' step or be explicitly cancelled there.
+        if (!isOpen) {
+            setReminderStep('internal');
+        }
+    }}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Agendamento Concluído!</AlertDialogTitle>
