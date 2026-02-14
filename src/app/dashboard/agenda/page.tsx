@@ -19,7 +19,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarCheck, CalendarClock, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -57,6 +57,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import type { Appointment } from '@/lib/types';
+import { Calendar } from '@/components/ui/calendar';
 
 const appointmentSchema = z.object({
   date: z.date({ required_error: 'A data é obrigatória.' }),
@@ -76,11 +77,10 @@ export default function AgendaPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
-  const [reschedulingAppointment, setReschedulingAppointment] = useState<Appointment | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [reminderStep, setReminderStep] = useState<'idle' | 'client' | 'internal'>('idle');
+  const [reminderStep, setReminderStep] = useState<'idle' | 'confirming'>('idle');
   const [appointmentForReminders, setAppointmentForReminders] = useState<Appointment | null>(null);
 
   const [isJustificationDialogOpen, setIsJustificationDialogOpen] = useState(false);
@@ -177,40 +177,17 @@ export default function AgendaPage() {
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
     
-    if (reschedulingAppointment) {
-        let assignedToValue = reschedulingAppointment.assignedTo;
-        if (assignedToValue && !assignedToValue.includes(':')) {
-            const sector = sectors.find(s => s.name === assignedToValue);
-            if (sector) {
-                assignedToValue = `sector:${sector.id}`;
-            }
-        }
-        
-        form.reset({
-          date: day,
-          clientName: reschedulingAppointment.clientName,
-          address: reschedulingAppointment.address,
-          phone: reschedulingAppointment.phone || '',
-          contact: reschedulingAppointment.contact,
-          time: reschedulingAppointment.time,
-          assignedTo: assignedToValue,
-          summary: reschedulingAppointment.summary || '',
-        });
-        setEditingAppointment(reschedulingAppointment);
-        setReschedulingAppointment(null);
-    } else {
-        form.reset({
-          date: day,
-          clientName: '',
-          address: '',
-          phone: '',
-          contact: '',
-          time: '',
-          assignedTo: '',
-          summary: '',
-        });
-        setEditingAppointment(null);
-    }
+    form.reset({
+      date: day,
+      clientName: '',
+      address: '',
+      phone: '',
+      contact: '',
+      time: '',
+      assignedTo: '',
+      summary: '',
+    });
+    setEditingAppointment(null);
 
     setSelectedAppointment(null);
     setIsModalOpen(true);
@@ -267,7 +244,6 @@ export default function AgendaPage() {
   const handleCancelEdit = () => {
     setEditingAppointment(null);
     setSelectedAppointment(null);
-    setReschedulingAppointment(null);
     form.reset({
       date: selectedDate,
       clientName: '',
@@ -280,102 +256,84 @@ export default function AgendaPage() {
     });
   }
 
-  const handleSendWhatsAppReminder = () => {
+  const handleSendAllReminders = () => {
     if (!appointmentForReminders) return;
 
-    const { time, phone, contact } = appointmentForReminders;
     const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
 
-    const template = companyProfile.whatsappReminderMessage || "Olá, {cliente}! 👋\n\nEste é um lembrete do seu agendamento com a {empresa} no dia {data} às {hora}.\n\nAté breve!";
-    const message = template
+    // Client reminder logic
+    const { time, phone, contact } = appointmentForReminders;
+    const clientTemplate = companyProfile.whatsappReminderMessage || "Olá, {cliente}! 👋\n\nEste é um lembrete do seu agendamento com a {empresa} no dia {data} às {hora}.\n\nAté breve!";
+    const clientMessage = clientTemplate
       .replace('{cliente}', contact)
       .replace('{empresa}', companyProfile.name)
       .replace('{data}', dateStr)
       .replace('{hora}', time);
 
-    const cleanPhone = phone?.replace(/\D/g, '') || '';
-    if (cleanPhone.length < 10) {
+    const cleanClientPhone = phone?.replace(/\D/g, '') || '';
+    if (cleanClientPhone.length >= 10) {
+        const clientPhoneWithCountryCode = cleanClientPhone.length > 11 ? cleanClientPhone : `55${cleanClientPhone}`;
+        const clientUrl = `https://web.whatsapp.com/send?phone=${clientPhoneWithCountryCode}&text=${encodeURIComponent(clientMessage)}`;
+        window.open(clientUrl, '_blank');
         toast({
-            title: "Número de Cliente Inválido",
-            description: `O cliente ${contact} não possui um número de telefone válido.`,
+            title: "WhatsApp Aberto (Cliente)",
+            description: `A mensagem para ${contact} está pronta para ser enviada.`,
+        });
+    } else {
+        toast({
+            title: "Número do Cliente Inválido",
+            description: `O cliente ${contact} não possui um número de telefone válido. A notificação não foi enviada.`,
             variant: "destructive",
         });
-        setReminderStep('internal');
-        return;
     }
-    const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
 
-    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
-
-    toast({
-        title: "WhatsApp Aberto",
-        description: `A mensagem para ${contact} está pronta para ser enviada.`,
-    });
-
-    setReminderStep('internal');
-  };
-
-  const handleSendInternalWhatsAppReminder = () => {
-    if (!appointmentForReminders) return;
-
-    const { clientName, time, assignedTo, summary } = appointmentForReminders;
-    const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
-    
+    // Internal reminder logic
+    const { clientName, assignedTo, summary } = appointmentForReminders;
     const [type, id] = assignedTo.split(':');
-    let targetName = '';
-    let message = '';
-    let targetPhone = '';
 
     if (type === 'user') {
         const user = users.find(u => u.id === id);
-        if (!user) {
-            toast({ title: 'Erro', description: 'Usuário não encontrado.', variant: 'destructive'});
-            setReminderStep('idle');
-            return;
+        if (user) {
+            const targetName = user.name;
+            const targetPhone = user.whatsapp || '';
+            let internalMessage = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
+            if (summary) {
+                internalMessage += `\n*Resumo:* ${summary}`;
+            }
+            internalMessage += `\n\nPor favor, verifique a agenda para mais detalhes.`;
+            
+            const cleanInternalPhone = targetPhone.replace(/\D/g, '');
+            if (cleanInternalPhone.length >= 10) {
+                const internalPhoneWithCountryCode = cleanInternalPhone.length > 11 ? cleanInternalPhone : `55${cleanInternalPhone}`;
+                const internalUrl = `https://web.whatsapp.com/send?phone=${internalPhoneWithCountryCode}&text=${encodeURIComponent(internalMessage)}`;
+                window.open(internalUrl, '_blank');
+                toast({
+                    title: "WhatsApp Aberto (Equipe)",
+                    description: `A mensagem para ${targetName} está pronta para ser enviada.`,
+                });
+            } else {
+                 toast({
+                    title: "Número do Usuário Inválido",
+                    description: `O usuário ${targetName} não possui um número de WhatsApp válido. A notificação não foi enviada.`,
+                    variant: 'destructive',
+                });
+            }
+        } else {
+             toast({ title: 'Usuário não encontrado', description: 'Não foi possível encontrar o usuário para notificar.', variant: 'destructive'});
         }
-        targetName = user.name;
-        targetPhone = user.whatsapp || '';
-        message = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
-        if (summary) {
-            message += `\n*Resumo:* ${summary}`;
-        }
-        message += `\n\nPor favor, verifique a agenda para mais detalhes.`;
-    } else {
+    } else { // 'sector'
         const sector = sectors.find(s => s.id === id) || sectors.find(s => s.name === assignedTo);
         const sectorName = sector?.name || 'Setor desconhecido';
         toast({
             title: "Notificação para Setor",
-            description: `O envio de mensagens para setores inteiros ("${sectorName}") não é suportado. A notificação será pulada.`,
+            description: `O envio de mensagens para setores inteiros ("${sectorName}") não é suportado. A notificação para a equipe foi pulada.`,
+            variant: 'secondary',
             duration: 7000,
         });
-        setReminderStep('idle');
-        return;
     }
-    
-    const cleanPhone = targetPhone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-        toast({
-            title: "Número Inválido",
-            description: `O usuário ${targetName} não possui um número de WhatsApp válido para envio.`,
-            variant: 'destructive',
-        });
-        setReminderStep('idle');
-        return;
-    }
-    const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-
-    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
-
-    toast({
-        title: "WhatsApp Aberto",
-        description: `A mensagem para ${targetName} está pronta para ser enviada.`,
-    });
 
     setReminderStep('idle');
   };
-
 
   const handleMarkAsCompleted = () => {
     if (!selectedAppointment) return;
@@ -445,7 +403,7 @@ export default function AgendaPage() {
     setEditingAppointment(null);
     setSelectedAppointment(null);
     setIsModalOpen(false);
-    setReminderStep('client');
+    setReminderStep('confirming');
   }
 
   const selectedDayAppointments = useMemo(() => {
@@ -589,29 +547,48 @@ export default function AgendaPage() {
                  <h3 className="font-semibold text-lg text-foreground mb-4">{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
                  <Form {...form}>
                     <form id="appointment-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        {editingAppointment && (
-                            <div>
-                                <FormLabel>Data do Agendamento</FormLabel>
-                                <Button
-                                    type="button"
-                                    variant={"outline"}
-                                    className="w-full justify-start text-left font-normal mt-2"
-                                    onClick={() => {
-                                        if (editingAppointment) {
-                                            setReschedulingAppointment(editingAppointment);
-                                            setEditingAppointment(null);
-                                        }
-                                        setIsModalOpen(false);
-                                    }}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {format(parse(editingAppointment.date, 'yyyy-MM-dd', new Date()), "PPP", { locale: ptBR })}
-                                </Button>
-                                <p className="text-sm text-muted-foreground pt-2">
-                                    Para reagendar, clique na data para voltar ao calendário principal.
-                                </p>
-                            </div>
-                        )}
+                        <FormField
+                            control={form.control}
+                            name="date"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Data do Agendamento</FormLabel>
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <FormControl>
+                                                <Button
+                                                    type="button"
+                                                    variant={"outline"}
+                                                    className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
+                                                    disabled={!editingAppointment}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
+                                                </Button>
+                                            </FormControl>
+                                        </DialogTrigger>
+                                        <DialogContent className="w-auto">
+                                            <Calendar
+                                                mode="single"
+                                                selected={field.value}
+                                                onSelect={(date) => {
+                                                    if(date) {
+                                                      field.onChange(date);
+                                                      const closeButton = document.querySelector('.radix-dialog-content [aria-label="Close"]');
+                                                      if(closeButton instanceof HTMLElement) closeButton.click();
+                                                    }
+                                                }}
+                                                initialFocus
+                                                locale={ptBR}
+                                                hideHead
+                                            />
+                                        </DialogContent>
+                                    </Dialog>
+                                    {editingAppointment && <FormDescription>Clique na data para reagendar.</FormDescription>}
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <FormField
                         control={form.control}
                         name="time"
@@ -771,37 +748,17 @@ export default function AgendaPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-    <AlertDialog open={reminderStep === 'client'} onOpenChange={(isOpen) => {
-        if (!isOpen) {
-            setReminderStep('internal');
-        }
-    }}>
+    <AlertDialog open={reminderStep === 'confirming'} onOpenChange={(isOpen) => !isOpen && setReminderStep('idle')}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>Agendamento Concluído!</AlertDialogTitle>
+                <AlertDialogTitle>Enviar Lembretes via WhatsApp?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Deseja enviar um lembrete via WhatsApp para{" "}
-                    <span className="font-medium">{appointmentForReminders?.contact}</span>?
+                    Serão abertas novas abas no seu navegador para enviar mensagens para o cliente <span className="font-medium">{appointmentForReminders?.contact}</span> e para o responsável <span className="font-medium">{assignedToDisplay.name}</span>. Deseja continuar?
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setReminderStep('internal')}>Não, obrigado</AlertDialogCancel>
-                <AlertDialogAction onClick={handleSendWhatsAppReminder}>Enviar Lembrete</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
-
-    <AlertDialog open={reminderStep === 'internal'} onOpenChange={(isOpen) => !isOpen && setReminderStep('idle')}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Notificar Equipe Interna</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Deseja notificar {assignedToDisplay.type === 'sector' ? 'o setor' : ''} <span className="font-medium">{assignedToDisplay.name}</span> sobre este agendamento via WhatsApp?
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setReminderStep('idle')}>Não</AlertDialogCancel>
-                <AlertDialogAction onClick={handleSendInternalWhatsAppReminder}>Notificar Equipe</AlertDialogAction>
+                <AlertDialogCancel onClick={() => setReminderStep('idle')}>Não, obrigado</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSendAllReminders}>Sim, Enviar</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
