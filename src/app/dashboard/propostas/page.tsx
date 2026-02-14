@@ -81,7 +81,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { initialCustomers, initialProducts } from '@/lib/mock-data';
 import type { Product } from '@/lib/mock-data';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { sendWhatsappAction } from '@/app/actions';
 
 
 const proposalItemSchema = z.object({
@@ -302,7 +301,7 @@ ${companyProfile.email}
     });
   };
 
-  const handleSendWhatsApp = async (proposal: Proposal) => {
+  const handleSendWhatsApp = (proposal: Proposal) => {
     const itemsText = proposal.items
       .map(
         (item) =>
@@ -341,28 +340,13 @@ ${companyProfile.phone}`;
     }
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
     
+    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+
     toast({
-        title: "Enviando Proposta...",
-        description: `Enviando proposta para ${proposal.clientName} via WhatsApp.`,
+        title: "WhatsApp Aberto",
+        description: `A proposta para ${proposal.clientName} está pronta para ser enviada.`,
     });
-
-    const response = await sendWhatsappAction({
-        to: phoneWithCountryCode,
-        message: message,
-    });
-
-    if (response.error) {
-        toast({
-            title: "Falha no Envio",
-            description: `Não foi possível enviar a proposta para ${proposal.clientName}. Detalhe: ${response.error}`,
-            variant: 'destructive',
-        });
-    } else {
-        toast({
-            title: "Proposta Enviada!",
-            description: `A mensagem para ${proposal.clientName} foi enviada com sucesso.`,
-        });
-    }
   };
 
 

@@ -57,7 +57,6 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import type { Appointment } from '@/lib/types';
-import { sendWhatsappAction } from '@/app/actions';
 
 const appointmentSchema = z.object({
   date: z.date({ required_error: 'A data é obrigatória.' }),
@@ -281,7 +280,7 @@ export default function AgendaPage() {
     });
   }
 
-  const handleSendWhatsAppReminder = async () => {
+  const handleSendWhatsAppReminder = () => {
     if (!appointmentForReminders) return;
 
     const { time, phone, contact } = appointmentForReminders;
@@ -293,46 +292,31 @@ export default function AgendaPage() {
       .replace('{empresa}', companyProfile.name)
       .replace('{data}', dateStr)
       .replace('{hora}', time);
-    
+
     const cleanPhone = phone?.replace(/\D/g, '') || '';
     if (cleanPhone.length < 10) {
         toast({
             title: "Número de Cliente Inválido",
-            description: `O número de telefone do cliente (${contact}) não é válido para envio.`,
+            description: `O cliente ${contact} não possui um número de telefone válido.`,
             variant: "destructive",
         });
-        setReminderStep('internal'); // Move to next step even on failure
+        setReminderStep('internal');
         return;
     }
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
 
-    toast({
-        title: "Enviando Lembrete...",
-        description: `Enviando mensagem para ${contact}.`,
-    });
+    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
 
-    const response = await sendWhatsappAction({
-        to: phoneWithCountryCode,
-        message: message,
+    toast({
+        title: "WhatsApp Aberto",
+        description: `A mensagem para ${contact} está pronta para ser enviada.`,
     });
-    
-    if (response.error) {
-        toast({
-            title: "Falha no Envio",
-            description: `Não foi possível enviar o lembrete para ${contact}. Detalhe: ${response.error}`,
-            variant: "destructive",
-        });
-    } else {
-        toast({
-            title: "Lembrete Enviado!",
-            description: `A mensagem para ${contact} foi enviada com sucesso.`,
-        });
-    }
 
     setReminderStep('internal');
   };
 
-  const handleSendInternalWhatsAppReminder = async () => {
+  const handleSendInternalWhatsAppReminder = () => {
     if (!appointmentForReminders) return;
 
     const { clientName, time, assignedTo, summary } = appointmentForReminders;
@@ -361,8 +345,8 @@ export default function AgendaPage() {
         const sector = sectors.find(s => s.id === id) || sectors.find(s => s.name === assignedTo);
         const sectorName = sector?.name || 'Setor desconhecido';
         toast({
-            title: "Envio para Setor Indisponível",
-            description: `O envio automático de mensagens para setores inteiros ("${sectorName}") requer uma configuração de grupo na sua plataforma de WhatsApp Business. A notificação será pulada.`,
+            title: "Notificação para Setor",
+            description: `O envio de mensagens para setores inteiros ("${sectorName}") não é suportado. A notificação será pulada.`,
             duration: 7000,
         });
         setReminderStep('idle');
@@ -381,31 +365,17 @@ export default function AgendaPage() {
     }
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
 
+    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+
     toast({
-        title: "Enviando Notificação Interna...",
-        description: `Enviando mensagem para ${targetName}.`,
+        title: "WhatsApp Aberto",
+        description: `A mensagem para ${targetName} está pronta para ser enviada.`,
     });
-
-    const response = await sendWhatsappAction({
-        to: phoneWithCountryCode,
-        message: message,
-    });
-
-    if (response.error) {
-        toast({
-            title: "Falha no Envio",
-            description: `Não foi possível notificar ${targetName}. Detalhe: ${response.error}`,
-            variant: 'destructive',
-        });
-    } else {
-        toast({
-            title: "Notificação Enviada!",
-            description: `A mensagem para ${targetName} foi enviada com sucesso.`,
-        });
-    }
 
     setReminderStep('idle');
   };
+
 
   const handleMarkAsCompleted = () => {
     if (!selectedAppointment) return;
