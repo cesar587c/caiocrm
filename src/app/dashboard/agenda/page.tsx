@@ -29,6 +29,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -177,19 +178,23 @@ export default function AgendaPage() {
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
     
-    form.reset({
-      date: day,
-      clientName: '',
-      address: '',
-      phone: '',
-      contact: '',
-      time: '',
-      assignedTo: '',
-      summary: '',
-    });
-    setEditingAppointment(null);
-
-    setSelectedAppointment(null);
+    // If there is an appointment being edited, we keep its data.
+    if(editingAppointment) {
+      form.setValue('date', day);
+    } else {
+       form.reset({
+        date: day,
+        clientName: '',
+        address: '',
+        phone: '',
+        contact: '',
+        time: '',
+        assignedTo: '',
+        summary: '',
+      });
+      setEditingAppointment(null);
+      setSelectedAppointment(null);
+    }
     setIsModalOpen(true);
   };
   
@@ -560,7 +565,6 @@ export default function AgendaPage() {
                                                     type="button"
                                                     variant={"outline"}
                                                     className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                                    disabled={!editingAppointment}
                                                 >
                                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                                     {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
@@ -574,17 +578,15 @@ export default function AgendaPage() {
                                                 onSelect={(date) => {
                                                     if(date) {
                                                       field.onChange(date);
-                                                      const closeButton = document.querySelector('.radix-dialog-content [aria-label="Close"]');
-                                                      if(closeButton instanceof HTMLElement) closeButton.click();
+                                                      openModalForDay(date);
                                                     }
                                                 }}
                                                 initialFocus
                                                 locale={ptBR}
-                                                hideHead
                                             />
                                         </DialogContent>
                                     </Dialog>
-                                    {editingAppointment && <FormDescription>Clique na data para reagendar.</FormDescription>}
+                                    <FormDescription>Clique na data para reagendar.</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}
