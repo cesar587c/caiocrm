@@ -19,7 +19,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarCheck, CalendarClock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarCheck, CalendarClock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -57,6 +57,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import type { Appointment } from '@/lib/types';
+import { sendWhatsappAction } from '@/app/actions';
 
 const appointmentSchema = z.object({
   date: z.date({ required_error: 'A data é obrigatória.' }),
@@ -280,10 +281,10 @@ export default function AgendaPage() {
     });
   }
 
-  const handleSendWhatsAppReminder = () => {
+  const handleSendWhatsAppReminder = async () => {
     if (!appointmentForReminders) return;
 
-    const { clientName, time, phone, contact } = appointmentForReminders;
+    const { time, phone, contact } = appointmentForReminders;
     const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
 
     const template = companyProfile.whatsappReminderMessage || "Olá, {cliente}! 👋\n\nEste é um lembrete do seu agendamento com a {empresa} no dia {data} às {hora}.\n\nAté breve!";
@@ -293,27 +294,45 @@ export default function AgendaPage() {
       .replace('{data}', dateStr)
       .replace('{hora}', time);
     
-    const encodedMessage = encodeURIComponent(message);
-    
     const cleanPhone = phone?.replace(/\D/g, '') || '';
-    let whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
-
-    if (cleanPhone.length >= 10) {
-        const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-        whatsappUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodedMessage}`;
+    if (cleanPhone.length < 10) {
+        toast({
+            title: "Número de Cliente Inválido",
+            description: `O número de telefone do cliente (${contact}) não é válido para envio.`,
+            variant: "destructive",
+        });
+        setReminderStep('internal'); // Move to next step even on failure
+        return;
     }
-
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
 
     toast({
-        title: "Pronto para Enviar!",
-        description: `Sua mensagem para ${contact} está pronta no WhatsApp.`,
+        title: "Enviando Lembrete...",
+        description: `Enviando mensagem para ${contact}.`,
     });
+
+    const response = await sendWhatsappAction({
+        to: phoneWithCountryCode,
+        message: message,
+    });
+    
+    if (response.error) {
+        toast({
+            title: "Falha no Envio",
+            description: `Não foi possível enviar o lembrete para ${contact}. Detalhe: ${response.error}`,
+            variant: "destructive",
+        });
+    } else {
+        toast({
+            title: "Lembrete Enviado!",
+            description: `A mensagem para ${contact} foi enviada com sucesso.`,
+        });
+    }
 
     setReminderStep('internal');
   };
 
-  const handleSendInternalWhatsAppReminder = () => {
+  const handleSendInternalWhatsAppReminder = async () => {
     if (!appointmentForReminders) return;
 
     const { clientName, time, assignedTo, summary } = appointmentForReminders;
@@ -322,8 +341,7 @@ export default function AgendaPage() {
     const [type, id] = assignedTo.split(':');
     let targetName = '';
     let message = '';
-    let whatsAppUrl = `https://api.whatsapp.com/send?text=`;
-    let toastDescription = '';
+    let targetPhone = '';
 
     if (type === 'user') {
         const user = users.find(u => u.id === id);
@@ -333,49 +351,58 @@ export default function AgendaPage() {
             return;
         }
         targetName = user.name;
+        targetPhone = user.whatsapp || '';
         message = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
         if (summary) {
             message += `\n*Resumo:* ${summary}`;
         }
         message += `\n\nPor favor, verifique a agenda para mais detalhes.`;
-        
-        const cleanPhone = user.whatsapp?.replace(/\D/g, '') || '';
-        if (cleanPhone.length >= 10) {
-            const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-            whatsAppUrl += `&phone=${phoneWithCountryCode}`;
-        } else {
-             toast({
-                title: "Usuário sem WhatsApp",
-                description: `O usuário ${targetName} não tem um número de WhatsApp cadastrado. A mensagem será aberta para compartilhamento.`,
-            });
-        }
-        toastDescription = `A mensagem para ${targetName} está pronta para ser enviada.`;
     } else {
-        let sectorName = '';
-        if (type === 'sector') {
-            const sector = sectors.find(s => s.id === id);
-            sectorName = sector?.name || 'Setor';
-        } else {
-            sectorName = assignedTo;
-        }
-        targetName = `Setor ${sectorName}`;
-        message = `*Lembrete de Agendamento para o Setor*\n\nUma visita foi agendada para o setor *${sectorName}*.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
-        if (summary) {
-            message += `\n*Resumo:* ${summary}`;
-        }
-        message += `\n\nPor favor, verifique a agenda para mais detalhes.`;
-        toastDescription = `A mensagem para ${targetName.replace('Setor ','o setor ')} está pronta para ser enviada.`;
+        const sector = sectors.find(s => s.id === id) || sectors.find(s => s.name === assignedTo);
+        const sectorName = sector?.name || 'Setor desconhecido';
+        toast({
+            title: "Envio para Setor Indisponível",
+            description: `O envio automático de mensagens para setores inteiros ("${sectorName}") requer uma configuração de grupo na sua plataforma de WhatsApp Business. A notificação será pulada.`,
+            duration: 7000,
+        });
+        setReminderStep('idle');
+        return;
     }
-
-    const encodedMessage = encodeURIComponent(message);
-    whatsAppUrl = `${whatsAppUrl.replace('text=','text='+encodedMessage)}`;
-
-    window.open(whatsAppUrl, '_blank', 'noopener,noreferrer');
+    
+    const cleanPhone = targetPhone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+        toast({
+            title: "Número Inválido",
+            description: `O usuário ${targetName} não possui um número de WhatsApp válido para envio.`,
+            variant: 'destructive',
+        });
+        setReminderStep('idle');
+        return;
+    }
+    const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
 
     toast({
-        title: "Notificação Interna Pronta",
-        description: toastDescription,
+        title: "Enviando Notificação Interna...",
+        description: `Enviando mensagem para ${targetName}.`,
     });
+
+    const response = await sendWhatsappAction({
+        to: phoneWithCountryCode,
+        message: message,
+    });
+
+    if (response.error) {
+        toast({
+            title: "Falha no Envio",
+            description: `Não foi possível notificar ${targetName}. Detalhe: ${response.error}`,
+            variant: 'destructive',
+        });
+    } else {
+        toast({
+            title: "Notificação Enviada!",
+            description: `A mensagem para ${targetName} foi enviada com sucesso.`,
+        });
+    }
 
     setReminderStep('idle');
   };

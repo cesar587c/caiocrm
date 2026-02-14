@@ -81,6 +81,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { initialCustomers, initialProducts } from '@/lib/mock-data';
 import type { Product } from '@/lib/mock-data';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { sendWhatsappAction } from '@/app/actions';
 
 
 const proposalItemSchema = z.object({
@@ -301,7 +302,7 @@ ${companyProfile.email}
     });
   };
 
-  const handleSendWhatsApp = (proposal: Proposal) => {
+  const handleSendWhatsApp = async (proposal: Proposal) => {
     const itemsText = proposal.items
       .map(
         (item) =>
@@ -329,22 +330,39 @@ Agradecemos a oportunidade e ficamos à disposição!
 ${companyProfile.name}
 ${companyProfile.phone}`;
 
-    const encodedMessage = encodeURIComponent(message);
-    
-    let whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
-
     const cleanPhone = proposal.clientPhone?.replace(/\D/g, '') || '';
-    if (cleanPhone.length >= 10) { // Basic validation for DDD + number
-         const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-         whatsappUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodedMessage}`;
+    if (cleanPhone.length < 10) { // Basic validation for DDD + number
+         toast({
+            title: "Número de Cliente Inválido",
+            description: `O cliente ${proposal.clientName} não possui um número de telefone válido.`,
+            variant: "destructive",
+        });
+        return;
     }
-
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-
+    const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
+    
     toast({
-      title: "Pronto para Enviar!",
-      description: `Sua mensagem para ${proposal.clientName} está pronta no WhatsApp.`,
+        title: "Enviando Proposta...",
+        description: `Enviando proposta para ${proposal.clientName} via WhatsApp.`,
     });
+
+    const response = await sendWhatsappAction({
+        to: phoneWithCountryCode,
+        message: message,
+    });
+
+    if (response.error) {
+        toast({
+            title: "Falha no Envio",
+            description: `Não foi possível enviar a proposta para ${proposal.clientName}. Detalhe: ${response.error}`,
+            variant: 'destructive',
+        });
+    } else {
+        toast({
+            title: "Proposta Enviada!",
+            description: `A mensagem para ${proposal.clientName} foi enviada com sucesso.`,
+        });
+    }
   };
 
 
@@ -1193,9 +1211,7 @@ ${companyProfile.phone}`;
                         }}>
                           <Mail className="mr-2 h-4 w-4" /> Enviar por E-mail
                         </Button>
-                        <Button type="button" onClick={() => {
-                            handleSendWhatsApp(selectedProposal);
-                        }}>
+                        <Button type="button" onClick={() => handleSendWhatsApp(selectedProposal)}>
                           <Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp
                         </Button>
                         </>
