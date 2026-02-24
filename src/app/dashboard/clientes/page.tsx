@@ -80,7 +80,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { consultarCnpjAction } from "@/app/actions";
 import { useSettings } from "@/contexts/SettingsContext";
 import type { Customer } from "@/lib/types";
 
@@ -133,6 +132,25 @@ export default function ClientesPage() {
     if (length <= 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
     if (length <= 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+  }
+  
+  const formatCnpj = (value: string) => {
+    if (!value) return "";
+    const cnpj = value.replace(/\D/g, "").slice(0, 14);
+
+    if (cnpj.length > 12) {
+      return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12, 14)}`;
+    }
+    if (cnpj.length > 8) {
+      return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8)}`;
+    }
+    if (cnpj.length > 5) {
+      return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5)}`;
+    }
+    if (cnpj.length > 2) {
+      return `${cnpj.slice(0, 2)}.${cnpj.slice(2)}`;
+    }
+    return cnpj;
   }
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -206,27 +224,51 @@ export default function ClientesPage() {
       return;
     }
 
-    setIsCnpjLoading(true);
-    const response = await consultarCnpjAction({ cnpj });
-    setIsCnpjLoading(false);
+    const cleanedCnpj = cnpj.replace(/\D/g, "");
+    if (cleanedCnpj.length !== 14) {
+        toast({
+            variant: "destructive",
+            title: "CNPJ Inválido",
+            description: "O CNPJ deve conter 14 dígitos.",
+        });
+        return;
+    }
 
-    if (response.error) {
-      toast({
-        variant: "destructive",
-        title: "Erro na Consulta",
-        description: response.error,
-      });
-    } else if (response.success) {
-      const { razaoSocial, nomeFantasia, email, telefone, inscricaoEstadual } = response.success;
-      form.setValue("razaoSocial", razaoSocial);
-      form.setValue("nomeFantasia", nomeFantasia || "");
-      form.setValue("email", email);
-      form.setValue("telefone", telefone);
-      form.setValue("inscricaoEstadual", inscricaoEstadual);
-      toast({
-        title: "CNPJ Consultado!",
-        description: "Os dados da empresa foram preenchidos.",
-      });
+    setIsCnpjLoading(true);
+    try {
+        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanedCnpj}`);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                 throw new Error('CNPJ não encontrado na base de dados da BrasilAPI.');
+            }
+            const errorText = await response.text();
+            console.error(`BrasilAPI request failed with status ${response.status}: ${errorText}`);
+            throw new Error(`A consulta na BrasilAPI falhou: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        const inscricaoEstadual = data.uf ? `Ativo em ${data.uf}` : 'Não informado';
+
+        form.setValue("razaoSocial", data.razao_social || "");
+        form.setValue("nomeFantasia", data.nome_fantasia || "");
+        form.setValue("email", data.email || "");
+        form.setValue("telefone", data.ddd_telefone_1 || data.ddd_telefone_2 || "");
+        form.setValue("inscricaoEstadual", inscricaoEstadual);
+        toast({
+            title: "CNPJ Consultado!",
+            description: "Os dados da empresa foram preenchidos.",
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Falha ao consultar CNPJ.";
+        toast({
+            variant: "destructive",
+            title: "Erro na Consulta",
+            description: message,
+        });
+    } finally {
+        setIsCnpjLoading(false);
     }
   };
   
@@ -482,6 +524,7 @@ export default function ClientesPage() {
                                   placeholder="00.000.000/0000-00"
                                   className="flex-1"
                                   {...field}
+                                  onChange={(e) => field.onChange(formatCnpj(e.target.value))}
                                 />
                               </FormControl>
                               <Button type="button" variant="secondary" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
