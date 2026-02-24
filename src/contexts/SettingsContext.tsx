@@ -15,7 +15,8 @@ const initialSectors: Sector[] = [
 ];
 
 const initialUsers: User[] = [
-    { id: 'user_1', name: 'Admin', email: 'admin@vendaspro.com', whatsapp: '5511999999999', sectorIds: ['sec_1', 'sec_3'] }
+    { id: 'user_1', name: 'Admin', email: 'admin@vendaspro.com', whatsapp: '5511999999999', sectorIds: ['sec_1', 'sec_2', 'sec_3', 'sec_4'], role: 'admin' },
+    { id: 'user_2', name: 'Carlos Pereira', email: 'carlos@vendaspro.com', whatsapp: '5521988888888', sectorIds: ['sec_3'], role: 'technician' }
 ];
 
 const initialAppointments: Appointment[] = [
@@ -27,7 +28,7 @@ const initialAppointments: Appointment[] = [
         address: 'Rua das Inovações, 123',
         phone: '1199999999',
         contact: 'Ana',
-        assignedTo: 'user:user_1',
+        assignedTo: 'user:user_2',
         summary: 'Reunião inicial para discutir o novo projeto do website.',
         status: 'scheduled'
     }
@@ -55,6 +56,8 @@ interface SettingsContextType {
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
   updateCustomer: (customer: Customer) => void;
   deleteCustomer: (id: string) => void;
+  currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
   isLoaded: boolean;
 }
 
@@ -69,47 +72,56 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(initialServiceOrders);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     try {
       const savedProfile = localStorage.getItem('companyProfile');
-      const savedSectors = localStorage.getItem('sectors');
-      const savedUsers = localStorage.getItem('users');
-      const savedAppointments = localStorage.getItem('appointments');
-      const savedServiceOrders = localStorage.getItem('serviceOrders');
-      const savedCustomers = localStorage.getItem('customers');
-      
       if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
         setCompanyProfile({ ...initialCompanyProfileData, ...parsedProfile });
       }
+      
+      let finalSectors = initialSectors;
+      const savedSectors = localStorage.getItem('sectors');
       if (savedSectors) {
         const parsedSectors = JSON.parse(savedSectors);
-        if (parsedSectors.length > 0) setSectors(parsedSectors);
+        if (parsedSectors.length > 0) finalSectors = parsedSectors;
       }
+      setSectors(finalSectors);
+      
+      let finalUsers = initialUsers;
+      const savedUsers = localStorage.getItem('users');
       if (savedUsers) {
         let parsedUsers = JSON.parse(savedUsers);
-        if (parsedUsers.length > 0 && parsedUsers[0].sectorId !== undefined) {
-            parsedUsers = parsedUsers.map((user: any) => ({
-                ...user,
-                sectorIds: user.sectorId ? [user.sectorId] : [],
-                sectorId: undefined,
-            }));
+        if (parsedUsers.length > 0) {
+           if (parsedUsers[0].sectorId !== undefined) {
+                parsedUsers = parsedUsers.map((user: any) => ({ ...user, sectorIds: user.sectorId ? [user.sectorId] : [], sectorId: undefined }));
+            }
+            if (!parsedUsers[0].role) {
+                parsedUsers = parsedUsers.map((user: any) => ({ ...user, role: user.name === 'Admin' ? 'admin' : 'technician' }));
+            }
+            finalUsers = parsedUsers;
         }
-        if (parsedUsers.length > 0) setUsers(parsedUsers);
       }
-      if (savedAppointments) {
-          const parsedAppointments = JSON.parse(savedAppointments);
-          if(parsedAppointments.length > 0) setAppointments(parsedAppointments);
-      }
-       if (savedServiceOrders) {
-          const parsedServiceOrders = JSON.parse(savedServiceOrders);
-          if(parsedServiceOrders.length > 0) setServiceOrders(parsedServiceOrders);
-      }
-       if (savedCustomers) {
-          const parsedCustomers = JSON.parse(savedCustomers);
-          if(parsedCustomers.length > 0) setCustomers(parsedCustomers);
+      setUsers(finalUsers);
+      
+      const savedAppointments = localStorage.getItem('appointments');
+      if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
+
+      const savedServiceOrders = localStorage.getItem('serviceOrders');
+      if(savedServiceOrders) setServiceOrders(JSON.parse(savedServiceOrders));
+
+      const savedCustomers = localStorage.getItem('customers');
+      if(savedCustomers) setCustomers(JSON.parse(savedCustomers));
+
+      const savedCurrentUserId = localStorage.getItem('currentUserId');
+      if (savedCurrentUserId) {
+        const foundUser = finalUsers.find(u => u.id === JSON.parse(savedCurrentUserId));
+        setCurrentUser(foundUser || finalUsers[0] || null);
+      } else {
+        setCurrentUser(finalUsers[0] || null);
       }
     } catch (error) {
       console.error("Failed to load settings from localStorage", error);
@@ -126,6 +138,15 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       }
   }
 
+  const handleSetCurrentUser = (user: User | null) => {
+    setCurrentUser(user);
+    if (user) {
+      localStorage.setItem('currentUserId', JSON.stringify(user.id));
+    } else {
+      localStorage.removeItem('currentUserId');
+    }
+  };
+
   const handleSetProfile = (profile: CompanyProfile) => {
     setCompanyProfile(profile);
     saveDataToLocalStorage('companyProfile', profile);
@@ -139,6 +160,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const handleSetUsers = (newUsers: User[]) => {
       setUsers(newUsers);
       saveDataToLocalStorage('users', newUsers);
+      if (currentUser && !newUsers.find(u => u.id === currentUser.id)) {
+        handleSetCurrentUser(newUsers[0] || null);
+      }
   }
 
   const handleSetAppointments = (newAppointments: Appointment[]) => {
@@ -173,7 +197,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   // User actions
   const addUser = (user: Omit<User, 'id'>) => {
-      const newUser: User = { id: generateId('user'), ...user };
+      const newUser: User = { id: generateId('user'), ...user, role: user.role || 'technician' };
       handleSetUsers([...users, newUser]);
   }
 
@@ -242,6 +266,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         appointments, addAppointment, updateAppointment, deleteAppointment,
         serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder,
         customers, addCustomer, updateCustomer, deleteCustomer,
+        currentUser, setCurrentUser: handleSetCurrentUser,
         isLoaded 
     }}>
       {children}

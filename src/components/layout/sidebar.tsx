@@ -46,8 +46,11 @@ import {
   BrainCircuit,
   View,
   Settings,
+  Users2,
+  Check,
 } from "lucide-react";
 import { Button } from "../ui/button";
+import { useSettings } from "@/contexts/SettingsContext";
 
 const menuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -64,6 +67,14 @@ const menuItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const { iconSize, setIconSize } = useSidebar();
+  const { currentUser, users, setCurrentUser } = useSettings();
+
+  const handleUserChange = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+        setCurrentUser(user);
+    }
+  }
 
   return (
     <>
@@ -97,13 +108,13 @@ export function AppSidebar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-auto w-full justify-start gap-2 p-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[state=collapsed]:justify-center">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="https://picsum.photos/seed/user/40/40" />
-                <AvatarFallback>AD</AvatarFallback>
+                <AvatarImage src={`https://picsum.photos/seed/${currentUser?.id}/40/40`} />
+                <AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 text-left group-data-[state=collapsed]:hidden">
-                <p className="text-sm font-medium">Admin</p>
+                <p className="text-sm font-medium">{currentUser?.name || 'Usuário'}</p>
                 <p className="text-xs text-sidebar-foreground/70">
-                  admin@vendaspro.com
+                  {currentUser?.email || 'N/A'}
                 </p>
               </div>
               <ChevronDown className="h-4 w-4 group-data-[state=collapsed]:hidden" />
@@ -112,17 +123,36 @@ export function AppSidebar() {
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Admin</p>
+                <p className="text-sm font-medium leading-none">{currentUser?.name}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  admin@vendaspro.com
+                  {currentUser?.email}
                 </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <UserCog className="mr-2 h-4 w-4" />
-              <span>Perfil</span>
-            </DropdownMenuItem>
+
+            <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                    <Users2 className="mr-2 h-4 w-4" />
+                    <span>Trocar Usuário</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                        <DropdownMenuRadioGroup
+                            value={currentUser?.id}
+                            onValueChange={handleUserChange}
+                        >
+                            <DropdownMenuLabel>Selecionar Usuário</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {users.map(user => (
+                                <DropdownMenuRadioItem key={user.id} value={user.id}>
+                                    {user.name}
+                                </DropdownMenuRadioItem>
+                            ))}
+                        </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+            </DropdownMenuSub>
 
             <DropdownMenuSub>
                 <DropdownMenuSubTrigger>

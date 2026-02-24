@@ -7,6 +7,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+import { TaskNotificationPopup } from "@/components/features/TaskNotificationPopup";
 
 export default function DashboardLayout({
   children,
@@ -25,6 +26,7 @@ export default function DashboardLayout({
             <SidebarTrigger />
           </header>
           {children}
+          <TaskNotificationPopup />
         </SidebarInset>
       </SidebarProvider>
     </SettingsProvider>

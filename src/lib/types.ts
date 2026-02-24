@@ -20,6 +20,7 @@ export type User = {
   email?: string;
   whatsapp?: string;
   sectorIds: string[];
+  role: 'admin' | 'technician' | 'finance' | 'service';
 };
 
 export type Appointment = {
