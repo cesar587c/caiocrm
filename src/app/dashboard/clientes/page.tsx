@@ -99,10 +99,13 @@ const formSchema = z.object({
   cnpj: z.string().optional(),
   razaoSocial: z.string().min(1, "Razão Social é obrigatória."),
   nomeFantasia: z.string().optional(),
-  email: z.string().email("E-mail inválido."),
+  email: z.string().email({ message: "E-mail inválido." }).optional().or(z.literal('')),
   telefone: z.string().optional(),
   inscricaoEstadual: z.string().optional(),
   tipoCliente: z.boolean().default(false), // false = Avulso, true = Contrato Ativo
+}).refine((data) => !!data.email || !!data.telefone, {
+    message: "É obrigatório informar um e-mail ou telefone.",
+    path: ["telefone"],
 });
 
 
@@ -118,6 +121,17 @@ export default function ClientesPage() {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
 
   const { toast } = useToast();
+
+  const formatPhoneNumber = (value: string) => {
+    if (!value) return "";
+    const cleaned = value.replace(/\D/g, "");
+    const length = cleaned.length;
+
+    if (length <= 2) return `(${cleaned}`;
+    if (length <= 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    if (length <= 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+  }
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -265,7 +279,7 @@ export default function ClientesPage() {
       updateCustomer({
         ...editingCustomer,
         name: values.razaoSocial,
-        email: values.email,
+        email: values.email || '',
         telefone: values.telefone,
         type: values.tipoCliente ? "active_contract" : "one_time",
       });
@@ -275,7 +289,7 @@ export default function ClientesPage() {
       });
     } else {
       const existingCustomer = customers.find(
-        (c) => c.email.toLowerCase() === values.email.toLowerCase()
+        (c) => c.email && values.email && c.email.toLowerCase() === values.email.toLowerCase()
       );
       if (existingCustomer) {
         toast({
@@ -288,7 +302,7 @@ export default function ClientesPage() {
       
       const newCustomerData: Omit<Customer, 'id'> = {
         name: values.razaoSocial,
-        email: values.email,
+        email: values.email || '',
         telefone: values.telefone,
         status: "new",
         responsible: "Admin",
@@ -543,6 +557,8 @@ export default function ClientesPage() {
                               placeholder="(00) 00000-0000"
                               className="col-span-3"
                               {...field}
+                              onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                              value={field.value || ''}
                             />
                             </FormControl>
                              <div className="col-start-2 col-span-3">
