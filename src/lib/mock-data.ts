@@ -1,4 +1,6 @@
 
+import type { ServiceOrder } from './types';
+
 // Estrutura do produto com histórico de preços
 export type Product = {
   id: string;
@@ -93,4 +95,40 @@ export const initialProducts: Product[] = [
   { id: 'prod_6', name: 'Treinamento de Equipe (Online)', price: 800, priceHistory: [800] },
 ];
 
-    
+
+export const initialServiceOrders: ServiceOrder[] = [
+    {
+        id: 'os_1',
+        number: '20240001',
+        openingDate: new Date().toISOString(),
+        clientId: 'cust_1',
+        technicianId: 'user_1', // Assuming user_1 is a technician
+        status: 'Aberta',
+        problemDescription: 'Computador não liga, faz barulho estranho ao tentar iniciar.',
+        deliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
+    },
+    {
+        id: 'os_2',
+        number: '20240002',
+        openingDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+        clientId: 'cust_2',
+        technicianId: 'user_1',
+        status: 'Em andamento',
+        problemDescription: 'Impressora fiscal não está imprimindo as notas corretamente.',
+        technicalDiagnosis: 'Necessária troca da cabeça de impressão e limpeza geral.',
+        deliveryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day from now
+    },
+    {
+        id: 'os_3',
+        number: '20240003',
+        openingDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+        clientId: 'cust_4',
+        technicianId: 'user_1',
+        status: 'Finalizada',
+        problemDescription: 'Sistema de ponto eletrônico offline.',
+        technicalDiagnosis: 'Cabo de rede desconectado no servidor.',
+        executedServices: 'Reconexão do cabo de rede e teste de comunicação.',
+        totalValue: 50.00,
+        deliveryDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
+    }
+];

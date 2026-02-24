@@ -1,3 +1,4 @@
+
 export type CompanyProfile = {
   name: string;
   email: string;
@@ -32,4 +33,20 @@ export type Appointment = {
   summary?: string;
   status: 'scheduled' | 'completed' | 'missed';
   justification?: string;
+};
+
+export type ServiceOrder = {
+    id: string;
+    number: string;
+    openingDate: string;
+    deliveryDate?: string;
+    clientId: string;
+    technicianId: string;
+    status: 'Aberta' | 'Em andamento' | 'Aguardando peça' | 'Finalizada' | 'Cancelada';
+    problemDescription: string;
+    technicalDiagnosis?: string;
+    executedServices?: string;
+    usedParts?: string;
+    totalValue?: number;
+    // photos?: string[];
 };

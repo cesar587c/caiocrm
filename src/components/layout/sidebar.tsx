@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -54,7 +55,7 @@ const menuItems = [
   { href: "/dashboard/funil-vendas", label: "Funil de Vendas", icon: Filter },
   { href: "/dashboard/propostas", label: "Propostas", icon: FileText },
   { href: "/dashboard/agenda", label: "Agenda", icon: Calendar },
-  { href: "/dashboard/chamados", label: "Chamados", icon: BookUser },
+  { href: "/dashboard/chamados", label: "Ordens de Serviço", icon: BookUser },
   { href: "/dashboard/relatorios", label: "Relatórios", icon: LineChart },
   { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
   { href: "/dashboard/usuarios", label: "Usuários", icon: UserCog },

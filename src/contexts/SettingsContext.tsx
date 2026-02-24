@@ -1,9 +1,11 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { format } from 'date-fns';
-import type { CompanyProfile, Sector, User, Appointment } from '@/lib/types';
+import type { CompanyProfile, Sector, User, Appointment, ServiceOrder } from '@/lib/types';
 import { companyProfile as initialCompanyProfileData } from '@/lib/company-profile';
+import { initialServiceOrders } from '@/lib/mock-data';
 
 const initialSectors: Sector[] = [
     { id: 'sec_1', name: 'Administrativo'},
@@ -13,7 +15,7 @@ const initialSectors: Sector[] = [
 ];
 
 const initialUsers: User[] = [
-    { id: 'user_1', name: 'Admin', email: 'admin@vendaspro.com', whatsapp: '5511999999999', sectorIds: ['sec_1'] }
+    { id: 'user_1', name: 'Admin', email: 'admin@vendaspro.com', whatsapp: '5511999999999', sectorIds: ['sec_1', 'sec_3'] }
 ];
 
 const initialAppointments: Appointment[] = [
@@ -45,6 +47,10 @@ interface SettingsContextType {
   addAppointment: (appointment: Omit<Appointment, 'id'>) => void;
   updateAppointment: (appointment: Appointment) => void;
   deleteAppointment: (id: string) => void;
+  serviceOrders: ServiceOrder[];
+  addServiceOrder: (order: Omit<ServiceOrder, 'id' | 'number' | 'openingDate'>) => void;
+  updateServiceOrder: (order: ServiceOrder) => void;
+  deleteServiceOrder: (id: string) => void;
   isLoaded: boolean;
 }
 
@@ -57,6 +63,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [sectors, setSectors] = useState<Sector[]>(initialSectors);
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(initialServiceOrders);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -65,6 +72,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       const savedSectors = localStorage.getItem('sectors');
       const savedUsers = localStorage.getItem('users');
       const savedAppointments = localStorage.getItem('appointments');
+      const savedServiceOrders = localStorage.getItem('serviceOrders');
       
       if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
@@ -88,6 +96,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       if (savedAppointments) {
           const parsedAppointments = JSON.parse(savedAppointments);
           if(parsedAppointments.length > 0) setAppointments(parsedAppointments);
+      }
+       if (savedServiceOrders) {
+          const parsedServiceOrders = JSON.parse(savedServiceOrders);
+          if(parsedServiceOrders.length > 0) setServiceOrders(parsedServiceOrders);
       }
     } catch (error) {
       console.error("Failed to load settings from localStorage", error);
@@ -123,6 +135,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     setAppointments(newAppointments);
     saveDataToLocalStorage('appointments', newAppointments);
   }
+
+  const handleSetServiceOrders = (newOrders: ServiceOrder[]) => {
+    setServiceOrders(newOrders);
+    saveDataToLocalStorage('serviceOrders', newOrders);
+  };
 
   // Sector actions
   const addSector = (name: string) => {
@@ -167,12 +184,34 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       handleSetAppointments(appointments.filter(app => app.id !== id));
   };
 
+  // Service Order actions
+  const addServiceOrder = (orderData: Omit<ServiceOrder, 'id' | 'number' | 'openingDate'>) => {
+    const lastNumber = serviceOrders.reduce((max, o) => Math.max(max, parseInt(o.number.slice(-4), 10)), 0);
+    const newNumber = `${new Date().getFullYear()}${(lastNumber + 1).toString().padStart(4, '0')}`;
+    const newOrder: ServiceOrder = {
+        id: generateId('os'),
+        number: newNumber,
+        openingDate: new Date().toISOString(),
+        ...orderData
+    };
+    handleSetServiceOrders([...serviceOrders, newOrder]);
+  };
+
+  const updateServiceOrder = (updatedOrder: ServiceOrder) => {
+    handleSetServiceOrders(serviceOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+  };
+
+  const deleteServiceOrder = (id: string) => {
+    handleSetServiceOrders(serviceOrders.filter(o => o.id !== id));
+  };
+
   return (
     <SettingsContext.Provider value={{ 
         companyProfile, setCompanyProfile: handleSetProfile,
         sectors, addSector, deleteSector,
         users, addUser, updateUser, deleteUser,
         appointments, addAppointment, updateAppointment, deleteAppointment,
+        serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder,
         isLoaded 
     }}>
       {children}
