@@ -3,9 +3,9 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { format } from 'date-fns';
-import type { CompanyProfile, Sector, User, Appointment, ServiceOrder } from '@/lib/types';
+import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer } from '@/lib/types';
 import { companyProfile as initialCompanyProfileData } from '@/lib/company-profile';
-import { initialServiceOrders } from '@/lib/mock-data';
+import { initialServiceOrders, initialCustomers } from '@/lib/mock-data';
 
 const initialSectors: Sector[] = [
     { id: 'sec_1', name: 'Administrativo'},
@@ -51,6 +51,10 @@ interface SettingsContextType {
   addServiceOrder: (order: Omit<ServiceOrder, 'id' | 'number' | 'openingDate'>) => void;
   updateServiceOrder: (order: ServiceOrder) => void;
   deleteServiceOrder: (id: string) => void;
+  customers: Customer[];
+  addCustomer: (customer: Omit<Customer, 'id'>) => void;
+  updateCustomer: (customer: Customer) => void;
+  deleteCustomer: (id: string) => void;
   isLoaded: boolean;
 }
 
@@ -64,6 +68,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(initialServiceOrders);
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -73,6 +78,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       const savedUsers = localStorage.getItem('users');
       const savedAppointments = localStorage.getItem('appointments');
       const savedServiceOrders = localStorage.getItem('serviceOrders');
+      const savedCustomers = localStorage.getItem('customers');
       
       if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
@@ -100,6 +106,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
        if (savedServiceOrders) {
           const parsedServiceOrders = JSON.parse(savedServiceOrders);
           if(parsedServiceOrders.length > 0) setServiceOrders(parsedServiceOrders);
+      }
+       if (savedCustomers) {
+          const parsedCustomers = JSON.parse(savedCustomers);
+          if(parsedCustomers.length > 0) setCustomers(parsedCustomers);
       }
     } catch (error) {
       console.error("Failed to load settings from localStorage", error);
@@ -139,6 +149,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const handleSetServiceOrders = (newOrders: ServiceOrder[]) => {
     setServiceOrders(newOrders);
     saveDataToLocalStorage('serviceOrders', newOrders);
+  };
+
+  const handleSetCustomers = (newCustomers: Customer[]) => {
+    setCustomers(newCustomers);
+    saveDataToLocalStorage('customers', newCustomers);
   };
 
   // Sector actions
@@ -204,6 +219,20 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const deleteServiceOrder = (id: string) => {
     handleSetServiceOrders(serviceOrders.filter(o => o.id !== id));
   };
+  
+  // Customer actions
+  const addCustomer = (customerData: Omit<Customer, 'id'>) => {
+      const newCustomer: Customer = { id: generateId('cust'), ...customerData };
+      handleSetCustomers([...customers, newCustomer]);
+  };
+
+  const updateCustomer = (updatedCustomer: Customer) => {
+      handleSetCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+  };
+
+  const deleteCustomer = (id: string) => {
+      handleSetCustomers(customers.filter(c => c.id !== id));
+  };
 
   return (
     <SettingsContext.Provider value={{ 
@@ -212,6 +241,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         users, addUser, updateUser, deleteUser,
         appointments, addAppointment, updateAppointment, deleteAppointment,
         serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder,
+        customers, addCustomer, updateCustomer, deleteCustomer,
         isLoaded 
     }}>
       {children}

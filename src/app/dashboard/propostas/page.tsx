@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -76,10 +77,10 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { initialCustomers, initialProducts } from '@/lib/mock-data';
-import type { Product } from '@/lib/mock-data';
+import { initialProducts } from '@/lib/mock-data';
+import type { Product } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 
@@ -115,9 +116,8 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 
 
 export default function PropostasPage() {
-  const { companyProfile } = useSettings();
+  const { companyProfile, customers } = useSettings();
   const { toast } = useToast();
-  const [customers, setCustomers] = useState(initialCustomers);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [productSearch, setProductSearch] = useState('');
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);

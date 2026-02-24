@@ -1,26 +1,6 @@
 
-import type { ServiceOrder } from './types';
+import type { ServiceOrder, Customer, Product } from './types';
 
-// Estrutura do produto com histórico de preços
-export type Product = {
-  id: string;
-  name: string;
-  price: number;
-  priceHistory: number[];
-};
-
-export type Customer = {
-    id: string;
-    name: string;
-    email: string;
-    telefone?: string;
-    status: "active" | "inactive" | "new";
-    responsible: string;
-    potential: "high" | "medium" | "low";
-    lastContact: string;
-    createdAt: string;
-    type: "active_contract" | "one_time";
-};
 
 export const initialCustomers: Customer[] = [
   {

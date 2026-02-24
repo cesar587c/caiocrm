@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -79,10 +80,8 @@ import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { consultarCnpjAction } from "@/app/actions";
-import { initialCustomers } from "@/lib/mock-data";
-import type { Customer as CustomerType } from "@/lib/mock-data";
-
-type Customer = CustomerType;
+import { useSettings } from "@/contexts/SettingsContext";
+import type { Customer } from "@/lib/types";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -108,7 +107,7 @@ const formSchema = z.object({
 
 
 export default function ClientesPage() {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = useSettings();
   const [isCnpjLoading, setIsCnpjLoading] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -253,7 +252,7 @@ export default function ClientesPage() {
 
   const confirmDeleteAction = () => {
     if (!deletingCustomer) return;
-    setCustomers(customers.filter(c => c.id !== deletingCustomer.id));
+    deleteCustomer(deletingCustomer.id);
     toast({
       title: "Cliente Excluído",
       description: `${deletingCustomer.name} foi removido com sucesso.`,
@@ -263,40 +262,42 @@ export default function ClientesPage() {
   
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (editingCustomer) {
-      // Update Logic
-      setCustomers(
-        customers.map((c) =>
-          c.id === editingCustomer.id
-            ? {
-                ...c,
-                id: c.id, // Ensure id remains stable
-                name: values.razaoSocial,
-                email: values.email,
-                telefone: values.telefone,
-                type: values.tipoCliente ? "active_contract" : "one_time",
-              }
-            : c
-        )
-      );
+      updateCustomer({
+        ...editingCustomer,
+        name: values.razaoSocial,
+        email: values.email,
+        telefone: values.telefone,
+        type: values.tipoCliente ? "active_contract" : "one_time",
+      });
       toast({
         title: "Cliente Atualizado!",
         description: `Os dados de ${values.razaoSocial} foram atualizados com sucesso.`,
       });
     } else {
-      // Add Logic
-      const newCustomer: Customer = {
-        id: `cust_${new Date().getTime()}`,
+      const existingCustomer = customers.find(
+        (c) => c.email.toLowerCase() === values.email.toLowerCase()
+      );
+      if (existingCustomer) {
+        toast({
+          variant: "destructive",
+          title: "Cliente já cadastrado",
+          description: `Um cliente com o e-mail ${values.email} já existe.`,
+        });
+        return;
+      }
+      
+      const newCustomerData: Omit<Customer, 'id'> = {
         name: values.razaoSocial,
         email: values.email,
         telefone: values.telefone,
         status: "new",
-        responsible: "Admin", // Placeholder
-        potential: "medium", // Default
+        responsible: "Admin",
+        potential: "medium",
         lastContact: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         type: values.tipoCliente ? "active_contract" : "one_time",
       };
-      setCustomers([newCustomer, ...customers]);
+      addCustomer(newCustomerData);
       toast({
         title: "Cliente Salvo!",
         description: `${values.razaoSocial} foi cadastrado com sucesso.`,

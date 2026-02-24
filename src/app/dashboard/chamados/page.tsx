@@ -48,7 +48,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { initialCustomers } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -88,8 +87,7 @@ const statusColors: { [key: string]: string } = {
 };
 
 const ServiceOrderCard = ({ order, onCardClick }: { order: ServiceOrder, onCardClick: (order: ServiceOrder) => void }) => {
-  const { users } = useSettings();
-  const { customers } = { customers: initialCustomers }; // using mock for now
+  const { users, customers } = useSettings();
   
   const technician = users.find(u => u.id === order.technicianId);
   const customer = customers.find(c => c.id === order.clientId);
@@ -127,8 +125,7 @@ const ServiceOrderCard = ({ order, onCardClick }: { order: ServiceOrder, onCardC
 
 
 export default function ChamadosPage() {
-  const { serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder, users } = useSettings();
-  const { customers } = { customers: initialCustomers };
+  const { serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder, users, customers } = useSettings();
   const { toast } = useToast();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
