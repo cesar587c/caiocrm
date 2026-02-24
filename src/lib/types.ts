@@ -55,6 +55,8 @@ export type ServiceOrder = {
 export type Customer = {
     id: string;
     name: string;
+    nomeFantasia?: string;
+    contactName?: string;
     email: string;
     telefone?: string;
     status: "active" | "inactive" | "new";

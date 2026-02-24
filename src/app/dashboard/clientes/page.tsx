@@ -14,6 +14,7 @@ import {
   Search,
   Users,
   Loader2,
+  User,
 } from "lucide-react";
 import { addDays, format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -99,6 +100,7 @@ const formSchema = z.object({
   cnpj: z.string().optional(),
   razaoSocial: z.string().min(1, "Razão Social é obrigatória."),
   nomeFantasia: z.string().optional(),
+  contactName: z.string().optional(),
   email: z.string().email({ message: "E-mail inválido." }).optional().or(z.literal('')),
   telefone: z.string().optional(),
   inscricaoEstadual: z.string().optional(),
@@ -139,6 +141,7 @@ export default function ClientesPage() {
       cnpj: "",
       razaoSocial: "",
       nomeFantasia: "",
+      contactName: "",
       email: "",
       telefone: "",
       inscricaoEstadual: "",
@@ -152,6 +155,8 @@ export default function ClientesPage() {
     let filtered = customers.filter(c =>
         searchTerm === "" ||
         c.name.toLowerCase().includes(lowercasedSearchTerm) ||
+        (c.nomeFantasia && c.nomeFantasia.toLowerCase().includes(lowercasedSearchTerm)) ||
+        (c.contactName && c.contactName.toLowerCase().includes(lowercasedSearchTerm)) ||
         c.email.toLowerCase().includes(lowercasedSearchTerm)
     );
 
@@ -231,6 +236,7 @@ export default function ClientesPage() {
       cnpj: "",
       razaoSocial: "",
       nomeFantasia: "",
+      contactName: "",
       email: "",
       telefone: "",
       inscricaoEstadual: "",
@@ -243,10 +249,11 @@ export default function ClientesPage() {
     setEditingCustomer(customer);
     form.reset({
         razaoSocial: customer.name,
+        nomeFantasia: customer.nomeFantasia || "",
+        contactName: customer.contactName || "",
         email: customer.email,
         tipoCliente: customer.type === "active_contract",
         cnpj: '', 
-        nomeFantasia: '',
         telefone: customer.telefone || '',
         inscricaoEstadual: '',
     });
@@ -279,6 +286,8 @@ export default function ClientesPage() {
       updateCustomer({
         ...editingCustomer,
         name: values.razaoSocial,
+        nomeFantasia: values.nomeFantasia,
+        contactName: values.contactName,
         email: values.email || '',
         telefone: values.telefone,
         type: values.tipoCliente ? "active_contract" : "one_time",
@@ -302,6 +311,8 @@ export default function ClientesPage() {
       
       const newCustomerData: Omit<Customer, 'id'> = {
         name: values.razaoSocial,
+        nomeFantasia: values.nomeFantasia,
+        contactName: values.contactName,
         email: values.email || '',
         telefone: values.telefone,
         status: "new",
@@ -526,6 +537,26 @@ export default function ClientesPage() {
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={form.control}
+                        name="contactName"
+                        render={({ field }) => (
+                           <FormItem className="grid grid-cols-4 items-center gap-4">
+                            <FormLabel className="text-right">Nome do Contato</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Pessoa de contato na empresa"
+                                className="col-span-3"
+                                {...field}
+                                value={field.value || ''}
+                              />
+                            </FormControl>
+                             <div className="col-start-2 col-span-3">
+                               <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
                        <FormField
                         control={form.control}
                         name="email"
@@ -674,9 +705,18 @@ export default function ClientesPage() {
                         <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
                         <TableCell>
                             <div className="font-medium">{customer.name}</div>
+                            {customer.nomeFantasia && (
+                                <div className="text-sm text-muted-foreground">{customer.nomeFantasia}</div>
+                            )}
                             <div className="hidden text-sm text-muted-foreground md:inline">
                             {customer.email}
                             </div>
+                            {customer.contactName && (
+                                <div className="text-sm text-muted-foreground flex items-center gap-1.5 pt-1">
+                                    <User className="h-3.5 w-3.5" />
+                                    <span>{customer.contactName}</span>
+                                </div>
+                            )}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
                             <Badge variant={customer.status === 'active' ? 'default' : customer.status === 'new' ? 'secondary' : 'outline'}>

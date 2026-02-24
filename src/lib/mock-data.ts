@@ -6,6 +6,8 @@ export const initialCustomers: Customer[] = [
   {
     id: "cust_1",
     name: "Tech Solutions Ltda.",
+    nomeFantasia: "Tech Solutions",
+    contactName: "Ana Silva",
     email: "contato@techsolutions.com.br",
     telefone: "(11) 98765-4321",
     status: "active",
@@ -18,6 +20,8 @@ export const initialCustomers: Customer[] = [
   {
     id: "cust_2",
     name: "Inova Corp S.A.",
+    nomeFantasia: "Inova Corp",
+    contactName: "Carlos Pereira",
     email: "suporte@inovacorp.com",
     telefone: "(21) 91234-5678",
     status: "active",
@@ -30,6 +34,7 @@ export const initialCustomers: Customer[] = [
   {
     id: "cust_3",
     name: "Mercado Central",
+    contactName: "Mariana Costa",
     email: "compras@mercadocentral.com",
     telefone: "(41) 95555-1234",
     status: "inactive",
@@ -42,6 +47,8 @@ export const initialCustomers: Customer[] = [
   {
     id: "cust_4",
     name: "ConstruBem Materiais",
+    nomeFantasia: "ConstruBem",
+    contactName: "Jorge Almeida",
     email: "vendas@construbem.com.br",
     telefone: "(31) 99999-8888",
     status: "new",
@@ -54,6 +61,7 @@ export const initialCustomers: Customer[] = [
   {
     id: "cust_5",
     name: "AgroForte Distribuidora",
+    contactName: "Roberto Nunes",
     email: "agroforte@distribuidora.com",
     telefone: "(62) 98765-9999",
     status: "active",
