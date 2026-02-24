@@ -146,6 +146,7 @@ export default function ChamadosPage() {
         technicalDiagnosis: '',
         executedServices: '',
         usedParts: '',
+        totalValue: undefined,
         deliveryDate: '',
      },
   });
@@ -176,6 +177,7 @@ export default function ChamadosPage() {
         technicalDiagnosis: '',
         executedServices: '',
         usedParts: '',
+        totalValue: undefined,
         deliveryDate: '',
     });
     setIsDialogOpen(true);
@@ -464,6 +466,19 @@ export default function ChamadosPage() {
                     <FormItem>
                         <FormLabel>Peças Utilizadas</FormLabel>
                         <FormControl><Textarea placeholder="Lista de peças e códigos..." {...field} value={field.value || ''}/></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="totalValue"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Valor Total (R$)</FormLabel>
+                        <FormControl>
+                            <Input type="number" step="0.01" placeholder="150,00" {...field} value={field.value ?? ''} />
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
                     )}
