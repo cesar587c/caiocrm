@@ -1,17 +1,27 @@
 'use server';
 /**
- * @fileOverview A flow to consult CNPJ data from a third-party API.
+ * @fileOverview A utility to consult CNPJ data from the BrasilAPI.
  *
  * - consultarCnpj - A function that handles the CNPJ consultation.
  * - ConsultarCnpjInput - The input type for the consultarCnpj function.
  * - ConsultarCnpjOutput - The return type for the consultarCnpj function.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+// Define types that were previously Zod schemas
+export interface ConsultarCnpjInput {
+  cnpj: string;
+}
 
-// Function to fetch data from BrasilAPI
-async function fetchCnpjDataFromApi(cnpj: string) {
+export interface ConsultarCnpjOutput {
+  razaoSocial: string;
+  nomeFantasia: string;
+  email: string;
+  telefone: string;
+  inscricaoEstadual: string;
+}
+
+// Function to fetch and process data from BrasilAPI
+async function fetchCnpjDataFromApi(cnpj: string): Promise<ConsultarCnpjOutput> {
     console.log(`Fetching real data for CNPJ: ${cnpj} from BrasilAPI`);
     try {
         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
@@ -33,12 +43,11 @@ async function fetchCnpjDataFromApi(cnpj: string) {
         const inscricaoEstadual = data.uf ? `Ativo em ${data.uf}` : 'Não informado';
 
         return {
-            razao_social: data.razao_social || '',
-            nome_fantasia: data.nome_fantasia || '',
-            // BrasilAPI may not provide email. We return a placeholder that passes email validation.
-            email: data.email || 'naoinformado@exemplo.com',
+            razaoSocial: data.razao_social || '',
+            nomeFantasia: data.nome_fantasia || '',
+            email: data.email || '',
             telefone: data.ddd_telefone_1 || data.ddd_telefone_2 || '',
-            inscricao_estadual: inscricaoEstadual,
+            inscricaoEstadual: inscricaoEstadual,
         };
 
     } catch (error) {
@@ -51,65 +60,13 @@ async function fetchCnpjDataFromApi(cnpj: string) {
 }
 
 
-const fetchCnpjDataTool = ai.defineTool(
-    {
-        name: 'fetchCnpjData',
-        description: 'Fetches company data for a given Brazilian CNPJ number from BrasilAPI.',
-        inputSchema: z.object({
-            cnpj: z.string().describe('The CNPJ number to look up. Should contain only digits.'),
-        }),
-        outputSchema: z.object({
-            razao_social: z.string(),
-            nome_fantasia: z.string(),
-            email: z.string(),
-            telefone: z.string(),
-            inscricao_estadual: z.string(),
-        }),
-    },
-    async ({ cnpj }) => {
-        // Clean up CNPJ, removing non-digit characters
-        const cleanedCnpj = cnpj.replace(/\D/g, '');
-        return await fetchCnpjDataFromApi(cleanedCnpj);
-    }
-);
-
-const ConsultarCnpjInputSchema = z.object({
-  cnpj: z.string().describe('The CNPJ number to consult.'),
-});
-
-const ConsultarCnpjOutputSchema = z.object({
-  razaoSocial: z.string().describe("The company's official name (Razão Social)."),
-  nomeFantasia: z.string().describe("The company's trade name (Nome Fantasia)."),
-  email: z.string().email().describe("The company's primary contact email."),
-  telefone: z.string().describe("The company's primary phone number."),
-  inscricaoEstadual: z.string().describe("The company's state registration number (Inscrição Estadual)."),
-});
-
+/**
+ * Consults CNPJ data from BrasilAPI.
+ * @param input - The CNPJ to consult.
+ * @returns The company data.
+ */
 export async function consultarCnpj(input: ConsultarCnpjInput): Promise<ConsultarCnpjOutput> {
-  return consultarCnpjFlow(input);
+    // Clean up CNPJ, removing non-digit characters
+    const cleanedCnpj = input.cnpj.replace(/\D/g, '');
+    return await fetchCnpjDataFromApi(cleanedCnpj);
 }
-
-const consultarCnpjFlow = ai.defineFlow(
-  {
-    name: 'consultarCnpjFlow',
-    inputSchema: ConsultarCnpjInputSchema,
-    outputSchema: ConsultarCnpjOutputSchema,
-  },
-  async (input) => {
-    // We call the tool directly instead of using an LLM prompt to map fields.
-    // This is more reliable, efficient, and fixes the 'use server' export error.
-    const toolOutput = await fetchCnpjDataTool(input);
-
-    return {
-        razaoSocial: toolOutput.razao_social,
-        nomeFantasia: toolOutput.nome_fantasia,
-        email: toolOutput.email,
-        telefone: toolOutput.telefone,
-        inscricaoEstadual: toolOutput.inscricao_estadual,
-    };
-  }
-);
-
-
-export type ConsultarCnpjInput = z.infer<typeof ConsultarCnpjInputSchema>;
-export type ConsultarCnpjOutput = z.infer<typeof ConsultarCnpjOutputSchema>;
