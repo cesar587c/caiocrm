@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -65,7 +65,7 @@ const serviceOrderSchema = z.object({
     executedServices: z.string().optional(),
     usedParts: z.string().optional(),
     totalValue: z.coerce.number().optional(),
-    deliveryDate: z.date().optional(),
+    deliveryDate: z.string().optional(),
 });
 
 type ServiceOrderFormValues = z.infer<typeof serviceOrderSchema>;
@@ -146,6 +146,7 @@ export default function ChamadosPage() {
         technicalDiagnosis: '',
         executedServices: '',
         usedParts: '',
+        deliveryDate: '',
      },
   });
 
@@ -175,6 +176,7 @@ export default function ChamadosPage() {
         technicalDiagnosis: '',
         executedServices: '',
         usedParts: '',
+        deliveryDate: '',
     });
     setIsDialogOpen(true);
   };
@@ -183,7 +185,7 @@ export default function ChamadosPage() {
     setEditingOrder(order);
     form.reset({
       ...order,
-      deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined,
+      deliveryDate: order.deliveryDate || '',
     });
     setIsDialogOpen(true);
   };
@@ -208,7 +210,7 @@ export default function ChamadosPage() {
       updateServiceOrder({ 
         ...editingOrder, 
         ...values,
-        deliveryDate: values.deliveryDate ? values.deliveryDate.toISOString() : undefined,
+        deliveryDate: values.deliveryDate || undefined,
     });
       toast({ title: 'Ordem de Serviço Atualizada!', description: `A OS #${editingOrder.number} foi salva.` });
     } else {
@@ -416,29 +418,15 @@ export default function ChamadosPage() {
                     </FormItem>
                     )}
                 />
-                 <Controller
+                <FormField
                     control={form.control}
                     name="deliveryDate"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Prazo de Entrega</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
                                 <FormControl>
-                                <Button
-                                    type="button"
-                                    variant={"outline"}
-                                    className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
-                                </Button>
+                                  <Input placeholder="dd/mm/aaaa ou texto livre" {...field} value={field.value || ''}/>
                                 </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
-                                </PopoverContent>
-                            </Popover>
                              <FormMessage />
                         </FormItem>
                     )}
