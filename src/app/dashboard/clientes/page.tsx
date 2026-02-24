@@ -98,7 +98,7 @@ const potentialMap: Record<string, string> = {
 const formSchema = z.object({
   cnpj: z.string().optional(),
   razaoSocial: z.string().min(1, "Razão Social é obrigatória."),
-  nomeFantasia: z.string().optional(),
+  nomeFantasia: z.string().min(1, "O Nome Fantasia é obrigatório."),
   contactName: z.string().optional(),
   email: z.string().email({ message: "E-mail inválido." }).optional().or(z.literal('')),
   telefone: z.string().optional(),
@@ -252,7 +252,7 @@ export default function ClientesPage() {
         const inscricaoEstadual = data.uf ? `Ativo em ${data.uf}` : 'Não informado';
 
         form.setValue("razaoSocial", data.razao_social || "");
-        form.setValue("nomeFantasia", data.nome_fantasia || "");
+        form.setValue("nomeFantasia", data.nome_fantasia || data.razao_social || "");
         form.setValue("email", data.email || "");
         form.setValue("telefone", data.ddd_telefone_1 || data.ddd_telefone_2 || "");
         form.setValue("inscricaoEstadual", inscricaoEstadual);
@@ -721,7 +721,7 @@ export default function ClientesPage() {
                 </CardDescription>
                     <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar cliente..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <Input placeholder="Buscar por razão social, fantasia, contato ou e-mail..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
                 </CardHeader>
                 <CardContent>
