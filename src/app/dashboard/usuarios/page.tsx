@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,14 +24,6 @@ import {
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -44,7 +36,6 @@ import {
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuItem,
     DropdownMenuTrigger,
     DropdownMenuCheckboxItem,
     DropdownMenuLabel,
@@ -53,9 +44,10 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, PlusCircle, MoreHorizontal, Eye, EyeOff } from "lucide-react";
+import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 const userFormSchema = z.object({
   name: z.string().min(2, 'O nome de usuário deve ter pelo menos 2 caracteres.'),
@@ -76,8 +68,7 @@ export default function UsuariosPage() {
   const { users, sectors, addUser, updateUser, deleteUser } = useSettings();
   const { toast } = useToast();
   
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [showPasswords, setShowPasswords] = useState({
     password: false,
@@ -88,41 +79,49 @@ export default function UsuariosPage() {
     resolver: zodResolver(userFormSchema),
     defaultValues: { name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' },
   });
+  
+  useEffect(() => {
+    if (selectedUser) {
+        form.reset({
+            name: selectedUser.name,
+            email: selectedUser.email || '',
+            whatsapp: selectedUser.whatsapp || '',
+            sectorIds: selectedUser.sectorIds || [],
+            password: '',
+            confirmPassword: '',
+        });
+    } else {
+        form.reset({ name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' });
+    }
+     setShowPasswords({ password: false, confirmPassword: false });
+  }, [selectedUser, form]);
+
 
   const sectorMap = useMemo(() => {
     return new Map(sectors.map(s => [s.id, s.name]));
   }, [sectors]);
 
-  const resetFormAndState = () => {
-    setEditingUser(null);
-    form.reset({ name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' });
-    setShowPasswords({ password: false, confirmPassword: false });
-  };
-
   const handleAddNew = () => {
-    resetFormAndState();
-    setIsDialogOpen(true);
+    setSelectedUser(null);
   };
 
-  const handleEdit = (user: User) => {
-    setEditingUser(user);
-    form.reset({
-      name: user.name,
-      email: user.email || '',
-      whatsapp: user.whatsapp || '',
-      sectorIds: user.sectorIds || [],
-      password: '',
-      confirmPassword: '',
-    });
-    setIsDialogOpen(true);
+  const handleSelectUser = (user: User) => {
+    setSelectedUser(user);
   };
 
   const handleDelete = (user: User) => {
     setDeletingUser(user);
   };
+  
+  const handleCancelEdit = () => {
+      setSelectedUser(null);
+  }
 
   const confirmDelete = () => {
     if (!deletingUser) return;
+    if (selectedUser?.id === deletingUser.id) {
+        setSelectedUser(null);
+    }
     deleteUser(deletingUser.id);
     toast({
       title: "Usuário Excluído!",
@@ -133,13 +132,13 @@ export default function UsuariosPage() {
   };
 
   function onSubmit(values: UserFormValues) {
-    if (editingUser) {
+    if (selectedUser) {
       if (values.password && values.password.length < 8) {
         form.setError('password', { type: 'manual', message: 'A senha deve ter no mínimo 8 caracteres.' });
         return;
       }
       const userToUpdate: User = { 
-        ...editingUser, 
+        ...selectedUser, 
         ...values,
       };
       // Do not update password if it's empty
@@ -156,7 +155,7 @@ export default function UsuariosPage() {
       addUser(values as Omit<User, 'id'>);
       toast({ title: 'Usuário Adicionado!', description: `${values.name} foi adicionado à equipe.` });
     }
-    setIsDialogOpen(false);
+    setSelectedUser(null);
   }
 
   return (
@@ -164,248 +163,249 @@ export default function UsuariosPage() {
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight font-headline">Usuários e Permissões</h2>
-          <Button onClick={handleAddNew}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Novo Usuário
-          </Button>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCog className="h-5 w-5" />
-              <span>Gerenciamento de Equipe</span>
-            </CardTitle>
-            <CardDescription>Adicione, edite e remova usuários do sistema.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>WhatsApp</TableHead>
-                  <TableHead>Setores</TableHead>
-                  <TableHead className="text-right w-[80px]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.length > 0 ? (
-                  users.map(user => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email || <span className="text-muted-foreground">N/A</span>}</TableCell>
-                      <TableCell>{user.whatsapp || <span className="text-muted-foreground">N/A</span>}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {user.sectorIds.length > 0 ? (
-                            user.sectorIds.map(id => (
-                                <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                        <UserCog className="h-5 w-5" />
+                        <span>Gerenciamento de Equipe</span>
+                        </CardTitle>
+                        <CardDescription>Adicione novos usuários ou clique em um usuário da lista para editar.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Nome</TableHead>
+                            <TableHead>E-mail</TableHead>
+                            <TableHead>Setores</TableHead>
+                            <TableHead className="text-right w-[50px]"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {users.length > 0 ? (
+                            users.map(user => (
+                                <TableRow 
+                                    key={user.id} 
+                                    onClick={() => handleSelectUser(user)}
+                                    className={cn("cursor-pointer", selectedUser?.id === user.id && 'bg-muted/50')}
+                                >
+                                <TableCell className="font-medium">{user.name}</TableCell>
+                                <TableCell>{user.email || <span className="text-muted-foreground">N/A</span>}</TableCell>
+                                <TableCell>
+                                    <div className="flex flex-wrap gap-1">
+                                    {user.sectorIds.length > 0 ? (
+                                        user.sectorIds.slice(0, 2).map(id => (
+                                            <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
+                                        ))
+                                    ) : (
+                                        <span className="text-muted-foreground text-xs">Nenhum setor</span>
+                                    )}
+                                    {user.sectorIds.length > 2 && <Badge variant="outline">+{user.sectorIds.length - 2}</Badge>}
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDelete(user); }}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                                </TableRow>
                             ))
-                          ) : (
-                            <span className="text-muted-foreground">N/A</span>
-                          )}
+                            ) : (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">Nenhum usuário cadastrado.</TableCell>
+                            </TableRow>
+                            )}
+                        </TableBody>
+                        </Table>
+                    </CardContent>
+                    <CardFooter>
+                        <div className="text-xs text-muted-foreground">
+                            Mostrando <strong>{users.length}</strong> usuário(s).
                         </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(user)}>Editar</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDelete(user)} className="text-destructive">Excluir</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">Nenhum usuário cadastrado.</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-          <CardFooter>
-            <div className="text-xs text-muted-foreground">
-                Mostrando <strong>{users.length}</strong> usuário(s).
+                    </CardFooter>
+                </Card>
             </div>
-          </CardFooter>
-        </Card>
-      </div>
 
-      <Dialog 
-        open={isDialogOpen} 
-        onOpenChange={(isOpen) => {
-          setIsDialogOpen(isOpen);
-          if (!isOpen) {
-            resetFormAndState();
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-[425px] flex flex-col max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
-            <DialogDescription>
-              {editingUser ? 'Altere os dados do usuário abaixo.' : 'Preencha os dados para adicionar um novo usuário à equipe.'}
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form} key={editingUser?.id || 'new-user'}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto -mx-6 px-6 py-4">
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome de Usuário</FormLabel>
-                          <FormControl><Input placeholder="Nome para login" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>E-mail</FormLabel>
-                          <FormControl><Input type="email" placeholder="email@vendaspro.com" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="whatsapp"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>WhatsApp</FormLabel>
-                          <FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Senha</FormLabel>
-                          <div className="relative">
-                            <FormControl>
-                              <Input 
-                                type={showPasswords.password ? 'text' : 'password'} 
-                                placeholder={editingUser ? 'Deixe em branco para manter a atual' : 'Mínimo 8 caracteres'} 
-                                className="pr-10"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <button
-                              type="button"
-                              onClick={() => setShowPasswords(prev => ({...prev, password: !prev.password}))}
-                              className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
-                              aria-label={showPasswords.password ? "Esconder senha" : "Mostrar senha"}
-                            >
-                              {showPasswords.password ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Confirmar Senha</FormLabel>
-                          <div className="relative">
-                            <FormControl>
-                              <Input 
-                                type={showPasswords.confirmPassword ? 'text' : 'password'} 
-                                placeholder="Repita a senha"
-                                className="pr-10"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <button
-                              type="button"
-                              onClick={() => setShowPasswords(prev => ({...prev, confirmPassword: !prev.confirmPassword}))}
-                              className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
-                              aria-label={showPasswords.confirmPassword ? "Esconder senha" : "Mostrar senha"}
-                            >
-                              {showPasswords.confirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="sectorIds"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Setores</FormLabel>
-                          <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                  <FormControl>
-                                      <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10">
-                                          {field.value?.length > 0 ? (
-                                              <div className="flex flex-wrap gap-1">
-                                                  {field.value.map(id => (
-                                                      <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
-                                                  ))}
-                                              </div>
-                                          ) : (
-                                              <span className="text-muted-foreground">Selecione os setores</span>
-                                          )}
-                                      </Button>
-                                  </FormControl>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent className="w-full max-w-[var(--radix-dropdown-menu-trigger-width)]">
-                                  <DropdownMenuLabel>Setores Disponíveis</DropdownMenuLabel>
-                                  <DropdownMenuSeparator />
-                                  <ScrollArea className="max-h-40">
-                                      {sectors.map(sector => (
-                                      <DropdownMenuCheckboxItem
-                                          key={sector.id}
-                                          checked={field.value?.includes(sector.id)}
-                                          onCheckedChange={(checked) => {
-                                              const currentIds = field.value || [];
-                                              const newIds = checked 
-                                                  ? [...currentIds, sector.id]
-                                                  : currentIds.filter(id => id !== sector.id);
-                                              field.onChange(newIds);
-                                          }}
-                                          onSelect={(e) => e.preventDefault()} // Prevent closing on select
-                                      >
-                                          {sector.name}
-                                      </DropdownMenuCheckboxItem>
-                                      ))}
-                                  </ScrollArea>
-                              </DropdownMenuContent>
-                          </DropdownMenu>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-                <DialogFooter className="flex-shrink-0 pt-4 border-t">
-                  <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                  <Button type="submit">Salvar</Button>
-                </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+            <div className="lg:col-span-1 sticky top-4">
+                 <Card>
+                     <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)}>
+                             <CardHeader className="flex flex-row items-start justify-between">
+                                 <div>
+                                     <CardTitle>{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</CardTitle>
+                                     <CardDescription>{selectedUser ? `Alterando dados de ${selectedUser.name}.` : 'Preencha para cadastrar.'}</CardDescription>
+                                 </div>
+                                {selectedUser ? (
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}>
+                                        <XCircle className="h-5 w-5" />
+                                    </Button>
+                                ) : (
+                                    <Button type="button" size="sm" onClick={handleAddNew}>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Novo
+                                    </Button>
+                                )}
+                             </CardHeader>
+                             <CardContent>
+                                <ScrollArea className="max-h-[calc(100vh-22rem)]">
+                                <div className="space-y-4 pr-4">
+                                     <FormField
+                                     control={form.control}
+                                     name="name"
+                                     render={({ field }) => (
+                                         <FormItem>
+                                         <FormLabel>Nome de Usuário</FormLabel>
+                                         <FormControl><Input placeholder="Nome para login" {...field} /></FormControl>
+                                         <FormMessage />
+                                         </FormItem>
+                                     )}
+                                     />
+                                     <FormField
+                                     control={form.control}
+                                     name="email"
+                                     render={({ field }) => (
+                                         <FormItem>
+                                         <FormLabel>E-mail</FormLabel>
+                                         <FormControl><Input type="email" placeholder="email@vendaspro.com" {...field} /></FormControl>
+                                         <FormMessage />
+                                         </FormItem>
+                                     )}
+                                     />
+                                     <FormField
+                                     control={form.control}
+                                     name="whatsapp"
+                                     render={({ field }) => (
+                                         <FormItem>
+                                         <FormLabel>WhatsApp</FormLabel>
+                                         <FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} /></FormControl>
+                                         <FormMessage />
+                                         </FormItem>
+                                     )}
+                                     />
+                                     <FormField
+                                     control={form.control}
+                                     name="password"
+                                     render={({ field }) => (
+                                         <FormItem>
+                                         <FormLabel>Senha</FormLabel>
+                                         <div className="relative">
+                                             <FormControl>
+                                             <Input 
+                                                 type={showPasswords.password ? 'text' : 'password'} 
+                                                 placeholder={selectedUser ? 'Deixe em branco para manter a atual' : 'Mínimo 8 caracteres'} 
+                                                 className="pr-10"
+                                                 {...field} 
+                                             />
+                                             </FormControl>
+                                             <button
+                                             type="button"
+                                             onClick={() => setShowPasswords(prev => ({...prev, password: !prev.password}))}
+                                             className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
+                                             aria-label={showPasswords.password ? "Esconder senha" : "Mostrar senha"}
+                                             tabIndex={-1}
+                                             >
+                                             {showPasswords.password ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                             </button>
+                                         </div>
+                                         <FormMessage />
+                                         </FormItem>
+                                     )}
+                                     />
+                                     <FormField
+                                     control={form.control}
+                                     name="confirmPassword"
+                                     render={({ field }) => (
+                                         <FormItem>
+                                         <FormLabel>Confirmar Senha</FormLabel>
+                                         <div className="relative">
+                                             <FormControl>
+                                             <Input 
+                                                 type={showPasswords.confirmPassword ? 'text' : 'password'} 
+                                                 placeholder="Repita a senha"
+                                                 className="pr-10"
+                                                 {...field} 
+                                             />
+                                             </FormControl>
+                                             <button
+                                             type="button"
+                                             onClick={() => setShowPasswords(prev => ({...prev, confirmPassword: !prev.confirmPassword}))}
+                                             className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
+                                             aria-label={showPasswords.confirmPassword ? "Esconder senha" : "Mostrar senha"}
+                                             tabIndex={-1}
+                                             >
+                                             {showPasswords.confirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                             </button>
+                                         </div>
+                                         <FormMessage />
+                                         </FormItem>
+                                     )}
+                                     />
+                                     <FormField
+                                     control={form.control}
+                                     name="sectorIds"
+                                     render={({ field }) => (
+                                         <FormItem>
+                                         <FormLabel>Setores</FormLabel>
+                                         <DropdownMenu>
+                                             <DropdownMenuTrigger asChild>
+                                                 <FormControl>
+                                                     <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10">
+                                                         {field.value?.length > 0 ? (
+                                                             <div className="flex flex-wrap gap-1">
+                                                                 {field.value.map(id => (
+                                                                     <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
+                                                                 ))}
+                                                             </div>
+                                                         ) : (
+                                                             <span className="text-muted-foreground">Selecione os setores</span>
+                                                         )}
+                                                     </Button>
+                                                 </FormControl>
+                                             </DropdownMenuTrigger>
+                                             <DropdownMenuContent className="w-full max-w-[var(--radix-dropdown-menu-trigger-width)]">
+                                                 <DropdownMenuLabel>Setores Disponíveis</DropdownMenuLabel>
+                                                 <DropdownMenuSeparator />
+                                                 <ScrollArea className="max-h-40">
+                                                     {sectors.map(sector => (
+                                                     <DropdownMenuCheckboxItem
+                                                         key={sector.id}
+                                                         checked={field.value?.includes(sector.id)}
+                                                         onCheckedChange={(checked) => {
+                                                             const currentIds = field.value || [];
+                                                             const newIds = checked 
+                                                                 ? [...currentIds, sector.id]
+                                                                 : currentIds.filter(id => id !== sector.id);
+                                                             field.onChange(newIds);
+                                                         }}
+                                                         onSelect={(e) => e.preventDefault()} // Prevent closing on select
+                                                     >
+                                                         {sector.name}
+                                                     </DropdownMenuCheckboxItem>
+                                                     ))}
+                                                     {sectors.length === 0 && <p className="p-2 text-xs text-muted-foreground">Nenhum setor cadastrado.</p>}
+                                                 </ScrollArea>
+                                             </DropdownMenuContent>
+                                         </DropdownMenu>
+                                         <FormMessage />
+                                         </FormItem>
+                                     )}
+                                     />
+                                </div>
+                                </ScrollArea>
+                             </CardContent>
+                            <CardFooter>
+                                <Button type="submit" className="w-full">Salvar</Button>
+                            </CardFooter>
+                         </form>
+                     </Form>
+                 </Card>
+            </div>
+        </div>
+      </div>
       
       <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
         <AlertDialogContent>
