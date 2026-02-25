@@ -557,14 +557,14 @@ export default function ChamadosPage() {
                 </Tabs>
             </div>
             <div className="lg:col-span-1 sticky top-4">
-                <Form {...form} key={editingOrder ? editingOrder.id : 'new-os'}>
+                <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} id="service-order-form" className="flex flex-col h-full">
                         <Card className="flex flex-col flex-1 max-h-[calc(100vh-5rem)]">
                             <CardHeader className="flex flex-row items-start justify-between">
                                 <div>
                                     <CardTitle>{editingOrder ? `Editar OS #${editingOrder.number}` : 'Nova Ordem de Serviço'}</CardTitle>
                                     <CardDescription>
-                                    {editingOrder ? 'Altere os dados da Ordem de Serviço.' : 'Preencha os dados para abrir uma nova OS.'}
+                                    {editingOrder ? 'Altere os dados da OS. O cliente não pode ser modificado.' : 'Preencha os dados para abrir uma nova OS.'}
                                     </CardDescription>
                                 </div>
                                 {editingOrder && (
@@ -581,7 +581,7 @@ export default function ChamadosPage() {
                                         render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Cliente</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!!editingOrder}>
                                                 <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Selecione um cliente" />
