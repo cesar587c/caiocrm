@@ -55,6 +55,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { PlusCircle, User as UserIcon, AlertCircle, Edit } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
