@@ -234,7 +234,7 @@ export default function UsuariosPage() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] flex flex-col max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
             <DialogDescription>
@@ -242,149 +242,153 @@ export default function UsuariosPage() {
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome de Usuário</FormLabel>
-                    <FormControl><Input placeholder="Nome para login" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
-                    <FormControl><Input type="email" placeholder="email@vendaspro.com" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="whatsapp"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>WhatsApp</FormLabel>
-                    <FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Senha</FormLabel>
-                    <div className="relative">
-                      <FormControl>
-                        <Input 
-                          type={showPasswords.password ? 'text' : 'password'} 
-                          placeholder={editingUser ? 'Deixe em branco para manter a atual' : 'Mínimo 8 caracteres'} 
-                          className="pr-10"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <button
-                        type="button"
-                        onClick={() => setShowPasswords(prev => ({...prev, password: !prev.password}))}
-                        className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
-                        aria-label={showPasswords.password ? "Esconder senha" : "Mostrar senha"}
-                      >
-                        {showPasswords.password ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirmar Senha</FormLabel>
-                     <div className="relative">
-                      <FormControl>
-                        <Input 
-                          type={showPasswords.confirmPassword ? 'text' : 'password'} 
-                          placeholder="Repita a senha"
-                          className="pr-10"
-                          {...field} 
-                        />
-                      </FormControl>
-                       <button
-                        type="button"
-                        onClick={() => setShowPasswords(prev => ({...prev, confirmPassword: !prev.confirmPassword}))}
-                        className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
-                        aria-label={showPasswords.confirmPassword ? "Esconder senha" : "Mostrar senha"}
-                      >
-                        {showPasswords.confirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="sectorIds"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Setores</FormLabel>
-                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto -mx-6 px-6 py-4">
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome de Usuário</FormLabel>
+                          <FormControl><Input placeholder="Nome para login" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>E-mail</FormLabel>
+                          <FormControl><Input type="email" placeholder="email@vendaspro.com" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="whatsapp"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>WhatsApp</FormLabel>
+                          <FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Senha</FormLabel>
+                          <div className="relative">
                             <FormControl>
-                                <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10">
-                                    {field.value?.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            {field.value.map(id => (
-                                                <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <span className="text-muted-foreground">Selecione os setores</span>
-                                    )}
-                                </Button>
+                              <Input 
+                                type={showPasswords.password ? 'text' : 'password'} 
+                                placeholder={editingUser ? 'Deixe em branco para manter a atual' : 'Mínimo 8 caracteres'} 
+                                className="pr-10"
+                                {...field} 
+                              />
                             </FormControl>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-full max-w-[var(--radix-dropdown-menu-trigger-width)]">
-                            <DropdownMenuLabel>Setores Disponíveis</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <ScrollArea className="max-h-40">
-                                {sectors.map(sector => (
-                                <DropdownMenuCheckboxItem
-                                    key={sector.id}
-                                    checked={field.value?.includes(sector.id)}
-                                    onCheckedChange={(checked) => {
-                                        const currentIds = field.value || [];
-                                        const newIds = checked 
-                                            ? [...currentIds, sector.id]
-                                            : currentIds.filter(id => id !== sector.id);
-                                        field.onChange(newIds);
-                                    }}
-                                    onSelect={(e) => e.preventDefault()} // Prevent closing on select
-                                >
-                                    {sector.name}
-                                </DropdownMenuCheckboxItem>
-                                ))}
-                            </ScrollArea>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                <Button type="submit">Salvar</Button>
-              </DialogFooter>
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords(prev => ({...prev, password: !prev.password}))}
+                              className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
+                              aria-label={showPasswords.password ? "Esconder senha" : "Mostrar senha"}
+                            >
+                              {showPasswords.password ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                            </button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Confirmar Senha</FormLabel>
+                          <div className="relative">
+                            <FormControl>
+                              <Input 
+                                type={showPasswords.confirmPassword ? 'text' : 'password'} 
+                                placeholder="Repita a senha"
+                                className="pr-10"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords(prev => ({...prev, confirmPassword: !prev.confirmPassword}))}
+                              className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
+                              aria-label={showPasswords.confirmPassword ? "Esconder senha" : "Mostrar senha"}
+                            >
+                              {showPasswords.confirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                            </button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="sectorIds"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Setores</FormLabel>
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                  <FormControl>
+                                      <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10">
+                                          {field.value?.length > 0 ? (
+                                              <div className="flex flex-wrap gap-1">
+                                                  {field.value.map(id => (
+                                                      <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
+                                                  ))}
+                                              </div>
+                                          ) : (
+                                              <span className="text-muted-foreground">Selecione os setores</span>
+                                          )}
+                                      </Button>
+                                  </FormControl>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="w-full max-w-[var(--radix-dropdown-menu-trigger-width)]">
+                                  <DropdownMenuLabel>Setores Disponíveis</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <ScrollArea className="max-h-40">
+                                      {sectors.map(sector => (
+                                      <DropdownMenuCheckboxItem
+                                          key={sector.id}
+                                          checked={field.value?.includes(sector.id)}
+                                          onCheckedChange={(checked) => {
+                                              const currentIds = field.value || [];
+                                              const newIds = checked 
+                                                  ? [...currentIds, sector.id]
+                                                  : currentIds.filter(id => id !== sector.id);
+                                              field.onChange(newIds);
+                                          }}
+                                          onSelect={(e) => e.preventDefault()} // Prevent closing on select
+                                      >
+                                          {sector.name}
+                                      </DropdownMenuCheckboxItem>
+                                      ))}
+                                  </ScrollArea>
+                              </DropdownMenuContent>
+                          </DropdownMenu>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+                <DialogFooter className="flex-shrink-0 pt-4 border-t">
+                  <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                  <Button type="submit">Salvar</Button>
+                </DialogFooter>
             </form>
           </Form>
         </DialogContent>
