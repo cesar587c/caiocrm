@@ -21,6 +21,7 @@ export type User = {
   whatsapp?: string;
   sectorIds: string[];
   role: 'admin' | 'technician' | 'finance' | 'service';
+  password?: string;
 };
 
 export type Appointment = {

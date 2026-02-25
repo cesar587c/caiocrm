@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Avatar,
   AvatarFallback,
@@ -46,8 +46,6 @@ import {
   BrainCircuit,
   View,
   Settings,
-  Users2,
-  Check,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -66,14 +64,13 @@ const menuItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { iconSize, setIconSize } = useSidebar();
-  const { currentUser, users, setCurrentUser } = useSettings();
+  const { currentUser, logout } = useSettings();
 
-  const handleUserChange = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    if (user) {
-        setCurrentUser(user);
-    }
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
   }
 
   return (
@@ -109,7 +106,7 @@ export function AppSidebar() {
             <Button variant="ghost" className="h-auto w-full justify-start gap-2 p-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[state=collapsed]:justify-center">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={`https://picsum.photos/seed/${currentUser?.id}/40/40`} />
-                <AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{currentUser?.name?.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 text-left group-data-[state=collapsed]:hidden">
                 <p className="text-sm font-medium">{currentUser?.name || 'Usuário'}</p>
@@ -133,29 +130,6 @@ export function AppSidebar() {
 
             <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                    <Users2 className="mr-2 h-4 w-4" />
-                    <span>Trocar Usuário</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                        <DropdownMenuRadioGroup
-                            value={currentUser?.id}
-                            onValueChange={handleUserChange}
-                        >
-                            <DropdownMenuLabel>Selecionar Usuário</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {users.map(user => (
-                                <DropdownMenuRadioItem key={user.id} value={user.id}>
-                                    {user.name}
-                                </DropdownMenuRadioItem>
-                            ))}
-                        </DropdownMenuRadioGroup>
-                    </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-            </DropdownMenuSub>
-
-            <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
                     <View className="mr-2 h-4 w-4" />
                     <span>Visualização</span>
                 </DropdownMenuSubTrigger>
@@ -175,7 +149,7 @@ export function AppSidebar() {
             </DropdownMenuSub>
 
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Sair</span>
             </DropdownMenuItem>

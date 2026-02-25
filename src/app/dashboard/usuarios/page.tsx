@@ -53,16 +53,22 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, PlusCircle, MoreHorizontal, Check } from "lucide-react";
+import { UserCog, PlusCircle, MoreHorizontal } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const userFormSchema = z.object({
-  name: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
+  name: z.string().min(2, 'O nome de usuário deve ter pelo menos 2 caracteres.'),
   email: z.string().email('E-mail inválido.').or(z.literal('')),
   whatsapp: z.string().optional(),
   sectorIds: z.array(z.string()).min(1, 'Selecione pelo menos um setor.'),
+  password: z.string().optional(),
+  confirmPassword: z.string().optional(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "As senhas não correspondem",
+  path: ["confirmPassword"],
 });
+
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
@@ -76,7 +82,7 @@ export default function UsuariosPage() {
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
-    defaultValues: { name: '', email: '', whatsapp: '', sectorIds: [] },
+    defaultValues: { name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' },
   });
 
   const sectorMap = useMemo(() => {
@@ -85,7 +91,7 @@ export default function UsuariosPage() {
 
   const handleAddNew = () => {
     setEditingUser(null);
-    form.reset({ name: '', email: '', whatsapp: '', sectorIds: [] });
+    form.reset({ name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' });
     setIsDialogOpen(true);
   };
 
@@ -96,6 +102,8 @@ export default function UsuariosPage() {
       email: user.email || '',
       whatsapp: user.whatsapp || '',
       sectorIds: user.sectorIds || [],
+      password: '',
+      confirmPassword: '',
     });
     setIsDialogOpen(true);
   };
@@ -117,10 +125,26 @@ export default function UsuariosPage() {
 
   function onSubmit(values: UserFormValues) {
     if (editingUser) {
-      updateUser({ ...editingUser, ...values });
+      if (values.password && values.password.length < 8) {
+        form.setError('password', { type: 'manual', message: 'A senha deve ter no mínimo 8 caracteres.' });
+        return;
+      }
+      const userToUpdate: User = { 
+        ...editingUser, 
+        ...values,
+      };
+      // Do not update password if it's empty
+      if (!values.password) {
+        delete userToUpdate.password;
+      }
+      updateUser(userToUpdate);
       toast({ title: 'Usuário Atualizado!', description: `Os dados de ${values.name} foram salvos.` });
     } else {
-      addUser(values);
+       if (!values.password || values.password.length < 8) {
+        form.setError('password', { type: 'manual', message: 'A senha é obrigatória e precisa de no mínimo 8 caracteres.' });
+        return;
+      }
+      addUser(values as Omit<User, 'id'>);
       toast({ title: 'Usuário Adicionado!', description: `${values.name} foi adicionado à equipe.` });
     }
     setIsDialogOpen(false);
@@ -220,8 +244,8 @@ export default function UsuariosPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome Completo</FormLabel>
-                    <FormControl><Input placeholder="Nome do usuário" {...field} /></FormControl>
+                    <FormLabel>Nome de Usuário</FormLabel>
+                    <FormControl><Input placeholder="Nome para login" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -244,6 +268,28 @@ export default function UsuariosPage() {
                   <FormItem>
                     <FormLabel>WhatsApp</FormLabel>
                     <FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Senha</FormLabel>
+                    <FormControl><Input type="password" placeholder={editingUser ? 'Deixe em branco para manter a atual' : 'Mínimo 8 caracteres'} {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmar Senha</FormLabel>
+                    <FormControl><Input type="password" placeholder="Repita a senha" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
