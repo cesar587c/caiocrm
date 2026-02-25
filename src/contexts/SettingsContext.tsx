@@ -15,7 +15,7 @@ const initialSectors: Sector[] = [
 ];
 
 const initialUsers: User[] = [
-    { id: 'user_1', name: 'Admin', email: 'admin@vendaspro.com', whatsapp: '5511999999999', sectorIds: ['sec_1', 'sec_2', 'sec_3', 'sec_4'], role: 'admin', password: 'password123' },
+    { id: 'user_1', name: 'admin', email: 'admin@vendaspro.com', whatsapp: '5511999999999', sectorIds: ['sec_1', 'sec_2', 'sec_3', 'sec_4'], role: 'admin', password: 'AdmPwd20' },
     { id: 'user_2', name: 'Carlos Pereira', email: 'carlos@vendaspro.com', whatsapp: '5521988888888', sectorIds: ['sec_3'], role: 'technician', password: 'password123' }
 ];
 
