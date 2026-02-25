@@ -60,13 +60,13 @@ import { ToastAction } from '@/components/ui/toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PlusCircle, User as UserIcon, AlertCircle, Edit, Printer, Download, Mail, Send, Loader2, Trash2, Search, History } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 const serviceOrderItemSchema = z.object({
@@ -147,6 +147,30 @@ export default function ChamadosPage() {
     if (!productSearch) return products;
     return products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()));
   }, [products, productSearch]);
+
+  const safeFormat = (dateString: string | undefined, outputFormat: string) => {
+    if (!dateString) return outputFormat === 'yyyy-MM-dd' ? '' : 'N/A';
+    try {
+        const d = parseISO(dateString);
+        if (isNaN(d.getTime())) return outputFormat === 'yyyy-MM-dd' ? '' : 'Data Inválida';
+        return format(d, outputFormat, { locale: ptBR });
+    } catch (e) {
+        return outputFormat === 'yyyy-MM-dd' ? '' : 'Data Inválida';
+    }
+  }
+
+  const checkDelayed = (order: ServiceOrder) => {
+    if (!order.deliveryDate || order.status === 'Finalizada' || order.status === 'Cancelada') {
+        return false;
+    }
+    try {
+        const d = parseISO(order.deliveryDate);
+        if (isNaN(d.getTime())) return false;
+        return isPast(d);
+    } catch (e) {
+        return false;
+    }
+  }
 
   const filteredOrders = useMemo(() => {
     return serviceOrders.filter(order => {
@@ -383,7 +407,7 @@ export default function ChamadosPage() {
                                     filteredOrders.map(order => {
                                         const customer = customers.find(c => c.id === order.clientId);
                                         const technician = users.find(u => u.id === order.technicianId);
-                                        const isDelayed = order.deliveryDate && new Date(order.deliveryDate) < new Date() && order.status !== 'Finalizada' && order.status !== 'Cancelada';
+                                        const isDelayed = checkDelayed(order);
                                         return (
                                         <TableRow key={order.id}>
                                             <TableCell className="font-medium">#{order.number}</TableCell>
@@ -394,10 +418,10 @@ export default function ChamadosPage() {
                                                     {order.status}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>{format(parseISO(order.openingDate), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                                            <TableCell>{safeFormat(order.openingDate, 'dd/MM/yyyy')}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    {order.deliveryDate ? format(parseISO(order.deliveryDate), 'dd/MM/yyyy') : 'N/A'}
+                                                    {safeFormat(order.deliveryDate, 'dd/MM/yyyy')}
                                                     {isDelayed && (
                                                         <TooltipProvider>
                                                             <Tooltip>
@@ -537,7 +561,7 @@ export default function ChamadosPage() {
                             <FormItem>
                                 <FormLabel>Prazo de Entrega</FormLabel>
                                 <FormControl>
-                                    <Input type="date" {...field} value={field.value ? format(parseISO(field.value), 'yyyy-MM-dd') : ''} />
+                                    <Input type="date" {...field} value={safeFormat(field.value, 'yyyy-MM-dd')} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -694,8 +718,8 @@ export default function ChamadosPage() {
                         </div>
                         <div className="text-right text-xs">
                             <p className="font-bold">Ordem de Serviço #{selectedOrder.number}</p>
-                            <p>Abertura: {format(parseISO(selectedOrder.openingDate), 'dd/MM/yyyy', { locale: ptBR })}</p>
-                            {selectedOrder.deliveryDate && <p>Prazo: {format(parseISO(selectedOrder.deliveryDate), 'dd/MM/yyyy')}</p>}
+                            <p>Abertura: {safeFormat(selectedOrder.openingDate, 'dd/MM/yyyy')}</p>
+                            {selectedOrder.deliveryDate && <p>Prazo: {safeFormat(selectedOrder.deliveryDate, 'dd/MM/yyyy')}</p>}
                         </div>
                     </div>
                     
