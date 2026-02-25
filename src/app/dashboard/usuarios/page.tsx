@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -88,20 +88,19 @@ export default function UsuariosPage() {
     resolver: zodResolver(userFormSchema),
     defaultValues: { name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' },
   });
-  
-  useEffect(() => {
-    if (!isDialogOpen) {
-      setEditingUser(null);
-      form.reset({ name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' });
-      setShowPasswords({ password: false, confirmPassword: false });
-    }
-  }, [isDialogOpen, form]);
 
   const sectorMap = useMemo(() => {
     return new Map(sectors.map(s => [s.id, s.name]));
   }, [sectors]);
 
+  const resetFormAndState = () => {
+    setEditingUser(null);
+    form.reset({ name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' });
+    setShowPasswords({ password: false, confirmPassword: false });
+  };
+
   const handleAddNew = () => {
+    resetFormAndState();
     setIsDialogOpen(true);
   };
 
@@ -239,7 +238,15 @@ export default function UsuariosPage() {
         </Card>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog 
+        open={isDialogOpen} 
+        onOpenChange={(isOpen) => {
+          setIsDialogOpen(isOpen);
+          if (!isOpen) {
+            resetFormAndState();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[425px] flex flex-col max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
