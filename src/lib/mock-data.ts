@@ -1,5 +1,6 @@
 
-import type { ServiceOrder, Customer, Product } from './types';
+
+import type { ServiceOrder, Customer, Product, ServiceOrderItem } from './types';
 
 
 export const initialCustomers: Customer[] = [
@@ -94,6 +95,7 @@ export const initialServiceOrders: ServiceOrder[] = [
         status: 'Aberta',
         problemDescription: 'Computador não liga, faz barulho estranho ao tentar iniciar.',
         deliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
+        items: [],
     },
     {
         id: 'os_2',
@@ -105,6 +107,7 @@ export const initialServiceOrders: ServiceOrder[] = [
         problemDescription: 'Impressora fiscal não está imprimindo as notas corretamente.',
         technicalDiagnosis: 'Necessária troca da cabeça de impressão e limpeza geral.',
         deliveryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day from now
+        items: [],
     },
     {
         id: 'os_3',
@@ -116,7 +119,7 @@ export const initialServiceOrders: ServiceOrder[] = [
         problemDescription: 'Sistema de ponto eletrônico offline.',
         technicalDiagnosis: 'Cabo de rede desconectado no servidor.',
         executedServices: 'Reconexão do cabo de rede e teste de comunicação.',
-        totalValue: 50.00,
+        items: [{ name: 'Visita Técnica Simples', quantity: 1, price: 50.00 }],
         deliveryDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
     }
 ];

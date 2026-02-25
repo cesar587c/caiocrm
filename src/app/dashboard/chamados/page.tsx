@@ -2,13 +2,14 @@
 'use client';
 
 import React, { useState, useMemo, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { ServiceOrder } from '@/lib/types';
+import type { ServiceOrder, Product, ServiceOrderItem } from '@/lib/types';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { initialProducts } from '@/lib/mock-data';
 
 import {
   Card,
@@ -55,16 +56,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { PlusCircle, User as UserIcon, AlertCircle, Edit, Printer, Download, Mail, Send, Loader2 } from "lucide-react";
+import { PlusCircle, User as UserIcon, AlertCircle, Edit, Printer, Download, Mail, Send, Loader2, Trash2, Search, History } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+
+const serviceOrderItemSchema = z.object({
+  name: z.string().min(1, 'O nome é obrigatório.'),
+  quantity: z.coerce.number().min(1, 'A quantidade deve ser no mínimo 1.'),
+  price: z.coerce.number().min(0, 'O preço não pode ser negativo.'),
+});
 
 const serviceOrderSchema = z.object({
     clientId: z.string().min(1, "O cliente é obrigatório."),
@@ -73,8 +82,7 @@ const serviceOrderSchema = z.object({
     problemDescription: z.string().min(10, "Descreva o problema com pelo menos 10 caracteres."),
     technicalDiagnosis: z.string().optional(),
     executedServices: z.string().optional(),
-    usedParts: z.string().optional(),
-    totalValue: z.coerce.number().optional(),
+    items: z.array(serviceOrderItemSchema).optional(),
     deliveryDate: z.string().optional(),
 });
 
@@ -97,7 +105,7 @@ const statusColors: { [key: string]: string } = {
 };
 
 export default function ChamadosPage() {
-  const { serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder, users, customers, companyProfile } = useSettings();
+  const { serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder, users, customers, companyProfile, products, addProduct, updateProduct } = useSettings();
   const { toast } = useToast();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -108,6 +116,7 @@ export default function ChamadosPage() {
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
 
   const form = useForm<ServiceOrderFormValues>({
     resolver: zodResolver(serviceOrderSchema),
@@ -116,13 +125,28 @@ export default function ChamadosPage() {
         problemDescription: '',
         technicalDiagnosis: '',
         executedServices: '',
-        usedParts: '',
-        totalValue: undefined,
+        items: [],
         deliveryDate: '',
      },
   });
 
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'items',
+  });
+  
+  const watchItems = form.watch('items');
+  const total = (watchItems || []).reduce(
+    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
+    0
+  );
+
   const technicians = useMemo(() => users.filter(u => u.sectorIds.includes('sec_3')), [users]);
+  
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return products;
+    return products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()));
+  }, [products, productSearch]);
 
   const filteredOrders = useMemo(() => {
     return serviceOrders.filter(order => {
@@ -132,6 +156,40 @@ export default function ChamadosPage() {
     }).sort((a, b) => new Date(b.openingDate).getTime() - new Date(a.openingDate).getTime());
   }, [serviceOrders, activeTab, technicianFilter]);
 
+  const handleSaveNewProduct = (newProduct: { name: string, price: number }) => {
+    const lowerCaseName = newProduct.name.toLowerCase().trim();
+    if (!lowerCaseName || products.some(p => p.name.toLowerCase().trim() === lowerCaseName)) return;
+    const createdProduct = addProduct(newProduct);
+    toast({
+        title: "Item Cadastrado!",
+        description: `"${createdProduct.name}" foi adicionado à sua lista de produtos.`,
+    });
+  };
+
+  const handleItemNameBlur = (index: number) => {
+      const itemName = form.getValues(`items.${index}.name`);
+      if (!itemName) return;
+      const existingProduct = products.find(p => p.name.toLowerCase().trim() === itemName.toLowerCase().trim());
+      if (existingProduct) {
+          form.setValue(`items.${index}.price`, existingProduct.price, { shouldDirty: true, shouldTouch: true });
+          form.trigger(`items.${index}.price`);
+      } else {
+          const itemPrice = form.getValues(`items.${index}.price`);
+          toast({
+              title: 'Cadastrar Novo Item?',
+              description: `Deseja salvar "${itemName}" na sua lista de produtos?`,
+              action: <ToastAction altText="Cadastrar" onClick={() => handleSaveNewProduct({ name: itemName, price: itemPrice || 0 })}>Cadastrar</ToastAction>,
+          });
+      }
+  };
+
+  const handleAddProductFromList = (product: Product) => {
+    append({ name: product.name, quantity: 1, price: product.price });
+    toast({
+      title: "Item Adicionado!",
+      description: `"${product.name}" foi adicionado à OS.`,
+    });
+  };
 
   const handleAddNew = () => {
     setEditingOrder(null);
@@ -142,8 +200,7 @@ export default function ChamadosPage() {
         problemDescription: '',
         technicalDiagnosis: '',
         executedServices: '',
-        usedParts: '',
-        totalValue: undefined,
+        items: [],
         deliveryDate: '',
     });
     setIsDialogOpen(true);
@@ -153,6 +210,7 @@ export default function ChamadosPage() {
     setEditingOrder(order);
     form.reset({
       ...order,
+      items: order.items || [],
       deliveryDate: order.deliveryDate || '',
     });
     setIsDialogOpen(true);
@@ -242,11 +300,12 @@ export default function ChamadosPage() {
       updateServiceOrder({ 
         ...editingOrder, 
         ...values,
+        items: values.items || [],
         deliveryDate: values.deliveryDate || undefined,
     });
       toast({ title: 'Ordem de Serviço Atualizada!', description: `A OS #${editingOrder.number} foi salva.` });
     } else {
-      addServiceOrder(values);
+      addServiceOrder({...values, items: values.items || []});
       toast({ title: 'Ordem de Serviço Criada!', description: `Uma nova OS foi aberta.` });
     }
     setIsDialogOpen(false);
@@ -254,6 +313,11 @@ export default function ChamadosPage() {
 
   return (
     <>
+      <datalist id="product-datalist">
+        {products.map(product => (
+          <option key={product.id} value={product.name} />
+        ))}
+      </datalist>
       <div className="flex h-full flex-1 flex-col space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
             <div>
@@ -333,7 +397,7 @@ export default function ChamadosPage() {
                                             <TableCell>{format(parseISO(order.openingDate), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    {order.deliveryDate || 'N/A'}
+                                                    {order.deliveryDate ? format(parseISO(order.deliveryDate), 'dd/MM/yyyy') : 'N/A'}
                                                     {isDelayed && (
                                                         <TooltipProvider>
                                                             <Tooltip>
@@ -381,7 +445,7 @@ export default function ChamadosPage() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl h-[90vh] flex flex-col p-0">
+        <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0">
           <DialogHeader className="p-6 pb-2">
             <DialogTitle>{editingOrder ? `Editar OS #${editingOrder.number}` : 'Nova Ordem de Serviço'}</DialogTitle>
             <DialogDescription>
@@ -390,8 +454,8 @@ export default function ChamadosPage() {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-              <ScrollArea className="flex-1">
-                <div className="px-6 py-4 space-y-4">
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 px-6 py-4 overflow-y-auto">
+                <div className="md:col-span-2 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
@@ -434,19 +498,17 @@ export default function ChamadosPage() {
                         )}
                     />
                   </div>
-
                   <FormField
                     control={form.control}
                     name="problemDescription"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Descrição do Problema (Relatado pelo Cliente)</FormLabel>
-                        <FormControl><Textarea placeholder="Ex: O equipamento não liga..." {...field} rows={4} /></FormControl>
+                        <FormControl><Textarea placeholder="Ex: O equipamento não liga..." {...field} rows={3} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
@@ -474,15 +536,14 @@ export default function ChamadosPage() {
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Prazo de Entrega</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder="dd/mm/aaaa ou texto livre" {...field} value={field.value || ''}/>
-                                    </FormControl>
+                                <FormControl>
+                                    <Input type="date" {...field} value={field.value ? format(parseISO(field.value), 'yyyy-MM-dd') : ''} />
+                                </FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}
                     />
                   </div>
-
                   {editingOrder && (
                     <>
                     <FormField
@@ -501,40 +562,93 @@ export default function ChamadosPage() {
                         name="executedServices"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Serviços Executados</FormLabel>
-                            <FormControl><Textarea placeholder="Limpeza, troca de peça..." {...field} value={field.value || ''}/></FormControl>
+                            <FormLabel>Serviços Executados (Descrição)</FormLabel>
+                            <FormControl><Textarea placeholder="Limpeza, troca de peça, configuração..." {...field} value={field.value || ''}/></FormControl>
                             <FormMessage />
                         </FormItem>
                         )}
                     />
-                    <FormField
-                        control={form.control}
-                        name="usedParts"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Peças Utilizadas</FormLabel>
-                            <FormControl><Textarea placeholder="Lista de peças e códigos..." {...field} value={field.value || ''}/></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="totalValue"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Valor Total (R$)</FormLabel>
-                            <FormControl>
-                                <Input type="number" step="0.01" placeholder="150,00" {...field} value={field.value ?? ''} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
+                    <Card>
+                        <CardHeader className='p-4'>
+                            <CardTitle className='text-base'>Peças e Serviços Utilizados</CardTitle>
+                        </CardHeader>
+                        <CardContent className='p-4 pt-0'>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead className="w-[50%]">Descrição</TableHead>
+                                    <TableHead>Qtd.</TableHead>
+                                    <TableHead>Preço Unit.</TableHead>
+                                    <TableHead>Subtotal</TableHead>
+                                    <TableHead className="text-right w-10"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {fields.map((item, index) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell>
+                                            <Input placeholder="Descrição do item" {...form.register(`items.${index}.name`)} list="product-datalist" onBlur={() => handleItemNameBlur(index)} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input type="number" {...form.register(`items.${index}.quantity`)} className="w-20" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input type="number" step="0.01" {...form.register(`items.${index}.price`)} className="w-28" />
+                                        </TableCell>
+                                        <TableCell className="font-medium">
+                                        {((Number(watchItems?.[index]?.quantity) || 0) * (Number(watchItems?.[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            <Button type="button" variant="outline" size="sm" className='mt-2' onClick={() => append({ name: '', quantity: 1, price: 0 })}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
+                            </Button>
+                        </CardContent>
+                        <CardFooter className='bg-muted/50 p-4 flex justify-end'>
+                            <div className="text-right">
+                                <p className="text-muted-foreground text-sm">Total dos Itens</p>
+                                <p className="text-lg font-bold">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            </div>
+                        </CardFooter>
+                    </Card>
                     </>
                   )}
                 </div>
-              </ScrollArea>
+                <div className="md:col-span-1">
+                    <Card className='sticky top-0'>
+                        <CardHeader>
+                        <CardTitle>Produtos e Serviços</CardTitle>
+                        <CardDescription>Clique para adicionar à OS.</CardDescription>
+                        <div className="relative pt-2">
+                            <Search className="absolute left-2.5 top-4 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Buscar item..." className="pl-8" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
+                        </div>
+                        </CardHeader>
+                        <CardContent>
+                        <ScrollArea className="h-[calc(90vh-20rem)]">
+                            <div className="flex flex-col gap-1 pr-2">
+                            {filteredProducts.map(product => (
+                                <div key={product.id} className="flex cursor-pointer items-center justify-between rounded-md p-2 hover:bg-muted" onClick={() => handleAddProductFromList(product)}>
+                                    <div className="flex-1 truncate pr-2">
+                                        <p className="font-semibold text-sm truncate">{product.name}</p>
+                                        <p className="text-xs text-muted-foreground">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                    </div>
+                                </div>
+                            ))}
+                            {filteredProducts.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">Nenhum item encontrado.</p>}
+                            </div>
+                        </ScrollArea>
+                        </CardContent>
+                    </Card>
+                </div>
+              </div>
               <DialogFooter className="p-6 pt-4 border-t">
                 {editingOrder && (
                     <Button type="button" variant="destructive" className="mr-auto" onClick={() => handleDelete(editingOrder)}>Excluir</Button>
@@ -581,7 +695,7 @@ export default function ChamadosPage() {
                         <div className="text-right text-xs">
                             <p className="font-bold">Ordem de Serviço #{selectedOrder.number}</p>
                             <p>Abertura: {format(parseISO(selectedOrder.openingDate), 'dd/MM/yyyy', { locale: ptBR })}</p>
-                            {selectedOrder.deliveryDate && <p>Prazo: {selectedOrder.deliveryDate}</p>}
+                            {selectedOrder.deliveryDate && <p>Prazo: {format(parseISO(selectedOrder.deliveryDate), 'dd/MM/yyyy')}</p>}
                         </div>
                     </div>
                     
@@ -613,19 +727,38 @@ export default function ChamadosPage() {
                             <h3 className="font-bold border-b pb-1 mb-2">Serviços Executados</h3>
                             <p className="whitespace-pre-wrap">{selectedOrder.executedServices}</p>
                         </div>}
-                         {selectedOrder.usedParts && <div>
-                            <h3 className="font-bold border-b pb-1 mb-2">Peças Utilizadas</h3>
-                            <p className="whitespace-pre-wrap">{selectedOrder.usedParts}</p>
+                         {(selectedOrder.items && selectedOrder.items.length > 0) && <div>
+                            <h3 className="font-bold border-b pb-1 mb-2">Peças e Serviços Utilizados</h3>
+                            <table className="w-full text-left text-sm my-4">
+                                <thead className="bg-gray-100">
+                                    <tr>
+                                    <th className="p-2 font-semibold">Item</th>
+                                    <th className="p-2 text-center font-semibold">Qtd.</th>
+                                    <th className="p-2 text-right font-semibold">Preço Unit.</th>
+                                    <th className="p-2 text-right font-semibold">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {selectedOrder.items.map((item, index) => (
+                                    <tr key={index} className="border-b border-gray-200">
+                                        <td className="p-2">{item.name}</td>
+                                        <td className="p-2 text-center">{item.quantity}</td>
+                                        <td className="p-2 text-right">{(Number(item.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                        <td className="p-2 text-right">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                    </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>}
                     </div>
 
                      <hr className="my-6 border-gray-300" />
                      <div className="flex justify-end mb-8">
                         <div className="w-1/2 text-right">
-                             {selectedOrder.totalValue && (
+                             {(selectedOrder.items && selectedOrder.items.length > 0) && (
                                  <div className="flex justify-between text-lg">
                                     <span className="font-bold">Total:</span>
-                                    <span className="font-bold">{(selectedOrder.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    <span className="font-bold">{(selectedOrder.items.reduce((acc, item) => acc + item.quantity * item.price, 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                 </div>
                              )}
                         </div>

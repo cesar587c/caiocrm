@@ -79,7 +79,6 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { initialProducts } from '@/lib/mock-data';
 import type { Product } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
@@ -116,9 +115,8 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 
 
 export default function PropostasPage() {
-  const { companyProfile, customers } = useSettings();
+  const { companyProfile, customers, products, addProduct, updateProduct, deleteProduct } = useSettings();
   const { toast } = useToast();
-  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [productSearch, setProductSearch] = useState('');
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
   const [savedProposals, setSavedProposals] = useState<Proposal[]>([]);
@@ -213,11 +211,10 @@ export default function PropostasPage() {
     if (!lowerCaseName || products.some(p => p.name.toLowerCase().trim() === lowerCaseName)) {
         return;
     }
-    const newProductWithId: Product = { ...newProduct, id: `prod_${Date.now()}`, priceHistory: [newProduct.price] };
-    setProducts(prevProducts => [newProductWithId, ...prevProducts]);
+    const createdProduct = addProduct(newProduct);
     toast({
         title: "Item Cadastrado!",
-        description: `"${newProduct.name}" foi adicionado à sua lista de produtos.`,
+        description: `"${createdProduct.name}" foi adicionado à sua lista de produtos.`,
     });
   };
 
@@ -490,26 +487,20 @@ ${companyProfile.phone}`;
     );
     
     // Shared logic for product price updates
-    const updatedProducts = [...products];
-    const productMap = new Map(updatedProducts.map(p => [p.name.toLowerCase().trim(), p]));
-
     data.items.forEach(item => {
         const lowerCaseName = item.name.toLowerCase().trim();
         const newPrice = Number(item.price);
-        const existingProduct = productMap.get(lowerCaseName);
+        const existingProduct = products.find(p => p.name.toLowerCase().trim() === lowerCaseName);
 
         if (existingProduct && existingProduct.price !== newPrice) {
             const updatedPriceHistory = [newPrice, ...existingProduct.priceHistory.filter(p => p !== newPrice)];
-            productMap.set(lowerCaseName, {
+            updateProduct({
                 ...existingProduct,
                 price: newPrice,
                 priceHistory: updatedPriceHistory,
             });
         }
     });
-
-    setProducts(Array.from(productMap.values()));
-
 
     if (editingProposal) {
       const updatedProposal: Proposal = {
@@ -588,7 +579,7 @@ ${companyProfile.phone}`;
 
   const confirmDeleteProductAction = () => {
     if (!deletingProduct) return;
-    setProducts(products => products.filter(p => p.id !== deletingProduct.id));
+    deleteProduct(deletingProduct.id);
     toast({
       title: "Produto Excluído",
       description: `"${deletingProduct.name}" foi removido com sucesso.`,
@@ -598,28 +589,21 @@ ${companyProfile.phone}`;
 
   const onProductSubmit = (values: ProductFormValues) => {
     if (!editingProduct) return;
+    
+    const newPrice = values.price;
+    const oldPrice = editingProduct.price;
+    let newPriceHistory = editingProduct.priceHistory;
+    
+    if (newPrice !== oldPrice) {
+      newPriceHistory = [newPrice, ...editingProduct.priceHistory.filter(price => price !== newPrice)];
+    }
 
-    setProducts(prevProducts =>
-      prevProducts.map(p => {
-        if (p.id === editingProduct.id) {
-          const newPrice = values.price;
-          const oldPrice = p.price;
-          let newPriceHistory = p.priceHistory;
-
-          if (newPrice !== oldPrice) {
-            newPriceHistory = [newPrice, ...p.priceHistory.filter(price => price !== newPrice)];
-          }
-
-          return {
-            ...p,
-            name: values.name,
-            price: newPrice,
-            priceHistory: newPriceHistory,
-          };
-        }
-        return p;
-      })
-    );
+    updateProduct({
+        ...editingProduct,
+        name: values.name,
+        price: newPrice,
+        priceHistory: newPriceHistory,
+    });
 
     toast({
       title: "Produto Atualizado",

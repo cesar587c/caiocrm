@@ -38,6 +38,12 @@ export type Appointment = {
   justification?: string;
 };
 
+export type ServiceOrderItem = {
+  name: string;
+  quantity: number;
+  price: number;
+};
+
 export type ServiceOrder = {
     id: string;
     number: string;
@@ -49,9 +55,7 @@ export type ServiceOrder = {
     problemDescription: string;
     technicalDiagnosis?: string;
     executedServices?: string;
-    usedParts?: string;
-    totalValue?: number;
-    // photos?: string[];
+    items: ServiceOrderItem[];
 };
 
 export type Customer = {

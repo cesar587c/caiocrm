@@ -3,9 +3,9 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer } from '@/lib/types';
+import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer, Product, ServiceOrderItem } from '@/lib/types';
 import { companyProfile as initialCompanyProfileData } from '@/lib/company-profile';
-import { initialServiceOrders, initialCustomers } from '@/lib/mock-data';
+import { initialServiceOrders, initialCustomers, initialProducts } from '@/lib/mock-data';
 
 const initialSectors: Sector[] = [
     { id: 'sec_1', name: 'Administrativo'},
@@ -56,6 +56,10 @@ interface SettingsContextType {
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
   updateCustomer: (customer: Customer) => void;
   deleteCustomer: (id: string) => void;
+  products: Product[];
+  addProduct: (productData: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => Product;
+  updateProduct: (product: Product) => void;
+  deleteProduct: (id: string) => void;
   currentUser: User | null;
   login: (name: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -74,6 +78,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(initialServiceOrders);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const isAuthenticated = !!currentUser;
@@ -123,10 +128,26 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
 
       const savedServiceOrders = localStorage.getItem('serviceOrders');
-      if(savedServiceOrders) setServiceOrders(JSON.parse(savedServiceOrders));
+      if(savedServiceOrders) {
+        let parsedOrders = JSON.parse(savedServiceOrders);
+        // Migration for service orders to include items array
+        if (parsedOrders.length > 0 && parsedOrders[0].items === undefined) {
+          parsedOrders = parsedOrders.map((order: any) => {
+            const { usedParts, totalValue, ...rest } = order;
+            return {
+              ...rest,
+              items: [],
+            };
+          });
+        }
+        setServiceOrders(parsedOrders)
+      }
 
       const savedCustomers = localStorage.getItem('customers');
       if(savedCustomers) setCustomers(JSON.parse(savedCustomers));
+
+      const savedProducts = localStorage.getItem('products');
+      if (savedProducts) setProducts(JSON.parse(savedProducts));
 
       const savedCurrentUserId = localStorage.getItem('currentUserId');
       if (savedCurrentUserId) {
@@ -215,6 +236,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     setCustomers(newCustomers);
     saveDataToLocalStorage('customers', newCustomers);
   };
+  
+  const handleSetProducts = (newProducts: Product[]) => {
+    setProducts(newProducts);
+    saveDataToLocalStorage('products', newProducts);
+  }
 
   // Sector actions
   const addSector = (name: string) => {
@@ -289,6 +315,27 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const deleteCustomer = (id: string) => {
       handleSetCustomers(customers.filter(c => c.id !== id));
   };
+  
+  // Product actions
+  const addProduct = (productData: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => {
+    const newProduct: Product = { 
+        id: generateId('prod'), 
+        name: productData.name,
+        price: productData.price,
+        priceHistory: [productData.price]
+    };
+    handleSetProducts([newProduct, ...products]);
+    return newProduct;
+  };
+  
+  const updateProduct = (updatedProduct: Product) => {
+    handleSetProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+  };
+
+  const deleteProduct = (id: string) => {
+    handleSetProducts(products.filter(p => p.id !== id));
+  };
+
 
   return (
     <SettingsContext.Provider value={{ 
@@ -298,6 +345,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         appointments, addAppointment, updateAppointment, deleteAppointment,
         serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder,
         customers, addCustomer, updateCustomer, deleteCustomer,
+        products, addProduct, updateProduct, deleteProduct,
         currentUser, 
         login,
         logout,
