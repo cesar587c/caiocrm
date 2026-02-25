@@ -231,9 +231,9 @@ export default function UsuariosPage() {
             </div>
 
             <div className="lg:col-span-1 sticky top-4">
-                 <Card>
+                 <Card className="flex flex-col max-h-[calc(100vh-5rem)]">
                      <Form {...form} key={selectedUser ? selectedUser.id : 'new'}>
-                        <form onSubmit={form.handleSubmit(onSubmit)}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col min-h-0">
                              <CardHeader className="flex flex-row items-start justify-between">
                                  <div>
                                      <CardTitle>{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</CardTitle>
@@ -250,8 +250,7 @@ export default function UsuariosPage() {
                                     </Button>
                                 )}
                              </CardHeader>
-                             <CardContent>
-                                <ScrollArea className="max-h-[calc(100vh-22rem)]">
+                             <CardContent className="flex-1 overflow-y-auto">
                                 <div className="space-y-4 pr-4">
                                      <FormField
                                      control={form.control}
@@ -395,7 +394,6 @@ export default function UsuariosPage() {
                                      )}
                                      />
                                 </div>
-                                </ScrollArea>
                              </CardContent>
                             <CardFooter>
                                 <Button type="submit" className="w-full">Salvar</Button>
