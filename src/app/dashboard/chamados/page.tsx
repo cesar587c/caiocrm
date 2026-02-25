@@ -117,7 +117,10 @@ export default function ChamadosPage() {
   const [productSearch, setProductSearch] = useState('');
 
   const [finalizationState, setFinalizationState] = useState<{ isOpen: boolean; values: ServiceOrderFormValues | null }>({ isOpen: false, values: null });
-  const [justification, setJustification] = useState('');
+  const [finalizationJustification, setFinalizationJustification] = useState('');
+  
+  const [reassignmentState, setReassignmentState] = useState<{ isOpen: boolean; values: ServiceOrderFormValues | null; oldTechnicianName: string; newTechnicianName: string; }>({ isOpen: false, values: null, oldTechnicianName: '', newTechnicianName: '' });
+  const [reassignmentJustification, setReassignmentJustification] = useState('');
 
   const form = useForm<ServiceOrderFormValues>({
     resolver: zodResolver(serviceOrderSchema),
@@ -204,7 +207,7 @@ export default function ChamadosPage() {
     }).sort((a, b) => new Date(b.openingDate).getTime() - new Date(a.openingDate).getTime());
   }, [serviceOrders, activeTab, technicianFilter]);
 
-  const generateHistory = (original: ServiceOrder, updated: ServiceOrderFormValues, user: User, finalizationJustification?: string): ServiceOrderHistoryEntry[] => {
+  const generateHistory = (original: ServiceOrder, updated: ServiceOrderFormValues, user: User, finalizationJustification?: string, reassignmentJustification?: string): ServiceOrderHistoryEntry[] => {
     const history: ServiceOrderHistoryEntry[] = [];
     const timestamp = new Date().toISOString();
 
@@ -229,7 +232,7 @@ export default function ChamadosPage() {
     if (original.technicianId !== updated.technicianId) {
         const oldTech = users.find(u => u.id === original.technicianId)?.name || 'N/A';
         const newTech = users.find(u => u.id === updated.technicianId)?.name || 'N/A';
-        history.push(createEntry('alterou o técnico responsável', oldTech, newTech));
+        history.push(createEntry('alterou o técnico responsável', oldTech, newTech, reassignmentJustification));
     }
     if (original.technicalDiagnosis !== updated.technicalDiagnosis) {
         history.push(createEntry('atualizou o diagnóstico técnico'));
@@ -367,13 +370,13 @@ export default function ChamadosPage() {
   };
 
   const handleConfirmFinalization = () => {
-    if (!finalizationState.values || !justification.trim() || !editingOrder || !currentUser) {
+    if (!finalizationState.values || !finalizationJustification.trim() || !editingOrder || !currentUser) {
         toast({ variant: 'destructive', title: 'Justificativa é obrigatória.' });
         return;
     }
 
     const values = finalizationState.values;
-    const history = generateHistory(editingOrder, values, currentUser, justification);
+    const history = generateHistory(editingOrder, values, currentUser, finalizationJustification);
 
     updateServiceOrder({
         ...editingOrder,
@@ -385,7 +388,30 @@ export default function ChamadosPage() {
     toast({ title: 'Ordem de Serviço Finalizada!', description: `A OS #${editingOrder.number} foi finalizada.` });
     
     setFinalizationState({ isOpen: false, values: null });
-    setJustification('');
+    setFinalizationJustification('');
+    setEditingOrder(null);
+  }
+
+  const handleConfirmReassignment = () => {
+    if (!reassignmentState.values || !reassignmentJustification.trim() || !editingOrder || !currentUser) {
+        toast({ variant: 'destructive', title: 'Justificativa é obrigatória.' });
+        return;
+    }
+
+    const values = reassignmentState.values;
+    const history = generateHistory(editingOrder, values, currentUser, undefined, reassignmentJustification);
+
+    updateServiceOrder({
+        ...editingOrder,
+        ...values,
+        items: values.items || [],
+        history: [...(editingOrder.history || []), ...history]
+    });
+    
+    toast({ title: 'Técnico Reatribuído!', description: `A OS #${editingOrder.number} foi reatribuída.` });
+    
+    setReassignmentState({ isOpen: false, values: null, oldTechnicianName: '', newTechnicianName: '' });
+    setReassignmentJustification('');
     setEditingOrder(null);
   }
 
@@ -393,6 +419,13 @@ export default function ChamadosPage() {
     if (!currentUser) return;
 
     if (editingOrder) {
+      if (values.technicianId !== editingOrder.technicianId) {
+          const oldTech = users.find(u => u.id === editingOrder.technicianId)?.name || 'N/A';
+          const newTech = users.find(u => u.id === values.technicianId)?.name || 'N/A';
+          setReassignmentState({ isOpen: true, values, oldTechnicianName: oldTech, newTechnicianName: newTech });
+          return;
+      }
+      
       if (values.status === 'Finalizada' && editingOrder.status !== 'Finalizada') {
           setFinalizationState({ isOpen: true, values: values });
           return;
@@ -937,14 +970,37 @@ export default function ChamadosPage() {
             <div className="py-4">
                 <Textarea 
                     placeholder="Ex: Peça substituída e equipamento funcionando normalmente."
-                    value={justification}
-                    onChange={(e) => setJustification(e.target.value)}
+                    value={finalizationJustification}
+                    onChange={(e) => setFinalizationJustification(e.target.value)}
                     rows={4}
                 />
             </div>
             <DialogFooter>
-                <Button variant="outline" onClick={() => { setFinalizationState({isOpen: false, values: null}); setJustification(''); }}>Cancelar</Button>
+                <Button variant="outline" onClick={() => { setFinalizationState({isOpen: false, values: null}); setFinalizationJustification(''); }}>Cancelar</Button>
                 <Button onClick={handleConfirmFinalization}>Confirmar Finalização</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reassignmentState.isOpen} onOpenChange={(open) => !open && setReassignmentState({ isOpen: false, values: null, oldTechnicianName: '', newTechnicianName: '' })}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Justificar Reatribuição de Técnico</DialogTitle>
+                <DialogDescription>
+                    Você está reatribuindo a OS de <span className="font-medium">{reassignmentState.oldTechnicianName}</span> para <span className="font-medium">{reassignmentState.newTechnicianName}</span>. Por favor, adicione um breve comentário sobre o motivo.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <Textarea 
+                    placeholder="Ex: Mudança de turno, especialidade necessária, etc."
+                    value={reassignmentJustification}
+                    onChange={(e) => setReassignmentJustification(e.target.value)}
+                    rows={4}
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => { setReassignmentState({ isOpen: false, values: null, oldTechnicianName: '', newTechnicianName: '' }); setReassignmentJustification(''); }}>Cancelar</Button>
+                <Button onClick={handleConfirmReassignment}>Confirmar Reatribuição</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
