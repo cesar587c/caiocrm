@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -478,7 +477,7 @@ export default function ChamadosPage() {
             </div>
             <div className="lg:col-span-1 sticky top-4">
                 <Form {...form} key={editingOrder ? editingOrder.id : 'new-os'}>
-                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} id="service-order-form">
                         <Card className="flex flex-col max-h-[calc(100vh-5rem)]">
                             <CardHeader className="flex flex-row items-start justify-between">
                                 <div>
@@ -680,7 +679,7 @@ export default function ChamadosPage() {
                                 </Card>
                             </CardContent>
                             <CardFooter>
-                                <Button type="submit" className="w-full">Salvar</Button>
+                                <Button type="submit" form="service-order-form" className="w-full">Salvar</Button>
                             </CardFooter>
                         </Card>
                     </form>
@@ -826,5 +825,3 @@ export default function ChamadosPage() {
     </>
   );
 }
-
-    
