@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSettings } from '@/contexts/SettingsContext';
 import type { ServiceOrder } from '@/lib/types';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
 import {
   Card,
   CardContent,
@@ -56,7 +59,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { PlusCircle, User as UserIcon, AlertCircle, Edit } from "lucide-react";
+import { PlusCircle, User as UserIcon, AlertCircle, Edit, Printer, Download, Mail, Send, Loader2 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -93,7 +96,7 @@ const statusColors: { [key: string]: string } = {
 };
 
 export default function ChamadosPage() {
-  const { serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder, users, customers } = useSettings();
+  const { serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder, users, customers, companyProfile } = useSettings();
   const { toast } = useToast();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -101,6 +104,9 @@ export default function ChamadosPage() {
   const [deletingOrder, setDeletingOrder] = useState<ServiceOrder | null>(null);
   const [activeTab, setActiveTab] = useState("todos");
   const [technicianFilter, setTechnicianFilter] = useState<string[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const form = useForm<ServiceOrderFormValues>({
     resolver: zodResolver(serviceOrderSchema),
@@ -151,6 +157,11 @@ export default function ChamadosPage() {
     setIsDialogOpen(true);
   };
 
+  const handlePreview = (order: ServiceOrder) => {
+    setSelectedOrder(order);
+    setIsPreviewOpen(true);
+  };
+
   const handleDelete = (order: ServiceOrder) => {
     setDeletingOrder(order);
   };
@@ -164,6 +175,65 @@ export default function ChamadosPage() {
       variant: 'destructive'
     });
     setDeletingOrder(null);
+  };
+
+  const handleDownloadPdf = async () => {
+    const osElement = document.getElementById('os-preview');
+    if (!osElement || !selectedOrder) {
+        toast({ variant: 'destructive', title: 'Erro ao gerar PDF' });
+        return;
+    }
+    setIsDownloading(true);
+    try {
+        const canvas = await html2canvas(osElement, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        let height = imgHeight;
+        let position = 0;
+        if (height > pdfHeight) {
+            height = pdfHeight;
+        }
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, height);
+        pdf.save(`os-${selectedOrder.number}.pdf`);
+    } catch (error) {
+        console.error("Erro ao gerar PDF:", error);
+        toast({ variant: 'destructive', title: 'Erro ao gerar PDF' });
+    } finally {
+        setIsDownloading(false);
+    }
+  };
+
+  const handleSendEmail = () => {
+    if (!selectedOrder) return;
+    const customer = customers.find(c => c.id === selectedOrder.clientId);
+    if (!customer?.email) {
+        toast({ variant: 'destructive', title: 'E-mail não encontrado' });
+        return;
+    }
+    const subject = `Ordem de Serviço #${selectedOrder.number} - ${companyProfile.name}`;
+    const body = `Olá ${customer.name},\n\nSegue em anexo a sua Ordem de Serviço de número #${selectedOrder.number}.\n\nAtenciosamente,\n${companyProfile.name}`;
+    window.location.href = `mailto:${customer.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+  
+  const handleSendWhatsApp = () => {
+    if (!selectedOrder) return;
+    const customer = customers.find(c => c.id === selectedOrder.clientId);
+    const technician = users.find(u => u.id === selectedOrder.technicianId);
+    
+    if (!customer?.telefone) {
+        toast({ variant: 'destructive', title: 'Telefone não encontrado' });
+        return;
+    }
+
+    const message = `*Ordem de Serviço #${selectedOrder.number}*\n\n*Empresa:* ${companyProfile.name}\n*Cliente:* ${customer.name}\n*Técnico:* ${technician?.name || 'N/A'}\n*Data de Abertura:* ${format(parseISO(selectedOrder.openingDate), 'dd/MM/yyyy', { locale: ptBR })}\n*Status:* ${selectedOrder.status}\n\n*Problema Relatado:*\n${selectedOrder.problemDescription}\n\n*Diagnóstico Técnico:*\n${selectedOrder.technicalDiagnosis || 'Aguardando diagnóstico.'}`;
+    const cleanPhone = customer.telefone.replace(/\D/g, '');
+    const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
+    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
   };
 
   function onSubmit(values: ServiceOrderFormValues) {
@@ -278,9 +348,14 @@ export default function ChamadosPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(order)}>
-                                                    <Edit className="h-4 w-4"/>
-                                                </Button>
+                                                <div className="flex justify-end gap-2">
+                                                    <Button variant="ghost" size="icon" onClick={() => handlePreview(order)}>
+                                                        <Printer className="h-4 w-4"/>
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(order)}>
+                                                        <Edit className="h-4 w-4"/>
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     )})
@@ -485,6 +560,107 @@ export default function ChamadosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="sm:max-w-3xl h-[90vh] flex flex-col">
+            <DialogHeader className="print-hide">
+            <DialogTitle>Ordem de Serviço #{selectedOrder?.number}</DialogTitle>
+            <DialogDescription>
+                Pré-visualização da Ordem de Serviço para impressão ou envio.
+            </DialogDescription>
+            </DialogHeader>
+            {selectedOrder && (
+                <ScrollArea className="flex-1 -mx-6">
+                <div id="os-preview" className="bg-white text-black p-8 shadow-lg max-w-2xl mx-auto font-sans my-8">
+                    <div className="flex justify-between items-start mb-8">
+                        <div>
+                            {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" data-ai-hint="logo" className="max-h-16 w-auto mb-4" />}
+                            <h1 className="text-xl font-bold">{companyProfile.name}</h1>
+                        </div>
+                        <div className="text-right text-xs">
+                            <p className="font-bold">Ordem de Serviço #{selectedOrder.number}</p>
+                            <p>Abertura: {format(parseISO(selectedOrder.openingDate), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                            {selectedOrder.deliveryDate && <p>Prazo: {selectedOrder.deliveryDate}</p>}
+                        </div>
+                    </div>
+                    
+                    <hr className="my-6 border-gray-300" />
+
+                    <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+                        <div>
+                            <p className="font-bold text-gray-600">CLIENTE:</p>
+                            <p className="font-semibold">{customers.find(c => c.id === selectedOrder.clientId)?.name}</p>
+                            <p>{customers.find(c => c.id === selectedOrder.clientId)?.email}</p>
+                            <p>{customers.find(c => c.id === selectedOrder.clientId)?.telefone}</p>
+                        </div>
+                        <div className="text-right">
+                             <p className="font-bold text-gray-600">TÉCNICO RESPONSÁVEL:</p>
+                            <p className="font-semibold">{users.find(u => u.id === selectedOrder.technicianId)?.name}</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 text-sm">
+                        <div>
+                            <h3 className="font-bold border-b pb-1 mb-2">Problema Relatado</h3>
+                            <p className="whitespace-pre-wrap">{selectedOrder.problemDescription}</p>
+                        </div>
+                        {selectedOrder.technicalDiagnosis && <div>
+                            <h3 className="font-bold border-b pb-1 mb-2">Diagnóstico Técnico</h3>
+                            <p className="whitespace-pre-wrap">{selectedOrder.technicalDiagnosis}</p>
+                        </div>}
+                        {selectedOrder.executedServices && <div>
+                            <h3 className="font-bold border-b pb-1 mb-2">Serviços Executados</h3>
+                            <p className="whitespace-pre-wrap">{selectedOrder.executedServices}</p>
+                        </div>}
+                         {selectedOrder.usedParts && <div>
+                            <h3 className="font-bold border-b pb-1 mb-2">Peças Utilizadas</h3>
+                            <p className="whitespace-pre-wrap">{selectedOrder.usedParts}</p>
+                        </div>}
+                    </div>
+
+                     <hr className="my-6 border-gray-300" />
+                     <div className="flex justify-end mb-8">
+                        <div className="w-1/2 text-right">
+                             {selectedOrder.totalValue && (
+                                 <div className="flex justify-between text-lg">
+                                    <span className="font-bold">Total:</span>
+                                    <span className="font-bold">{(selectedOrder.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                </div>
+                             )}
+                        </div>
+                    </div>
+
+                    <div className="mt-24 grid grid-cols-2 gap-8 text-center text-sm">
+                        <div>
+                            <hr className="border-gray-400 mb-1" />
+                            <p>{users.find(u => u.id === selectedOrder.technicianId)?.name}</p>
+                            <p className="text-xs text-gray-600">Assinatura do Técnico</p>
+                        </div>
+                         <div>
+                            <hr className="border-gray-400 mb-1" />
+                            <p>{customers.find(c => c.id === selectedOrder.clientId)?.name}</p>
+                             <p className="text-xs text-gray-600">Assinatura do Cliente</p>
+                        </div>
+                    </div>
+
+                </div>
+                </ScrollArea>
+            )}
+            <DialogFooter className="print-hide">
+                <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(false)}>Cancelar</Button>
+                <Button type="button" variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>
+                    {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    Baixar PDF
+                </Button>
+                <Button type="button" onClick={handleSendEmail}>
+                    <Mail className="mr-2 h-4 w-4" /> Enviar por E-mail
+                </Button>
+                <Button type="button" onClick={handleSendWhatsApp}>
+                    <Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
