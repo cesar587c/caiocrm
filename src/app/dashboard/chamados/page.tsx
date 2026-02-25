@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -380,161 +381,161 @@ export default function ChamadosPage() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-2xl h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>{editingOrder ? `Editar OS #${editingOrder.number}` : 'Nova Ordem de Serviço'}</DialogTitle>
             <DialogDescription>
               {editingOrder ? 'Altere os dados da Ordem de Serviço.' : 'Preencha os dados para abrir uma nova OS.'}
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-            <ScrollArea className="max-h-[60vh] p-1">
-              <div className="space-y-4 px-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                    control={form.control}
-                    name="clientId"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Cliente</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecione um cliente" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="technicianId"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Técnico Responsável</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecione um técnico" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {technicians.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="problemDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descrição do Problema (Relatado pelo Cliente)</FormLabel>
-                    <FormControl><Textarea placeholder="Ex: O equipamento não liga..." {...field} rows={4} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecione o status" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {stages.map(s => <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="deliveryDate"
-                    render={({ field }) => (
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
+              <ScrollArea className="flex-1">
+                <div className="px-6 py-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="clientId"
+                        render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Prazo de Entrega</FormLabel>
+                            <FormLabel>Cliente</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                 <FormControl>
-                                  <Input placeholder="dd/mm/aaaa ou texto livre" {...field} value={field.value || ''}/>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione um cliente" />
+                                </SelectTrigger>
                                 </FormControl>
-                             <FormMessage />
+                                <SelectContent>
+                                    {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
                         </FormItem>
-                    )}
-                />
-              </div>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="technicianId"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Técnico Responsável</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione um técnico" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {technicians.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                  </div>
 
-              {editingOrder && (
-                <>
-                 <FormField
+                  <FormField
                     control={form.control}
-                    name="technicalDiagnosis"
+                    name="problemDescription"
                     render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Diagnóstico Técnico</FormLabel>
-                        <FormControl><Textarea placeholder="Causa provável do problema..." {...field} value={field.value || ''}/></FormControl>
+                      <FormItem>
+                        <FormLabel>Descrição do Problema (Relatado pelo Cliente)</FormLabel>
+                        <FormControl><Textarea placeholder="Ex: O equipamento não liga..." {...field} rows={4} /></FormControl>
                         <FormMessage />
-                    </FormItem>
+                      </FormItem>
                     )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="executedServices"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Serviços Executados</FormLabel>
-                        <FormControl><Textarea placeholder="Limpeza, troca de peça..." {...field} value={field.value || ''}/></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="usedParts"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Peças Utilizadas</FormLabel>
-                        <FormControl><Textarea placeholder="Lista de peças e códigos..." {...field} value={field.value || ''}/></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="totalValue"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Valor Total (R$)</FormLabel>
-                        <FormControl>
-                            <Input type="number" step="0.01" placeholder="150,00" {...field} value={field.value ?? ''} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                </>
-              )}
-              </div>
-            </ScrollArea>
-              <DialogFooter>
+                  />
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione o status" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {stages.map(s => <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="deliveryDate"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Prazo de Entrega</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="dd/mm/aaaa ou texto livre" {...field} value={field.value || ''}/>
+                                    </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                  </div>
+
+                  {editingOrder && (
+                    <>
+                    <FormField
+                        control={form.control}
+                        name="technicalDiagnosis"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Diagnóstico Técnico</FormLabel>
+                            <FormControl><Textarea placeholder="Causa provável do problema..." {...field} value={field.value || ''}/></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="executedServices"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Serviços Executados</FormLabel>
+                            <FormControl><Textarea placeholder="Limpeza, troca de peça..." {...field} value={field.value || ''}/></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="usedParts"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Peças Utilizadas</FormLabel>
+                            <FormControl><Textarea placeholder="Lista de peças e códigos..." {...field} value={field.value || ''}/></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="totalValue"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Valor Total (R$)</FormLabel>
+                            <FormControl>
+                                <Input type="number" step="0.01" placeholder="150,00" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    </>
+                  )}
+                </div>
+              </ScrollArea>
+              <DialogFooter className="p-6 pt-4 border-t">
                 {editingOrder && (
                     <Button type="button" variant="destructive" className="mr-auto" onClick={() => handleDelete(editingOrder)}>Excluir</Button>
                 )}
