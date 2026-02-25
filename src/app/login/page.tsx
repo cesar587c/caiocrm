@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { SettingsProvider, useSettings } from '@/contexts/SettingsContext';
-import { BrainCircuit, Loader2 } from 'lucide-react';
+import { BrainCircuit, Loader2, Eye, EyeOff } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(1, "O nome de usuário é obrigatório."),
@@ -25,6 +25,7 @@ function LoginCard() {
   const { login } = useSettings();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -83,9 +84,24 @@ function LoginCard() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="Sua senha" {...field} />
-                    </FormControl>
+                    <div className="relative">
+                      <FormControl>
+                        <Input 
+                          type={showPassword ? 'text' : 'password'} 
+                          placeholder="Sua senha" 
+                          className="pr-10"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(prev => !prev)}
+                        className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
+                        aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -53,7 +53,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, PlusCircle, MoreHorizontal } from "lucide-react";
+import { UserCog, PlusCircle, MoreHorizontal, Eye, EyeOff } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -79,6 +79,10 @@ export default function UsuariosPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [showPasswords, setShowPasswords] = useState({
+    password: false,
+    confirmPassword: false,
+  });
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -278,7 +282,24 @@ export default function UsuariosPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
-                    <FormControl><Input type="password" placeholder={editingUser ? 'Deixe em branco para manter a atual' : 'Mínimo 8 caracteres'} {...field} /></FormControl>
+                    <div className="relative">
+                      <FormControl>
+                        <Input 
+                          type={showPasswords.password ? 'text' : 'password'} 
+                          placeholder={editingUser ? 'Deixe em branco para manter a atual' : 'Mínimo 8 caracteres'} 
+                          className="pr-10"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords(prev => ({...prev, password: !prev.password}))}
+                        className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
+                        aria-label={showPasswords.password ? "Esconder senha" : "Mostrar senha"}
+                      >
+                        {showPasswords.password ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -289,7 +310,24 @@ export default function UsuariosPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Confirmar Senha</FormLabel>
-                    <FormControl><Input type="password" placeholder="Repita a senha" {...field} /></FormControl>
+                     <div className="relative">
+                      <FormControl>
+                        <Input 
+                          type={showPasswords.confirmPassword ? 'text' : 'password'} 
+                          placeholder="Repita a senha"
+                          className="pr-10"
+                          {...field} 
+                        />
+                      </FormControl>
+                       <button
+                        type="button"
+                        onClick={() => setShowPasswords(prev => ({...prev, confirmPassword: !prev.confirmPassword}))}
+                        className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground hover:text-foreground"
+                        aria-label={showPasswords.confirmPassword ? "Esconder senha" : "Mostrar senha"}
+                      >
+                        {showPasswords.confirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
