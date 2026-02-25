@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -6,13 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { ServiceOrder, User } from '@/lib/types';
+import type { ServiceOrder } from '@/lib/types';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import {
@@ -38,23 +38,28 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
     DropdownMenuCheckboxItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-  } from "@/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import type { DateRange } from 'react-day-picker';
-import { BookUser, PlusCircle, ListFilter, Calendar as CalendarIcon, User as UserIcon, AlertCircle } from "lucide-react";
+import { format, parseISO } from 'date-fns';
+import { PlusCircle, User as UserIcon, AlertCircle, Edit } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 const serviceOrderSchema = z.object({
     clientId: z.string().min(1, "O cliente é obrigatório."),
@@ -71,58 +76,20 @@ const serviceOrderSchema = z.object({
 type ServiceOrderFormValues = z.infer<typeof serviceOrderSchema>;
 
 const stages = [
-  { id: "Aberta", title: "Aberta", headerClass: "bg-blue-500" },
-  { id: "Em andamento", title: "Em Andamento", headerClass: "bg-yellow-500" },
-  { id: "Aguardando peça", title: "Aguardando Peça", headerClass: "bg-orange-500" },
-  { id: "Finalizada", title: "Finalizada", headerClass: "bg-green-500" },
-  { id: "Cancelada", title: "Cancelada", headerClass: "bg-gray-500" },
+  { id: "Aberta", title: "Aberta" },
+  { id: "Em andamento", title: "Em Andamento" },
+  { id: "Aguardando peça", title: "Aguardando Peça" },
+  { id: "Finalizada", title: "Finalizada" },
+  { id: "Cancelada", title: "Cancelada" },
 ];
 
 const statusColors: { [key: string]: string } = {
-  'Aberta': 'bg-blue-500',
-  'Em andamento': 'bg-yellow-500 text-black',
-  'Aguardando peça': 'bg-orange-500',
-  'Finalizada': 'bg-green-500',
-  'Cancelada': 'bg-gray-500'
+  'Aberta': 'bg-blue-500 hover:bg-blue-500/90',
+  'Em andamento': 'bg-yellow-500 hover:bg-yellow-500/90 text-black',
+  'Aguardando peça': 'bg-orange-500 hover:bg-orange-500/90',
+  'Finalizada': 'bg-green-500 hover:bg-green-500/90',
+  'Cancelada': 'bg-gray-500 hover:bg-gray-500/90'
 };
-
-const ServiceOrderCard = ({ order, onCardClick }: { order: ServiceOrder, onCardClick: (order: ServiceOrder) => void }) => {
-  const { users, customers } = useSettings();
-  
-  const technician = users.find(u => u.id === order.technicianId);
-  const customer = customers.find(c => c.id === order.clientId);
-  const isDelayed = order.deliveryDate && new Date(order.deliveryDate) < new Date() && order.status !== 'Finalizada' && order.status !== 'Cancelada';
-
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    e.dataTransfer.setData("serviceOrderId", order.id);
-  };
-  
-  return (
-    <Card
-      draggable
-      onDragStart={handleDragStart}
-      onClick={() => onCardClick(order)}
-      className="mb-3 cursor-grab active:cursor-grabbing bg-card hover:bg-card/90 shadow-sm rounded-lg"
-    >
-      <CardContent className="p-3 space-y-2 text-sm">
-        <div className="flex justify-between items-start">
-            <p className="font-semibold leading-tight text-base">OS #{order.number}</p>
-            {isDelayed && (
-              <Badge variant="destructive" className="flex items-center gap-1">
-                <AlertCircle className="h-3 w-3"/> Atrasada
-              </Badge>
-            )}
-        </div>
-        <p className="text-muted-foreground">{customer?.name || 'Cliente não encontrado'}</p>
-        <div className="flex items-center gap-2 text-muted-foreground pt-1">
-            <UserIcon className="h-4 w-4" />
-            <span>{technician?.name || 'Técnico não atribuído'}</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
 
 export default function ChamadosPage() {
   const { serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder, users, customers } = useSettings();
@@ -131,12 +98,8 @@ export default function ChamadosPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [deletingOrder, setDeletingOrder] = useState<ServiceOrder | null>(null);
-
+  const [activeTab, setActiveTab] = useState("todos");
   const [technicianFilter, setTechnicianFilter] = useState<string[]>([]);
-  const [customerFilter, setCustomerFilter] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
-
 
   const form = useForm<ServiceOrderFormValues>({
     resolver: zodResolver(serviceOrderSchema),
@@ -155,16 +118,11 @@ export default function ChamadosPage() {
 
   const filteredOrders = useMemo(() => {
     return serviceOrders.filter(order => {
+        const statusMatch = activeTab === 'todos' || order.status === activeTab;
         const technicianMatch = technicianFilter.length === 0 || technicianFilter.includes(order.technicianId);
-        const customerMatch = customerFilter.length === 0 || customerFilter.includes(order.clientId);
-        const statusMatch = statusFilter.length === 0 || statusFilter.includes(order.status);
-        const dateMatch = !dateFilter?.from || (
-            new Date(order.openingDate) >= dateFilter.from &&
-            new Date(order.openingDate) <= (dateFilter.to || dateFilter.from)
-        );
-        return technicianMatch && customerMatch && statusMatch && dateMatch;
-    });
-  }, [serviceOrders, technicianFilter, customerFilter, statusFilter, dateFilter]);
+        return statusMatch && technicianMatch;
+    }).sort((a, b) => new Date(b.openingDate).getTime() - new Date(a.openingDate).getTime());
+  }, [serviceOrders, activeTab, technicianFilter]);
 
 
   const handleAddNew = () => {
@@ -222,23 +180,6 @@ export default function ChamadosPage() {
     setIsDialogOpen(false);
   }
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetStage: string) => {
-    e.preventDefault();
-    const serviceOrderId = e.dataTransfer.getData("serviceOrderId");
-    const order = serviceOrders.find(o => o.id === serviceOrderId);
-    if(order) {
-        updateServiceOrder({ ...order, status: targetStage as ServiceOrder['status']});
-        toast({
-            title: 'Status Atualizado!',
-            description: `OS #${order.number} movida para "${targetStage}".`
-        });
-    }
-  };
-
   return (
     <>
       <div className="flex h-full flex-1 flex-col space-y-4 p-4 md:p-8 pt-6">
@@ -247,89 +188,119 @@ export default function ChamadosPage() {
                 <h2 className="text-3xl font-bold tracking-tight font-headline">Ordens de Serviço</h2>
                 <p className="text-muted-foreground">Gerencie e acompanhe o fluxo de trabalho da sua equipe técnica.</p>
             </div>
-          <Button onClick={handleAddNew}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Nova OS
-          </Button>
         </div>
         
-        {/* Filter Bar */}
-        <Card>
-            <CardContent className="pt-6 flex flex-wrap items-center gap-2">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="flex-1 min-w-[150px] sm:flex-none">
-                            <ListFilter className="mr-2 h-4 w-4" />
-                            Status ({statusFilter.length > 0 ? statusFilter.length : 'Todos'})
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        {stages.map(stage => (
-                            <DropdownMenuCheckboxItem key={stage.id} checked={statusFilter.includes(stage.id)} onCheckedChange={(checked) => {
-                                setStatusFilter(prev => checked ? [...prev, stage.id] : prev.filter(s => s !== stage.id))
-                            }}>{stage.title}</DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="flex-1 min-w-[150px] sm:flex-none">
-                            <UserIcon className="mr-2 h-4 w-4" />
-                            Técnico ({technicianFilter.length > 0 ? technicianFilter.length : 'Todos'})
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        {technicians.map(tech => (
-                            <DropdownMenuCheckboxItem key={tech.id} checked={technicianFilter.includes(tech.id)} onCheckedChange={(checked) => {
-                                setTechnicianFilter(prev => checked ? [...prev, tech.id] : prev.filter(t => t !== tech.id))
-                            }}>{tech.name}</DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                
-                <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full sm:w-auto justify-start text-left font-normal flex-1 min-w-[150px]",
-                          !dateFilter && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateFilter?.from ? format(dateFilter.from, "dd/MM/yy") : <span>Data Abertura</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={dateFilter?.from} onSelect={(day) => setDateFilter(day ? { from: day, to: day } : undefined)} locale={ptBR}/>
-                    </PopoverContent>
-                </Popover>
-
-            </CardContent>
-        </Card>
-
-        <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {stages.map((stage) => (
-            <div
-              key={stage.id}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, stage.id)}
-              className="flex flex-col rounded-lg bg-muted/50"
-            >
-              <div className={cn("px-3 py-2 text-left rounded-t-lg text-primary-foreground", stage.headerClass)}>
-                <h3 className="font-semibold text-sm">{stage.title} ({filteredOrders.filter(o => o.status === stage.id).length})</h3>
-              </div>
-              <ScrollArea className="p-2 overflow-y-auto flex-1 h-96">
-                  {filteredOrders
-                  .filter((order) => order.status === stage.id)
-                  .map((order) => (
-                      <ServiceOrderCard key={order.id} order={order} onCardClick={handleEdit} />
-                  ))}
-              </ScrollArea>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+                <TabsList className="flex-wrap h-auto">
+                    <TabsTrigger value="todos">Todas</TabsTrigger>
+                    {stages.map(stage => (
+                        <TabsTrigger key={stage.id} value={stage.id}>{stage.title}</TabsTrigger>
+                    ))}
+                </TabsList>
+                <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline">
+                                <UserIcon className="mr-2 h-4 w-4" />
+                                Técnico ({technicianFilter.length > 0 ? technicianFilter.length : 'Todos'})
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            {technicians.map(tech => (
+                                <DropdownMenuCheckboxItem key={tech.id} checked={technicianFilter.includes(tech.id)} onCheckedChange={(checked) => {
+                                    setTechnicianFilter(prev => checked ? [...prev, tech.id] : prev.filter(t => t !== tech.id))
+                                }}>{tech.name}</DropdownMenuCheckboxItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button onClick={handleAddNew}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Nova OS
+                    </Button>
+                </div>
             </div>
-          ))}
-        </div>
+            
+            <TabsContent value={activeTab} className="w-full">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Lista de Ordens de Serviço</CardTitle>
+                        <CardDescription>
+                            {activeTab === 'todos' ? 'Exibindo todas as ordens de serviço.' : `Exibindo ordens com status "${stages.find(s => s.id === activeTab)?.title}".`}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>OS</TableHead>
+                                    <TableHead>Cliente</TableHead>
+                                    <TableHead>Técnico</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Abertura</TableHead>
+                                    <TableHead>Prazo</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredOrders.length > 0 ? (
+                                    filteredOrders.map(order => {
+                                        const customer = customers.find(c => c.id === order.clientId);
+                                        const technician = users.find(u => u.id === order.technicianId);
+                                        const isDelayed = order.deliveryDate && new Date(order.deliveryDate) < new Date() && order.status !== 'Finalizada' && order.status !== 'Cancelada';
+                                        return (
+                                        <TableRow key={order.id}>
+                                            <TableCell className="font-medium">#{order.number}</TableCell>
+                                            <TableCell>{customer?.name || 'N/A'}</TableCell>
+                                            <TableCell>{technician?.name || 'N/A'}</TableCell>
+                                            <TableCell>
+                                                <Badge className={cn(statusColors[order.status])}>
+                                                    {order.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{format(parseISO(order.openingDate), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    {order.deliveryDate || 'N/A'}
+                                                    {isDelayed && (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger>
+                                                                    <AlertCircle className="h-4 w-4 text-destructive"/>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Esta OS está atrasada.</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(order)}>
+                                                    <Edit className="h-4 w-4"/>
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    )})
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="h-24 text-center">
+                                            Nenhuma ordem de serviço encontrada.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                     <CardFooter>
+                        <div className="text-xs text-muted-foreground">
+                            Mostrando <strong>{filteredOrders.length}</strong> de <strong>{serviceOrders.length}</strong> ordens de serviço.
+                        </div>
+                    </CardFooter>
+                </Card>
+            </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
