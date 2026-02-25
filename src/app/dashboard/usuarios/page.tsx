@@ -232,7 +232,7 @@ export default function UsuariosPage() {
 
             <div className="lg:col-span-1 sticky top-4">
                  <Card>
-                     <Form {...form}>
+                     <Form {...form} key={selectedUser ? selectedUser.id : 'new'}>
                         <form onSubmit={form.handleSubmit(onSubmit)}>
                              <CardHeader className="flex flex-row items-start justify-between">
                                  <div>
