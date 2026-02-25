@@ -18,13 +18,15 @@ const formSchema = z.object({
   password: z.string().min(1, "A senha é obrigatória."),
 });
 
+type LoginFormValues = z.infer<typeof formSchema>;
+
 function LoginCard() {
   const router = useRouter();
   const { login } = useSettings();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
@@ -32,7 +34,7 @@ function LoginCard() {
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>>) => {
+  const onSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     const success = await login(values.name, values.password);
     setIsLoading(false);
