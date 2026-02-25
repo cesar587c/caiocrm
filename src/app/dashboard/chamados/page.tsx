@@ -477,9 +477,9 @@ export default function ChamadosPage() {
                 </Tabs>
             </div>
             <div className="lg:col-span-1 sticky top-4">
-                 <Card className="flex flex-col max-h-[calc(100vh-5rem)]">
-                     <Form {...form} key={editingOrder ? editingOrder.id : 'new-os'}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col min-h-0">
+                <Form {...form} key={editingOrder ? editingOrder.id : 'new-os'}>
+                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                        <Card className="flex flex-col max-h-[calc(100vh-5rem)]">
                             <CardHeader className="flex flex-row items-start justify-between">
                                 <div>
                                     <CardTitle>{editingOrder ? `Editar OS #${editingOrder.number}` : 'Nova Ordem de Serviço'}</CardTitle>
@@ -682,9 +682,9 @@ export default function ChamadosPage() {
                             <CardFooter>
                                 <Button type="submit" className="w-full">Salvar</Button>
                             </CardFooter>
-                        </form>
-                    </Form>
-                 </Card>
+                        </Card>
+                    </form>
+                </Form>
             </div>
         </div>
       </div>
