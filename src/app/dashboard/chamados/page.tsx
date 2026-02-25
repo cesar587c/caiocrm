@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -5,7 +6,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { ServiceOrder, Product, ServiceOrderItem } from '@/lib/types';
+import type { ServiceOrder, Product, ServiceOrderItem, User, ServiceOrderHistoryEntry } from '@/lib/types';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { initialProducts } from '@/lib/mock-data';
@@ -103,7 +104,7 @@ const statusColors: { [key: string]: string } = {
 };
 
 export default function ChamadosPage() {
-  const { serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder, users, customers, companyProfile, products, addProduct, updateProduct } = useSettings();
+  const { serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder, users, customers, companyProfile, products, addProduct, updateProduct, currentUser } = useSettings();
   const { toast } = useToast();
   
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
@@ -114,6 +115,9 @@ export default function ChamadosPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+
+  const [finalizationState, setFinalizationState] = useState<{ isOpen: boolean; values: ServiceOrderFormValues | null }>({ isOpen: false, values: null });
+  const [justification, setJustification] = useState('');
 
   const form = useForm<ServiceOrderFormValues>({
     resolver: zodResolver(serviceOrderSchema),
@@ -199,6 +203,43 @@ export default function ChamadosPage() {
         return statusMatch && technicianMatch;
     }).sort((a, b) => new Date(b.openingDate).getTime() - new Date(a.openingDate).getTime());
   }, [serviceOrders, activeTab, technicianFilter]);
+
+  const generateHistory = (original: ServiceOrder, updated: ServiceOrderFormValues, user: User, finalizationJustification?: string): ServiceOrderHistoryEntry[] => {
+    const history: ServiceOrderHistoryEntry[] = [];
+    const timestamp = new Date().toISOString();
+
+    const createEntry = (action: string, from?: any, to?: any, details?: string) => ({
+        userId: user.id,
+        userName: user.name,
+        timestamp,
+        action,
+        from: from ? String(from) : undefined,
+        to: to ? String(to) : undefined,
+        details,
+    });
+
+    if (original.status !== updated.status) {
+        history.push(createEntry(
+            'alterou o status', 
+            original.status, 
+            updated.status,
+            finalizationJustification
+        ));
+    }
+    if (original.technicianId !== updated.technicianId) {
+        const oldTech = users.find(u => u.id === original.technicianId)?.name || 'N/A';
+        const newTech = users.find(u => u.id === updated.technicianId)?.name || 'N/A';
+        history.push(createEntry('alterou o técnico responsável', oldTech, newTech));
+    }
+    if (original.technicalDiagnosis !== updated.technicalDiagnosis) {
+        history.push(createEntry('atualizou o diagnóstico técnico'));
+    }
+    if (original.executedServices !== updated.executedServices) {
+        history.push(createEntry('atualizou os serviços executados'));
+    }
+
+    return history;
+  }
 
   const handleSaveNewProduct = (newProduct: { name: string, price: number }) => {
     const lowerCaseName = newProduct.name.toLowerCase().trim();
@@ -325,17 +366,57 @@ export default function ChamadosPage() {
     window.open(url, '_blank');
   };
 
+  const handleConfirmFinalization = () => {
+    if (!finalizationState.values || !justification.trim() || !editingOrder || !currentUser) {
+        toast({ variant: 'destructive', title: 'Justificativa é obrigatória.' });
+        return;
+    }
+
+    const values = finalizationState.values;
+    const history = generateHistory(editingOrder, values, currentUser, justification);
+
+    updateServiceOrder({
+        ...editingOrder,
+        ...values,
+        items: values.items || [],
+        history: [...(editingOrder.history || []), ...history]
+    });
+    
+    toast({ title: 'Ordem de Serviço Finalizada!', description: `A OS #${editingOrder.number} foi finalizada.` });
+    
+    setFinalizationState({ isOpen: false, values: null });
+    setJustification('');
+    setEditingOrder(null);
+  }
+
   function onSubmit(values: ServiceOrderFormValues) {
+    if (!currentUser) return;
+
     if (editingOrder) {
+      if (values.status === 'Finalizada' && editingOrder.status !== 'Finalizada') {
+          setFinalizationState({ isOpen: true, values: values });
+          return;
+      }
+
+      const history = generateHistory(editingOrder, values, currentUser);
+
       updateServiceOrder({ 
         ...editingOrder, 
         ...values,
         items: values.items || [],
         deliveryDate: values.deliveryDate || undefined,
+        history: [...(editingOrder.history || []), ...history]
     });
       toast({ title: 'Ordem de Serviço Atualizada!', description: `A OS #${editingOrder.number} foi salva.` });
     } else {
-      addServiceOrder({...values, items: values.items || []});
+      const historyEntry: ServiceOrderHistoryEntry = {
+        userId: currentUser.id,
+        userName: currentUser.name,
+        timestamp: new Date().toISOString(),
+        action: 'criou a Ordem de Serviço',
+      };
+
+      addServiceOrder({...values, items: values.items || [], history: [historyEntry]});
       toast({ title: 'Ordem de Serviço Criada!', description: `Uma nova OS foi aberta.` });
     }
     setEditingOrder(null);
@@ -477,8 +558,8 @@ export default function ChamadosPage() {
             </div>
             <div className="lg:col-span-1 sticky top-4">
                 <Form {...form} key={editingOrder ? editingOrder.id : 'new-os'}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} id="service-order-form">
-                        <Card className="flex flex-col max-h-[calc(100vh-5rem)]">
+                    <form onSubmit={form.handleSubmit(onSubmit)} id="service-order-form" className="flex flex-col h-full">
+                        <Card className="flex flex-col flex-1 max-h-[calc(100vh-5rem)]">
                             <CardHeader className="flex flex-row items-start justify-between">
                                 <div>
                                     <CardTitle>{editingOrder ? `Editar OS #${editingOrder.number}` : 'Nova Ordem de Serviço'}</CardTitle>
@@ -651,32 +732,54 @@ export default function ChamadosPage() {
                                             </div>
                                         </CardFooter>
                                     </Card>
+                                     <Card>
+                                        <CardHeader className="p-4">
+                                            <CardTitle className="text-base">Adicionar Produtos e Serviços</CardTitle>
+                                            <div className="relative pt-2">
+                                                <Search className="absolute left-2.5 top-4 h-4 w-4 text-muted-foreground" />
+                                                <Input placeholder="Buscar item..." className="pl-8" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="p-4 pt-0">
+                                            <ScrollArea className="h-40">
+                                                <div className="flex flex-col gap-1 pr-2">
+                                                {filteredProducts.map(product => (
+                                                    <div key={product.id} className="flex cursor-pointer items-center justify-between rounded-md p-2 hover:bg-muted" onClick={() => handleAddProductFromList(product)}>
+                                                        <div className="flex-1 truncate pr-2">
+                                                            <p className="font-semibold text-sm truncate">{product.name}</p>
+                                                            <p className="text-xs text-muted-foreground">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {filteredProducts.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">Nenhum item encontrado.</p>}
+                                                </div>
+                                            </ScrollArea>
+                                        </CardContent>
+                                    </Card>
+                                    {editingOrder.history && editingOrder.history.length > 0 && (
+                                        <div className="space-y-2">
+                                            <h4 className="text-sm font-medium text-foreground">Histórico de Alterações</h4>
+                                            <ScrollArea className="h-40 rounded-md border p-2">
+                                                <div className="space-y-3">
+                                                    {editingOrder.history.slice().reverse().map((entry) => (
+                                                        <div key={entry.timestamp} className="text-xs text-muted-foreground">
+                                                            <p className="flex items-center gap-1.5">
+                                                                <span className="font-semibold text-foreground">{entry.userName}</span>
+                                                                <span>{entry.action}</span>
+                                                                {entry.from && <Badge variant="outline">{entry.from}</Badge>}
+                                                                {entry.to && <span>&rarr;</span>}
+                                                                {entry.to && <Badge variant="secondary">{entry.to}</Badge>}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground/80 pl-2">{safeFormat(entry.timestamp, 'dd/MM/yyyy HH:mm')}</p>
+                                                            {entry.details && <blockquote className="mt-1 ml-2 pl-2 border-l-2 text-foreground/80 italic">"{entry.details}"</blockquote>}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </ScrollArea>
+                                        </div>
+                                    )}
                                     </>
                                 )}
-                                 <Card>
-                                    <CardHeader className="p-4">
-                                        <CardTitle className="text-base">Adicionar Produtos e Serviços</CardTitle>
-                                        <div className="relative pt-2">
-                                            <Search className="absolute left-2.5 top-4 h-4 w-4 text-muted-foreground" />
-                                            <Input placeholder="Buscar item..." className="pl-8" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="p-4 pt-0">
-                                        <ScrollArea className="h-40">
-                                            <div className="flex flex-col gap-1 pr-2">
-                                            {filteredProducts.map(product => (
-                                                <div key={product.id} className="flex cursor-pointer items-center justify-between rounded-md p-2 hover:bg-muted" onClick={() => handleAddProductFromList(product)}>
-                                                    <div className="flex-1 truncate pr-2">
-                                                        <p className="font-semibold text-sm truncate">{product.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {filteredProducts.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">Nenhum item encontrado.</p>}
-                                            </div>
-                                        </ScrollArea>
-                                    </CardContent>
-                                </Card>
                             </CardContent>
                             <CardFooter>
                                 <Button type="submit" form="service-order-form" className="w-full">Salvar</Button>
@@ -819,6 +922,29 @@ export default function ChamadosPage() {
                 <Button type="button" onClick={handleSendWhatsApp}>
                     <Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp
                 </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={finalizationState.isOpen} onOpenChange={(open) => !open && setFinalizationState({isOpen: false, values: null})}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Finalizar Ordem de Serviço</DialogTitle>
+                <DialogDescription>
+                    Para finalizar a OS, por favor, adicione um breve comentário sobre a resolução do problema.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <Textarea 
+                    placeholder="Ex: Peça substituída e equipamento funcionando normalmente."
+                    value={justification}
+                    onChange={(e) => setJustification(e.target.value)}
+                    rows={4}
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => { setFinalizationState({isOpen: false, values: null}); setJustification(''); }}>Cancelar</Button>
+                <Button onClick={handleConfirmFinalization}>Confirmar Finalização</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>

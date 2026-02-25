@@ -44,6 +44,16 @@ export type ServiceOrderItem = {
   price: number;
 };
 
+export type ServiceOrderHistoryEntry = {
+  userId: string;
+  userName: string;
+  timestamp: string;
+  action: string;
+  from?: string;
+  to?: string;
+  details?: string; // For justification comments
+};
+
 export type ServiceOrder = {
     id: string;
     number: string;
@@ -56,6 +66,7 @@ export type ServiceOrder = {
     technicalDiagnosis?: string;
     executedServices?: string;
     items: ServiceOrderItem[];
+    history?: ServiceOrderHistoryEntry[];
 };
 
 export type Customer = {
