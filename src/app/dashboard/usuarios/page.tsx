@@ -254,7 +254,7 @@ export default function UsuariosPage() {
               {editingUser ? 'Altere os dados do usuário abaixo.' : 'Preencha os dados para adicionar um novo usuário à equipe.'}
             </DialogDescription>
           </DialogHeader>
-          <Form {...form}>
+          <Form {...form} key={editingUser?.id || 'new-user'}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto -mx-6 px-6 py-4">
                   <div className="space-y-4">
