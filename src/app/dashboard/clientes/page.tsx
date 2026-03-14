@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -15,6 +13,11 @@ import {
   Users,
   Loader2,
   User,
+  UserPlus,
+  Trash2,
+  UserCheck,
+  UserX,
+  ArrowRightLeft
 } from "lucide-react";
 import { addDays, format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -78,15 +81,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
-import type { Customer } from "@/lib/types";
+import type { Customer, CustomerStatus, CustomerType } from "@/lib/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
   inactive: "Inativo",
   new: "Novo",
+  lead: "Lead",
+  discarded: "Descartado",
 };
 
 const potentialMap: Record<string, string> = {
@@ -103,19 +109,21 @@ const formSchema = z.object({
   email: z.string().email({ message: "E-mail inválido." }).optional().or(z.literal('')),
   telefone: z.string().optional(),
   inscricaoEstadual: z.string().optional(),
-  tipoCliente: z.boolean().default(false), // false = Avulso, true = Contrato Ativo
-}).refine((data) => !!data.email || !!data.telefone, {
-    message: "É obrigatório informar um e-mail ou telefone.",
+  isLead: z.boolean().default(false),
+  tipoCliente: z.enum(["active_contract", "one_time"]).default("one_time"),
+}).refine((data) => data.isLead || !!data.email || !!data.telefone, {
+    message: "Para clientes, é obrigatório informar um e-mail ou telefone.",
     path: ["telefone"],
 });
 
 
 export default function ClientesPage() {
-  const { customers, addCustomer, updateCustomer, deleteCustomer } = useSettings();
+  const { customers, addCustomer, updateCustomer, deleteCustomer, currentUser } = useSettings();
   const [isCnpjLoading, setIsCnpjLoading] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [convertingCustomer, setConvertingCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [showInactive, setShowInactive] = useState(false);
@@ -163,7 +171,8 @@ export default function ClientesPage() {
       email: "",
       telefone: "",
       inscricaoEstadual: "",
-      tipoCliente: false,
+      isLead: false,
+      tipoCliente: "one_time",
     },
   });
 
@@ -179,23 +188,26 @@ export default function ClientesPage() {
     );
 
     if (showInactive) {
-        filtered = filtered.filter(c => c.status === 'inactive');
+        filtered = filtered.filter(c => c.status === 'inactive' || c.status === 'discarded');
     } else {
         switch (activeTab) {
             case 'all':
-                filtered = filtered.filter(c => c.status !== 'inactive');
+                filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded' && c.status !== 'lead');
                 break;
             case 'active_contract':
-                filtered = filtered.filter(c => c.type === 'active_contract');
+                filtered = filtered.filter(c => c.type === 'active_contract' && c.status !== 'lead');
                 break;
             case 'one_time':
-                filtered = filtered.filter(c => c.type === 'one_time');
+                filtered = filtered.filter(c => c.type === 'one_time' && c.status !== 'lead');
+                break;
+            case 'leads':
+                filtered = filtered.filter(c => c.status === 'lead');
                 break;
             case 'new':
                 filtered = filtered.filter(c => c.status === 'new');
                 break;
             default:
-                filtered = filtered.filter(c => c.status !== 'inactive');
+                filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded');
         }
     }
     
@@ -282,7 +294,8 @@ export default function ClientesPage() {
       email: "",
       telefone: "",
       inscricaoEstadual: "",
-      tipoCliente: false,
+      isLead: false,
+      tipoCliente: "one_time",
     });
     setIsFormDialogOpen(true);
   };
@@ -294,7 +307,8 @@ export default function ClientesPage() {
         nomeFantasia: customer.nomeFantasia || "",
         contactName: customer.contactName || "",
         email: customer.email,
-        tipoCliente: customer.type === "active_contract",
+        isLead: customer.status === "lead",
+        tipoCliente: customer.type === "active_contract" ? "active_contract" : "one_time",
         cnpj: '', 
         telefone: customer.telefone || '',
         inscricaoEstadual: '',
@@ -302,11 +316,26 @@ export default function ClientesPage() {
     setIsFormDialogOpen(true);
   };
   
-  const handleViewHistoryClick = (customer: Customer) => {
+  const handleDiscardClick = (customer: Customer) => {
+    updateCustomer({ ...customer, status: 'discarded' });
     toast({
-      title: "Histórico do Cliente",
-      description: `Funcionalidade para exibir o histórico de ${customer.name} será implementada.`,
+        title: "Lead Descartado",
+        description: `${customer.name} foi movido para inativos.`,
     });
+  };
+
+  const handleOpenConvertDialog = (customer: Customer) => {
+    setConvertingCustomer(customer);
+  };
+
+  const handleConfirmConvert = (type: "active_contract" | "one_time") => {
+    if (!convertingCustomer) return;
+    updateCustomer({ ...convertingCustomer, status: 'new', type: type });
+    toast({
+        title: "Lead Convertido!",
+        description: `${convertingCustomer.name} agora é um cliente.`,
+    });
+    setConvertingCustomer(null);
   };
 
   const handleDeleteClick = (customer: Customer) => {
@@ -332,11 +361,12 @@ export default function ClientesPage() {
         contactName: values.contactName,
         email: values.email || '',
         telefone: values.telefone,
-        type: values.tipoCliente ? "active_contract" : "one_time",
+        status: values.isLead ? "lead" : (editingCustomer.status === "lead" ? "new" : editingCustomer.status),
+        type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
       });
       toast({
-        title: "Cliente Atualizado!",
-        description: `Os dados de ${values.razaoSocial} foram atualizados com sucesso.`,
+        title: "Dados Atualizados!",
+        description: `Os dados de ${values.razaoSocial} foram salvos.`,
       });
     } else {
       const existingCustomer = customers.find(
@@ -345,8 +375,8 @@ export default function ClientesPage() {
       if (existingCustomer) {
         toast({
           variant: "destructive",
-          title: "Cliente já cadastrado",
-          description: `Um cliente com o e-mail ${values.email} já existe.`,
+          title: "E-mail já cadastrado",
+          description: `Um registro com o e-mail ${values.email} já existe.`,
         });
         return;
       }
@@ -357,29 +387,31 @@ export default function ClientesPage() {
         contactName: values.contactName,
         email: values.email || '',
         telefone: values.telefone,
-        status: "new",
-        responsible: "Admin",
+        status: values.isLead ? "lead" : "new",
+        responsible: currentUser?.name || "Admin",
         potential: "medium",
         lastContact: new Date().toISOString(),
         createdAt: new Date().toISOString(),
-        type: values.tipoCliente ? "active_contract" : "one_time",
+        type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
       };
       addCustomer(newCustomerData);
       toast({
-        title: "Cliente Salvo!",
-        description: `${values.razaoSocial} foi cadastrado com sucesso.`,
+        title: values.isLead ? "Lead Cadastrado!" : "Cliente Salvo!",
+        description: `${values.razaoSocial} foi adicionado à base.`,
       });
     }
     setIsFormDialogOpen(false);
     setEditingCustomer(null);
   }
 
+  const isLead = form.watch("isLead");
+
   return (
     <>
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">
-          Gestão de Clientes
+          Gestão de Clientes e Leads
         </h2>
       </div>
       <Tabs defaultValue="all" onValueChange={(value) => {
@@ -388,9 +420,10 @@ export default function ClientesPage() {
       }}>
         <div className="flex items-center">
           <TabsList>
-            <TabsTrigger value="all">Todos</TabsTrigger>
+            <TabsTrigger value="all">Clientes</TabsTrigger>
             <TabsTrigger value="active_contract">Contratos Ativos</TabsTrigger>
-            <TabsTrigger value="one_time">Clientes Avulsos</TabsTrigger>
+            <TabsTrigger value="one_time">Avulsos</TabsTrigger>
+            <TabsTrigger value="leads">Leads</TabsTrigger>
             <TabsTrigger value="new">Novos</TabsTrigger>
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
@@ -410,7 +443,7 @@ export default function ClientesPage() {
                     checked={showInactive}
                     onCheckedChange={setShowInactive}
                 >
-                  Mostrar Somente Inativos
+                  Mostrar Inativos / Descartados
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Data de Cadastro</DropdownMenuLabel>
@@ -453,52 +486,18 @@ export default function ClientesPage() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <DropdownMenuItem
-                  onSelect={() =>
-                    setDate({ from: subDays(new Date(), 7), to: new Date() })
-                  }
-                >
-                  Últimos 7 dias
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() =>
-                    setDate({ from: subDays(new Date(), 15), to: new Date() })
-                  }
-                >
-                  Últimos 15 dias
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() =>
-                    setDate({ from: subDays(new Date(), 30), to: new Date() })
-                  }
-                >
-                  Últimos 30 dias
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() =>
-                    setDate({ from: startOfMonth(new Date()), to: new Date() })
-                  }
-                >
-                  Este mês
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => setDate(undefined)}>
                   Limpar filtro de data
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button size="sm" variant="outline" className="h-8 gap-1">
-              <File className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Importar
-              </span>
-            </Button>
             <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}>
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Novo Cliente
+                    Novo Registro
                   </span>
                 </Button>
               </DialogTrigger>
@@ -506,12 +505,35 @@ export default function ClientesPage() {
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
-                      <DialogTitle>{editingCustomer ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}</DialogTitle>
+                      <DialogTitle>{editingCustomer ? 'Editar Registro' : 'Cadastrar Novo'}</DialogTitle>
                       <DialogDescription>
-                        {editingCustomer ? 'Altere os dados abaixo para atualizar o cliente.' : 'Preencha os dados abaixo para adicionar um novo cliente.'}
+                        {editingCustomer ? 'Altere os dados abaixo para atualizar.' : 'Preencha os dados abaixo para adicionar um novo lead ou cliente.'}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-2 py-4 max-h-[60vh] overflow-y-auto -mx-6 px-6">
+                        <FormField
+                            control={form.control}
+                            name="isLead"
+                            render={({ field }) => (
+                            <FormItem className="grid grid-cols-4 items-center gap-4 bg-primary/5 p-4 rounded-lg mb-4">
+                                <FormLabel className="text-right">Tipo de Registro</FormLabel>
+                                <div className="col-span-3 flex items-center space-x-2">
+                                    <span className={cn("text-sm font-medium", !field.value && "text-primary")}>Cliente</span>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <span className={cn("text-sm font-medium", field.value && "text-primary")}>Lead</span>
+                                </div>
+                                <FormDescription className="col-start-2 col-span-3">
+                                    {field.value ? "Leads são prospecções que ainda não fecharam negócio." : "Clientes já possuem relacionamento comercial."}
+                                </FormDescription>
+                            </FormItem>
+                            )}
+                        />
+
                        <FormField
                         control={form.control}
                         name="cnpj"
@@ -533,7 +555,6 @@ export default function ClientesPage() {
                                 ) : (
                                   <Search className="h-4 w-4" />
                                 )}
-                                <span className="ml-2 hidden sm:inline">Consultar</span>
                               </Button>
                             </div>
                              <div className="col-start-2 col-span-3">
@@ -588,7 +609,7 @@ export default function ClientesPage() {
                             <FormLabel className="text-right">Nome do Contato</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder="Pessoa de contato na empresa"
+                                placeholder="Pessoa de contato"
                                 className="col-span-3"
                                 {...field}
                                 value={field.value || ''}
@@ -641,52 +662,34 @@ export default function ClientesPage() {
                           </FormItem>
                         )}
                       />
-                       <FormField
-                        control={form.control}
-                        name="inscricaoEstadual"
-                        render={({ field }) => (
-                           <FormItem className="grid grid-cols-4 items-center gap-4">
-                            <FormLabel className="text-right">Inscrição Estadual</FormLabel>
-                            <FormControl>
-                            <Input
-                              placeholder="Número da inscrição"
-                              className="col-span-3"
-                              {...field}
-                            />
-                            </FormControl>
-                            <div className="col-start-2 col-span-3">
-                               <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                       <FormField
-                        control={form.control}
-                        name="tipoCliente"
-                        render={({ field }) => (
-                          <FormItem className="grid grid-cols-4 items-center gap-4">
-                              <FormLabel className="text-right">Tipo de Cliente</FormLabel>
-                              <div className="col-span-3 flex items-center space-x-2">
-                                <FormLabel htmlFor="tipo_cliente_avulso">Cliente Avulso</FormLabel>
-                                <FormControl>
-                                    <Switch
-                                        id="tipo_cliente_switch"
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                </FormControl>
-                                <FormLabel htmlFor="tipo_cliente_contrato">Contrato Ativo</FormLabel>
-                              </div>
-                              <div className="col-start-2 col-span-3">
-                               <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
+                       {!isLead && (
+                         <FormField
+                            control={form.control}
+                            name="tipoCliente"
+                            render={({ field }) => (
+                            <FormItem className="grid grid-cols-4 items-center gap-4">
+                                <FormLabel className="text-right">Tipo de Cliente</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Selecione o tipo" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="active_contract">Contrato Ativo</SelectItem>
+                                        <SelectItem value="one_time">Cliente Avulso</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <div className="col-start-2 col-span-3">
+                                <FormMessage />
+                                </div>
+                            </FormItem>
+                            )}
+                        />
+                       )}
                     </div>
                     <DialogFooter>
                       {editingCustomer && (
-                          <>
                           <Button
                               type="button"
                               variant="destructive"
@@ -696,12 +699,10 @@ export default function ClientesPage() {
                                   handleDeleteClick(editingCustomer);
                               }}
                               >
-                              Excluir
+                              Excluir permanentemente
                           </Button>
-                          <Button type="button" variant="secondary" onClick={() => handleViewHistoryClick(editingCustomer)}>Ver Histórico</Button>
-                          </>
                       )}
-                      <Button type="submit">{editingCustomer ? 'Salvar Alterações' : 'Salvar Cliente'}</Button>
+                      <Button type="submit">{editingCustomer ? 'Salvar Alterações' : 'Cadastrar'}</Button>
                     </DialogFooter>
                   </form>
                 </Form>
@@ -709,38 +710,32 @@ export default function ClientesPage() {
             </Dialog>
           </div>
         </div>
-        <TabsContent value="all" forceMount className="mt-4">
+        <TabsContent value={activeTab} forceMount className="mt-4">
             <Card>
                 <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    <span>Todos os Clientes</span>
+                    {activeTab === 'leads' ? <UserPlus className="h-5 w-5" /> : <Users className="h-5 w-5" />}
+                    <span>{activeTab === 'leads' ? 'Prospecções e Leads' : 'Lista de Clientes'}</span>
                 </CardTitle>
                 <CardDescription>
-                    Gerencie seus clientes e visualize seus históricos. Clique em um cliente para editar.
+                    {activeTab === 'leads' 
+                        ? 'Leads identificados que aguardam conversão.' 
+                        : 'Sua base de clientes ativos e recorrentes.'}
                 </CardDescription>
                     <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar por razão social, fantasia, contato ou e-mail..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <Input placeholder="Buscar por nome, fantasia ou e-mail..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
                 </CardHeader>
                 <CardContent>
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead className="hidden sm:table-cell">
-                        Status
-                        </TableHead>
-                        <TableHead className="hidden md:table-cell">
-                        Responsável
-                        </TableHead>
-                        <TableHead className="hidden md:table-cell">
-                        Potencial
-                        </TableHead>
-                        <TableHead className="hidden lg:table-cell">
-                        Último Contato
-                        </TableHead>
+                        <TableHead>Nome / Contato</TableHead>
+                        <TableHead className="hidden sm:table-cell">Status</TableHead>
+                        <TableHead className="hidden md:table-cell">Responsável</TableHead>
+                        <TableHead className="hidden lg:table-cell">Cadastro</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -748,34 +743,42 @@ export default function ClientesPage() {
                         <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
                         <TableCell>
                             <div className="font-medium">{customer.name}</div>
-                            {customer.nomeFantasia && (
-                                <div className="text-sm text-muted-foreground">{customer.nomeFantasia}</div>
-                            )}
-                            <div className="hidden text-sm text-muted-foreground md:inline">
-                            {customer.email}
-                            </div>
+                            <div className="text-xs text-muted-foreground">{customer.email}</div>
                             {customer.contactName && (
-                                <div className="text-sm text-muted-foreground flex items-center gap-1.5 pt-1">
-                                    <User className="h-3.5 w-3.5" />
+                                <div className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1">
+                                    <User className="h-3 w-3" />
                                     <span>{customer.contactName}</span>
                                 </div>
                             )}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
-                            <Badge variant={customer.status === 'active' ? 'default' : customer.status === 'new' ? 'secondary' : 'outline'}>
+                            <Badge variant={
+                                customer.status === 'active' ? 'default' : 
+                                customer.status === 'lead' ? 'secondary' : 
+                                customer.status === 'new' ? 'outline' : 'destructive'
+                            }>
                                 {statusMap[customer.status]}
                             </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                             {customer.responsible}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                            <Badge variant={customer.potential === 'high' ? 'destructive' : customer.potential === 'medium' ? 'secondary' : 'outline'} className="capitalize">
-                                {potentialMap[customer.potential]}
-                            </Badge>
-                        </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                            {new Date(customer.lastContact).toLocaleDateString("pt-BR", {timeZone: 'UTC'})}
+                            {format(new Date(customer.createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                                {customer.status === 'lead' && (
+                                    <>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}>
+                                            <UserCheck className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDiscardClick(customer); }}>
+                                            <UserX className="h-4 w-4" />
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
                         </TableCell>
                         </TableRow>
                     ))}
@@ -784,35 +787,52 @@ export default function ClientesPage() {
                 </CardContent>
                 <CardFooter>
                 <div className="text-xs text-muted-foreground">
-                    Mostrando <strong>{displayedCustomers.length}</strong> de <strong>{customers.length}</strong> clientes
+                    Mostrando <strong>{displayedCustomers.length}</strong> registros
                 </div>
                 </CardFooter>
             </Card>
         </TabsContent>
-        <TabsContent value="active_contract" forceMount className="mt-4"><Card><CardHeader><CardTitle>Conteúdo Contratos Ativos</CardTitle></CardHeader><CardContent><p>O mesmo componente de tabela será renderizado aqui com os dados filtrados.</p></CardContent></Card></TabsContent>
-        <TabsContent value="one_time" forceMount className="mt-4"><Card><CardHeader><CardTitle>Conteúdo Clientes Avulsos</CardTitle></CardHeader><CardContent><p>O mesmo componente de tabela será renderizado aqui com os dados filtrados.</p></CardContent></Card></TabsContent>
-        <TabsContent value="new" forceMount className="mt-4"><Card><CardHeader><CardTitle>Conteúdo Novos</CardTitle></CardHeader><CardContent><p>O mesmo componente de tabela será renderizado aqui com os dados filtrados.</p></CardContent></Card></TabsContent>
-
       </Tabs>
     </div>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
         <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
             <AlertDialogDescription>
-                Essa ação não pode ser desfeita. Isso excluirá permanentemente o
-                cliente <span className="font-semibold">{deletingCustomer?.name}</span> e removerá seus dados de nossos servidores.
+                Essa ação não pode ser desfeita. Isso excluirá permanentemente os dados de <span className="font-semibold">{deletingCustomer?.name}</span>.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteAction}>Confirmar</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDeleteAction}>Confirmar Exclusão</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Converter Lead em Cliente</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Como você deseja cadastrar <span className="font-medium">{convertingCustomer?.name}</span>?
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+                <Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('one_time')}>
+                    <Users className="h-6 w-6" />
+                    <span>Cliente Avulso</span>
+                </Button>
+                <Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('active_contract')}>
+                    <File className="h-6 w-6" />
+                    <span>Contrato Ativo</span>
+                </Button>
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
     </>
   );
 }
-
-    

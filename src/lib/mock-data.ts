@@ -1,7 +1,4 @@
-
-
 import type { ServiceOrder, Customer, Product, ServiceOrderItem } from './types';
-
 
 export const initialCustomers: Customer[] = [
   {
@@ -46,6 +43,19 @@ export const initialCustomers: Customer[] = [
     type: "one_time",
   },
   {
+    id: "cust_lead_1",
+    name: "Futuro Cliente Tech",
+    contactName: "Roberto Neves",
+    email: "roberto@prospeccao.com",
+    telefone: "(11) 91111-2222",
+    status: "lead",
+    responsible: "Admin",
+    potential: "medium",
+    lastContact: "2024-08-01T00:00:00.000Z",
+    createdAt: "2024-08-01T00:00:00.000Z",
+    type: "lead",
+  },
+  {
     id: "cust_4",
     name: "ConstruBem Materiais",
     nomeFantasia: "ConstruBem",
@@ -59,21 +69,7 @@ export const initialCustomers: Customer[] = [
     createdAt: "2024-07-23T00:00:00.000Z",
     type: "one_time",
   },
-  {
-    id: "cust_5",
-    name: "AgroForte Distribuidora",
-    contactName: "Roberto Nunes",
-    email: "agroforte@distribuidora.com",
-    telefone: "(62) 98765-9999",
-    status: "active",
-    responsible: "Carlos Pereira",
-    potential: "medium",
-    lastContact: "2024-07-18T00:00:00.000Z",
-    createdAt: "2024-06-15T00:00:00.000Z",
-    type: "active_contract",
-  },
 ];
-
 
 export const initialProducts: Product[] = [
   { id: 'prod_1', name: 'Desenvolvimento de Website Responsivo', price: 5000, priceHistory: [5000, 4800, 5200] },
@@ -84,35 +80,34 @@ export const initialProducts: Product[] = [
   { id: 'prod_6', name: 'Treinamento de Equipe (Online)', price: 800, priceHistory: [800] },
 ];
 
-
 export const initialServiceOrders: ServiceOrder[] = [
     {
         id: 'os_1',
         number: '20240001',
         openingDate: new Date().toISOString(),
         clientId: 'cust_1',
-        technicianId: 'user_1', // Assuming user_1 is a technician
+        technicianId: 'user_1',
         status: 'Aberta',
         problemDescription: 'Computador não liga, faz barulho estranho ao tentar iniciar.',
-        deliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
+        deliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         items: [],
     },
     {
         id: 'os_2',
         number: '20240002',
-        openingDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+        openingDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         clientId: 'cust_2',
         technicianId: 'user_1',
         status: 'Em andamento',
         problemDescription: 'Impressora fiscal não está imprimindo as notas corretamente.',
         technicalDiagnosis: 'Necessária troca da cabeça de impressão e limpeza geral.',
-        deliveryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day from now
+        deliveryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         items: [],
     },
     {
         id: 'os_3',
         number: '20240003',
-        openingDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+        openingDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
         clientId: 'cust_4',
         technicianId: 'user_1',
         status: 'Finalizada',
@@ -120,6 +115,6 @@ export const initialServiceOrders: ServiceOrder[] = [
         technicalDiagnosis: 'Cabo de rede desconectado no servidor.',
         executedServices: 'Reconexão do cabo de rede e teste de comunicação.',
         items: [{ name: 'Visita Técnica Simples', quantity: 1, price: 50.00 }],
-        deliveryDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
+        deliveryDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
     }
 ];

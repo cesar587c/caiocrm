@@ -1,5 +1,3 @@
-
-
 export type CompanyProfile = {
   name: string;
   email: string;
@@ -69,6 +67,9 @@ export type ServiceOrder = {
     history?: ServiceOrderHistoryEntry[];
 };
 
+export type CustomerStatus = "active" | "inactive" | "new" | "lead" | "discarded";
+export type CustomerType = "active_contract" | "one_time" | "lead";
+
 export type Customer = {
     id: string;
     name: string;
@@ -76,12 +77,12 @@ export type Customer = {
     contactName?: string;
     email: string;
     telefone?: string;
-    status: "active" | "inactive" | "new";
+    status: CustomerStatus;
     responsible: string;
     potential: "high" | "medium" | "low";
     lastContact: string;
     createdAt: string;
-    type: "active_contract" | "one_time";
+    type: CustomerType;
 };
 
 // Estrutura do produto com histórico de preços
