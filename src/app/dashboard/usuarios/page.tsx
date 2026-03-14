@@ -48,11 +48,13 @@ import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle } from "lucide-react"
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const userFormSchema = z.object({
   name: z.string().min(2, 'O nome de usuário deve ter pelo menos 2 caracteres.'),
   email: z.string().email('E-mail inválido.').or(z.literal('')),
   whatsapp: z.string().optional(),
+  role: z.enum(['admin', 'technician', 'finance', 'service']),
   sectorIds: z.array(z.string()).min(1, 'Selecione pelo menos um setor.'),
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
@@ -64,8 +66,15 @@ const userFormSchema = z.object({
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
+const roleMap: Record<string, string> = {
+    admin: 'Administrador',
+    technician: 'Técnico',
+    finance: 'Financeiro',
+    service: 'Atendimento',
+};
+
 export default function UsuariosPage() {
-  const { users, sectors, addUser, updateUser, deleteUser } = useSettings();
+  const { users, sectors, addUser, updateUser, deleteUser, currentUser } = useSettings();
   const { toast } = useToast();
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -77,7 +86,7 @@ export default function UsuariosPage() {
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
-    defaultValues: { name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' },
+    defaultValues: { name: '', email: '', whatsapp: '', role: 'technician', sectorIds: [], password: '', confirmPassword: '' },
   });
   
   useEffect(() => {
@@ -86,12 +95,13 @@ export default function UsuariosPage() {
             name: selectedUser.name,
             email: selectedUser.email || '',
             whatsapp: selectedUser.whatsapp || '',
+            role: selectedUser.role,
             sectorIds: selectedUser.sectorIds || [],
             password: '',
             confirmPassword: '',
         });
     } else {
-        form.reset({ name: '', email: '', whatsapp: '', sectorIds: [], password: '', confirmPassword: '' });
+        form.reset({ name: '', email: '', whatsapp: '', role: 'technician', sectorIds: [], password: '', confirmPassword: '' });
     }
      setShowPasswords({ password: false, confirmPassword: false });
   }, [selectedUser, form]);
@@ -110,6 +120,10 @@ export default function UsuariosPage() {
   };
 
   const handleDelete = (user: User) => {
+    if (user.id === currentUser?.id) {
+        toast({ variant: 'destructive', title: 'Ação Bloqueada', description: 'Você não pode excluir seu próprio usuário.' });
+        return;
+    }
     setDeletingUser(user);
   };
   
@@ -180,7 +194,7 @@ export default function UsuariosPage() {
                         <TableHeader>
                             <TableRow>
                             <TableHead>Nome</TableHead>
-                            <TableHead>E-mail</TableHead>
+                            <TableHead>Cargo / Nível</TableHead>
                             <TableHead>Setores</TableHead>
                             <TableHead className="text-right w-[50px]"></TableHead>
                             </TableRow>
@@ -193,18 +207,27 @@ export default function UsuariosPage() {
                                     onClick={() => handleSelectUser(user)}
                                     className={cn("cursor-pointer", selectedUser?.id === user.id && 'bg-muted/50')}
                                 >
-                                <TableCell className="font-medium">{user.name}</TableCell>
-                                <TableCell>{user.email || <span className="text-muted-foreground">N/A</span>}</TableCell>
+                                <TableCell className="font-medium">
+                                    <div className="flex flex-col">
+                                        <span>{user.name}</span>
+                                        <span className="text-xs text-muted-foreground">{user.email || 'N/A'}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                                        {roleMap[user.role]}
+                                    </Badge>
+                                </TableCell>
                                 <TableCell>
                                     <div className="flex flex-wrap gap-1">
                                     {user.sectorIds.length > 0 ? (
                                         user.sectorIds.slice(0, 2).map(id => (
-                                            <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
+                                            <Badge key={id} variant="outline" className="text-[10px] h-4">{sectorMap.get(id) || 'N/A'}</Badge>
                                         ))
                                     ) : (
                                         <span className="text-muted-foreground text-xs">Nenhum setor</span>
                                     )}
-                                    {user.sectorIds.length > 2 && <Badge variant="outline">+{user.sectorIds.length - 2}</Badge>}
+                                    {user.sectorIds.length > 2 && <Badge variant="outline" className="text-[10px] h-4">+{user.sectorIds.length - 2}</Badge>}
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-right">
@@ -286,6 +309,29 @@ export default function UsuariosPage() {
                                      )}
                                      />
                                      <FormField
+                                        control={form.control}
+                                        name="role"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Cargo / Nível de Acesso</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecione o nível" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="admin">Administrador (Total)</SelectItem>
+                                                        <SelectItem value="technician">Técnico</SelectItem>
+                                                        <SelectItem value="finance">Financeiro</SelectItem>
+                                                        <SelectItem value="service">Atendimento</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                     />
+                                     <FormField
                                      control={form.control}
                                      name="password"
                                      render={({ field }) => (
@@ -348,7 +394,7 @@ export default function UsuariosPage() {
                                      name="sectorIds"
                                      render={({ field }) => (
                                          <FormItem>
-                                         <FormLabel>Setores</FormLabel>
+                                         <FormLabel>Setores Associados</FormLabel>
                                          <DropdownMenu>
                                              <DropdownMenuTrigger asChild>
                                                  <FormControl>
@@ -396,7 +442,7 @@ export default function UsuariosPage() {
                                 </div>
                              </CardContent>
                             <CardFooter>
-                                <Button type="submit" className="w-full">Salvar</Button>
+                                <Button type="submit" className="w-full">Salvar Alterações</Button>
                             </CardFooter>
                          </form>
                      </Form>

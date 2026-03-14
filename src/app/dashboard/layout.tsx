@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { AppSidebar } from "@/components/layout/sidebar";
 import {
@@ -15,15 +14,30 @@ import {
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { TaskNotificationPopup } from "@/components/features/TaskNotificationPopup";
 
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+    admin: ['/dashboard', '/dashboard/clientes', '/dashboard/funil-vendas', '/dashboard/propostas', '/dashboard/agenda', '/dashboard/chamados', '/dashboard/relatorios', '/dashboard/configuracoes', '/dashboard/usuarios'],
+    technician: ['/dashboard', '/dashboard/clientes', '/dashboard/agenda', '/dashboard/chamados'],
+    finance: ['/dashboard', '/dashboard/clientes', '/dashboard/funil-vendas', '/dashboard/propostas', '/dashboard/relatorios'],
+    service: ['/dashboard', '/dashboard/clientes', '/dashboard/agenda', '/dashboard/chamados'],
+};
+
 const ProtectedContent = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoaded } = useSettings();
+  const { isAuthenticated, isLoaded, currentUser } = useSettings();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (isLoaded && !isAuthenticated) {
       router.replace('/login');
+    } else if (isLoaded && isAuthenticated && currentUser) {
+        const allowedPaths = ROLE_PERMISSIONS[currentUser.role] || ['/dashboard'];
+        const isAllowed = allowedPaths.some(path => pathname === path || pathname.startsWith(`${path}/`));
+        
+        if (!isAllowed) {
+            router.replace('/dashboard');
+        }
     }
-  }, [isAuthenticated, isLoaded, router]);
+  }, [isAuthenticated, isLoaded, router, currentUser, pathname]);
 
   const content = useMemo(() => {
     if (!isLoaded || !isAuthenticated) {

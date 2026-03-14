@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo } from "react";
@@ -52,15 +51,15 @@ import { Button } from "../ui/button";
 import { useSettings } from "@/contexts/SettingsContext";
 
 const MENU_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/clientes", label: "Clientes", icon: Users },
-  { href: "/dashboard/funil-vendas", label: "Funil de Vendas", icon: Filter },
-  { href: "/dashboard/propostas", label: "Propostas", icon: FileText },
-  { href: "/dashboard/agenda", label: "Agenda", icon: Calendar },
-  { href: "/dashboard/chamados", label: "Ordens de Serviço", icon: BookUser },
-  { href: "/dashboard/relatorios", label: "Relatórios", icon: LineChart },
-  { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
-  { href: "/dashboard/usuarios", label: "Usuários", icon: UserCog },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['admin', 'technician', 'finance', 'service'] },
+  { href: "/dashboard/clientes", label: "Clientes", icon: Users, roles: ['admin', 'technician', 'finance', 'service'] },
+  { href: "/dashboard/funil-vendas", label: "Funil de Vendas", icon: Filter, roles: ['admin', 'finance'] },
+  { href: "/dashboard/propostas", label: "Propostas", icon: FileText, roles: ['admin', 'finance'] },
+  { href: "/dashboard/agenda", label: "Agenda", icon: Calendar, roles: ['admin', 'technician', 'service'] },
+  { href: "/dashboard/chamados", label: "Ordens de Serviço", icon: BookUser, roles: ['admin', 'technician', 'service'] },
+  { href: "/dashboard/relatorios", label: "Relatórios", icon: LineChart, roles: ['admin', 'finance'] },
+  { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings, roles: ['admin'] },
+  { href: "/dashboard/usuarios", label: "Usuários", icon: UserCog, roles: ['admin'] },
 ];
 
 export function AppSidebar() {
@@ -74,20 +73,24 @@ export function AppSidebar() {
     router.push('/login');
   }, [logout, router]);
 
-  const memoizedMenuItems = useMemo(() => MENU_ITEMS.map((item) => (
-    <SidebarMenuItem key={item.href}>
-      <Link href={item.href} prefetch={true}>
-        <SidebarMenuButton
-          size={iconSize === 'large' ? 'lg' : 'default'}
-          isActive={pathname === item.href}
-          tooltip={item.label}
-        >
-          <item.icon />
-          <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
-        </SidebarMenuButton>
-      </Link>
-    </SidebarMenuItem>
-  )), [pathname, iconSize]);
+  const memoizedMenuItems = useMemo(() => {
+    return MENU_ITEMS
+        .filter(item => !item.roles || (currentUser && item.roles.includes(currentUser.role)))
+        .map((item) => (
+            <SidebarMenuItem key={item.href}>
+                <Link href={item.href} prefetch={true}>
+                    <SidebarMenuButton
+                        size={iconSize === 'large' ? 'lg' : 'default'}
+                        isActive={pathname === item.href}
+                        tooltip={item.label}
+                    >
+                        <item.icon />
+                        <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+        ));
+  }, [pathname, iconSize, currentUser]);
 
   return (
     <>
@@ -138,7 +141,9 @@ export function AppSidebar() {
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{currentUser?.name}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {currentUser?.email}
+                    {currentUser?.role === 'admin' ? 'Administrador' : 
+                     currentUser?.role === 'technician' ? 'Técnico' : 
+                     currentUser?.role === 'finance' ? 'Financeiro' : 'Atendimento'}
                 </p>
               </div>
             </DropdownMenuLabel>
