@@ -6,65 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Phone, Users } from "lucide-react";
 import { cn } from '@/lib/utils';
 
-// Mock data based on existing customers, adapted for the sales funnel
-const initialOpportunities = [
-  {
-    id: "opp_1",
-    name: "Tech Solutions Ltda.",
-    stage: "negotiation", // Etapa do funil
-    potential: "high",
-    value: 15000,
-    responsible: "Ana Silva",
-    telefone: "(11) 98765-4321",
-  },
-  {
-    id: "opp_2",
-    name: "Inova Corp S.A.",
-    stage: "proposal",
-    potential: "medium",
-    value: 8000,
-    responsible: "Carlos Pereira",
-    telefone: "(21) 91234-5678",
-  },
-  {
-    id: "opp_3",
-    name: "Mercado Central",
-    stage: "lost", // Exemplo de perdido
-    potential: "low",
-    value: 3000,
-    responsible: "Ana Silva",
-    telefone: "",
-  },
-  {
-    id: "opp_4",
-    name: "ConstruBem Materiais",
-    stage: "lead",
-    potential: "high",
-    value: 25000,
-    responsible: "Juliana Costa",
-    telefone: "(31) 99999-8888",
-  },
-  {
-    id: "opp_5",
-    name: "AgroForte Distribuidora",
-    stage: "won", // Exemplo de ganho
-    potential: "medium",
-    value: 12000,
-    responsible: "Carlos Pereira",
-    telefone: "",
-  },
-    {
-    id: "opp_6",
-    name: "New Prospect Inc.",
-    stage: "opportunity",
-    potential: "high",
-    value: 50000,
-    responsible: "Juliana Costa",
-    telefone: "(41) 98877-6655",
-  },
-];
+// Mock data cleared for fresh start
+const initialOpportunities: any[] = [];
 
-type Opportunity = typeof initialOpportunities[0];
+type Opportunity = any;
 
 const stages = [
   { id: "lead", title: "Lead", headerClass: "bg-chart-5" }, // Yellow/Orange
