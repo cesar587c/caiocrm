@@ -1,6 +1,7 @@
 
 "use client";
 
+import React, { useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -50,7 +51,7 @@ import {
 import { Button } from "../ui/button";
 import { useSettings } from "@/contexts/SettingsContext";
 
-const menuItems = [
+const MENU_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/clientes", label: "Clientes", icon: Users },
   { href: "/dashboard/funil-vendas", label: "Funil de Vendas", icon: Filter },
@@ -68,10 +69,25 @@ export function AppSidebar() {
   const { iconSize, setIconSize } = useSidebar();
   const { currentUser, logout } = useSettings();
 
-  const handleLogout = () => {
+  const handleLogout = React.useCallback(() => {
     logout();
     router.push('/login');
-  }
+  }, [logout, router]);
+
+  const memoizedMenuItems = useMemo(() => MENU_ITEMS.map((item) => (
+    <SidebarMenuItem key={item.href}>
+      <Link href={item.href} prefetch={true}>
+        <SidebarMenuButton
+          size={iconSize === 'large' ? 'lg' : 'default'}
+          isActive={pathname === item.href}
+          tooltip={item.label}
+        >
+          <item.icon />
+          <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
+        </SidebarMenuButton>
+      </Link>
+    </SidebarMenuItem>
+  )), [pathname, iconSize]);
 
   return (
     <>
@@ -83,20 +99,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <Link href={item.href}>
-                <SidebarMenuButton
-                  size={iconSize === 'large' ? 'lg' : 'default'}
-                  isActive={pathname === item.href}
-                  tooltip={item.label}
-                >
-                  <item.icon />
-                  <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-          ))}
+          {memoizedMenuItems}
         </SidebarMenu>
       </SidebarContent>
       <SidebarSeparator />
@@ -118,12 +121,12 @@ export function AppSidebar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-auto w-full justify-start gap-2 p-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[state=collapsed]:justify-center">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={`https://picsum.photos/seed/${currentUser?.id}/40/40`} />
-                <AvatarFallback>{currentUser?.name?.charAt(0)}</AvatarFallback>
+                <AvatarImage src={`https://picsum.photos/seed/${currentUser?.id || 'default'}/40/40`} alt={currentUser?.name || 'User'} />
+                <AvatarFallback>{currentUser?.name?.charAt(0) || 'U'}</AvatarFallback>
               </Avatar>
               <div className="flex-1 text-left group-data-[state=collapsed]:hidden">
-                <p className="text-sm font-medium">{currentUser?.name || 'Usuário'}</p>
-                <p className="text-xs text-sidebar-foreground/70">
+                <p className="text-sm font-medium truncate">{currentUser?.name || 'Usuário'}</p>
+                <p className="text-xs text-sidebar-foreground/70 truncate">
                   {currentUser?.email || 'N/A'}
                 </p>
               </div>

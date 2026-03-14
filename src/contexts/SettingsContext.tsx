@@ -1,8 +1,8 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { format } from 'date-fns';
-import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer, Product, ServiceOrderItem } from '@/lib/types';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer, Product } from '@/lib/types';
 import { companyProfile as initialCompanyProfileData } from '@/lib/company-profile';
 import { initialServiceOrders, initialCustomers, initialProducts } from '@/lib/mock-data';
 
@@ -56,7 +56,7 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-const generateId = (prefix: string) => `${prefix}_${new Date().getTime()}`;
+const generateId = (prefix: string) => `${prefix}_${Date.now()}`;
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(initialCompanyProfileData);
@@ -68,6 +68,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  
   const isAuthenticated = !!currentUser;
 
   const handleSetCurrentUser = useCallback((user: User | null) => {
@@ -83,23 +84,20 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const savedProfile = localStorage.getItem('companyProfile');
       if (savedProfile) {
-        const parsedProfile = JSON.parse(savedProfile);
-        setCompanyProfile({ ...initialCompanyProfileData, ...parsedProfile });
+        setCompanyProfile({ ...initialCompanyProfileData, ...JSON.parse(savedProfile) });
       }
       
-      let finalSectors = initialSectors;
       const savedSectors = localStorage.getItem('sectors');
       if (savedSectors) {
-        const parsedSectors = JSON.parse(savedSectors);
-        if (parsedSectors.length > 0) finalSectors = parsedSectors;
+        const parsed = JSON.parse(savedSectors);
+        if (parsed.length > 0) setSectors(parsed);
       }
-      setSectors(finalSectors);
       
-      let finalUsers = initialUsers;
       const savedUsers = localStorage.getItem('users');
+      let finalUsers = initialUsers;
       if (savedUsers) {
-        const parsedUsers = JSON.parse(savedUsers);
-        if (parsedUsers.length > 0) finalUsers = parsedUsers;
+        const parsed = JSON.parse(savedUsers);
+        if (parsed.length > 0) finalUsers = parsed;
       }
       setUsers(finalUsers);
       
@@ -117,195 +115,186 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
       const savedCurrentUserId = localStorage.getItem('currentUserId');
       if (savedCurrentUserId) {
-        const foundUser = finalUsers.find(u => u.id === JSON.parse(savedCurrentUserId));
+        const id = JSON.parse(savedCurrentUserId);
+        const foundUser = finalUsers.find(u => u.id === id);
         setCurrentUser(foundUser || null);
       }
     } catch (error) {
-      console.error("Failed to load settings from localStorage", error);
+      console.error("Failed to load settings", error);
     } finally {
       setIsLoaded(true);
     }
   }, []);
   
-  const saveDataToLocalStorage = <T,>(key: string, data: T) => {
+  const saveData = useCallback((key: string, data: any) => {
       try {
           localStorage.setItem(key, JSON.stringify(data));
       } catch (error) {
-          console.error(`Failed to save ${key} to localStorage`, error);
+          console.error(`Failed to save ${key}`, error);
       }
-  }
+  }, []);
 
-  const clearAllData = () => {
-    // Keep company profile but clear everything else
+  const clearAllData = useCallback(() => {
     setAppointments([]);
     setServiceOrders([]);
     setCustomers([]);
     setProducts([]);
-    
     localStorage.removeItem('appointments');
     localStorage.removeItem('serviceOrders');
     localStorage.removeItem('customers');
     localStorage.removeItem('products');
-    
-    window.location.reload(); // Force reload to clear all state
-  };
+    window.location.reload();
+  }, []);
 
-  const updateUser = (user: User) => {
-      handleSetUsers(users.map(u => u.id === user.id ? user : u));
-  }
-
-  const login = async (name: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (name: string, password: string): Promise<boolean> => {
     const targetUser = users.find(u => u.name.toLowerCase() === name.toLowerCase());
-
-    if (!targetUser) {
-        return false;
-    }
-
+    if (!targetUser) return false;
     if (targetUser.name.toLowerCase() === 'admin' && password === 'AdmPwd20') {
         handleSetCurrentUser(targetUser);
         return true;
     }
-
     if (targetUser.password === password) {
       handleSetCurrentUser(targetUser);
       return true;
     }
-
     return false;
-  };
+  }, [users, handleSetCurrentUser]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     handleSetCurrentUser(null);
-  };
+  }, [handleSetCurrentUser]);
 
-  const handleSetProfile = (profile: CompanyProfile) => {
+  const handleSetProfile = useCallback((profile: CompanyProfile) => {
     setCompanyProfile(profile);
-    saveDataToLocalStorage('companyProfile', profile);
-  };
+    saveData('companyProfile', profile);
+  }, [saveData]);
   
-  const handleSetSectors = (newSectors: Sector[]) => {
+  const handleSetSectors = useCallback((newSectors: Sector[]) => {
       setSectors(newSectors);
-      saveDataToLocalStorage('sectors', newSectors);
-  };
+      saveData('sectors', newSectors);
+  }, [saveData]);
   
-  const handleSetUsers = (newUsers: User[]) => {
+  const handleSetUsers = useCallback((newUsers: User[]) => {
       setUsers(newUsers);
-      saveDataToLocalStorage('users', newUsers);
+      saveData('users', newUsers);
       if (currentUser && !newUsers.find(u => u.id === currentUser.id)) {
         handleSetCurrentUser(newUsers[0] || null);
       }
-  }
+  }, [currentUser, handleSetCurrentUser, saveData]);
 
-  const handleSetAppointments = (newAppointments: Appointment[]) => {
-    setAppointments(newAppointments);
-    saveDataToLocalStorage('appointments', newAppointments);
-  }
+  const handleSetAppointments = useCallback((data: Appointment[]) => {
+    setAppointments(data);
+    saveData('appointments', data);
+  }, [saveData]);
 
-  const handleSetServiceOrders = (newOrders: ServiceOrder[]) => {
-    setServiceOrders(newOrders);
-    saveDataToLocalStorage('serviceOrders', newOrders);
-  };
+  const handleSetServiceOrders = useCallback((data: ServiceOrder[]) => {
+    setServiceOrders(data);
+    saveData('serviceOrders', data);
+  }, [saveData]);
 
-  const handleSetCustomers = (newCustomers: Customer[]) => {
-    setCustomers(newCustomers);
-    saveDataToLocalStorage('customers', newCustomers);
-  };
+  const handleSetCustomers = useCallback((data: Customer[]) => {
+    setCustomers(data);
+    saveData('customers', data);
+  }, [saveData]);
   
-  const handleSetProducts = (newProducts: Product[]) => {
-    setProducts(newProducts);
-    saveDataToLocalStorage('products', newProducts);
-  }
+  const handleSetProducts = useCallback((data: Product[]) => {
+    setProducts(data);
+    saveData('products', data);
+  }, [saveData]);
 
-  const addSector = (name: string) => {
+  const addSector = useCallback((name: string) => {
       const newSector: Sector = { id: generateId('sec'), name };
       handleSetSectors([...sectors, newSector]);
-  };
+  }, [sectors, handleSetSectors]);
 
-  const deleteSector = (id: string) => {
+  const deleteSector = useCallback((id: string) => {
       const updatedUsers = users.map(u => ({
           ...u,
           sectorIds: u.sectorIds.filter(sectorId => sectorId !== id),
       }));
       handleSetUsers(updatedUsers);
       handleSetSectors(sectors.filter(s => s.id !== id));
-  };
+  }, [users, sectors, handleSetSectors, handleSetUsers]);
 
-  const addUser = (userData: Omit<User, 'id'>) => {
+  const addUser = useCallback((userData: Omit<User, 'id'>) => {
       const newUser: User = { id: generateId('user'), role: 'technician', ...userData };
       handleSetUsers([...users, newUser]);
-  }
+  }, [users, handleSetUsers]);
 
-  const deleteUser = (id: string) => {
+  const updateUser = useCallback((user: User) => {
+      handleSetUsers(users.map(u => u.id === user.id ? user : u));
+  }, [users, handleSetUsers]);
+
+  const deleteUser = useCallback((id: string) => {
       handleSetUsers(users.filter(u => u.id !== id));
-  }
+  }, [users, handleSetUsers]);
 
-  const addAppointment = (appointmentData: Omit<Appointment, 'id'>) => {
-      const newAppointment: Appointment = { id: generateId('app'), ...appointmentData };
-      handleSetAppointments([...appointments, newAppointment]);
-  };
+  const addAppointment = useCallback((data: Omit<Appointment, 'id'>) => {
+      const newApp: Appointment = { id: generateId('app'), ...data };
+      handleSetAppointments([...appointments, newApp]);
+  }, [appointments, handleSetAppointments]);
 
-  const updateAppointment = (updatedAppointment: Appointment) => {
-      handleSetAppointments(appointments.map(app => app.id === updatedAppointment.id ? updatedAppointment : app));
-  };
+  const updateAppointment = useCallback((updated: Appointment) => {
+      handleSetAppointments(appointments.map(app => app.id === updated.id ? updated : app));
+  }, [appointments, handleSetAppointments]);
   
-  const deleteAppointment = (id: string) => {
+  const deleteAppointment = useCallback((id: string) => {
       handleSetAppointments(appointments.filter(app => app.id !== id));
-  };
+  }, [appointments, handleSetAppointments]);
 
-  const addServiceOrder = (orderData: Omit<ServiceOrder, 'id' | 'number' | 'openingDate'>) => {
-    const lastNumber = serviceOrders.reduce((max, o) => Math.max(max, parseInt(o.number.slice(-4), 10)), 0);
-    const newNumber = `${new Date().getFullYear()}${(lastNumber + 1).toString().padStart(4, '0')}`;
+  const addServiceOrder = useCallback((data: Omit<ServiceOrder, 'id' | 'number' | 'openingDate'>) => {
+    const lastNum = serviceOrders.reduce((max, o) => Math.max(max, parseInt(o.number.slice(-4), 10)), 0);
+    const newNum = `${new Date().getFullYear()}${(lastNum + 1).toString().padStart(4, '0')}`;
     const newOrder: ServiceOrder = {
         id: generateId('os'),
-        number: newNumber,
+        number: newNum,
         openingDate: new Date().toISOString(),
-        ...orderData
+        ...data
     };
     handleSetServiceOrders([...serviceOrders, newOrder]);
-  };
+  }, [serviceOrders, handleSetServiceOrders]);
 
-  const updateServiceOrder = (updatedOrder: ServiceOrder) => {
-    handleSetServiceOrders(serviceOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-  };
+  const updateServiceOrder = useCallback((updated: ServiceOrder) => {
+    handleSetServiceOrders(serviceOrders.map(o => o.id === updated.id ? updated : o));
+  }, [serviceOrders, handleSetServiceOrders]);
 
-  const deleteServiceOrder = (id: string) => {
+  const deleteServiceOrder = useCallback((id: string) => {
     handleSetServiceOrders(serviceOrders.filter(o => o.id !== id));
-  };
+  }, [serviceOrders, handleSetServiceOrders]);
   
-  const addCustomer = (customerData: Omit<Customer, 'id'>) => {
-      const newCustomer: Customer = { id: generateId('cust'), ...customerData };
-      handleSetCustomers([...customers, newCustomer]);
-  };
+  const addCustomer = useCallback((data: Omit<Customer, 'id'>) => {
+      const newCust: Customer = { id: generateId('cust'), ...data };
+      handleSetCustomers([...customers, newCust]);
+  }, [customers, handleSetCustomers]);
 
-  const updateCustomer = (updatedCustomer: Customer) => {
-      handleSetCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
-  };
+  const updateCustomer = useCallback((updated: Customer) => {
+      handleSetCustomers(customers.map(c => c.id === updated.id ? updated : c));
+  }, [customers, handleSetCustomers]);
 
-  const deleteCustomer = (id: string) => {
+  const deleteCustomer = useCallback((id: string) => {
       handleSetCustomers(customers.filter(c => c.id !== id));
-  };
+  }, [customers, handleSetCustomers]);
   
-  const addProduct = (productData: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => {
-    const newProduct: Product = { 
+  const addProduct = useCallback((data: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => {
+    const newProd: Product = { 
         id: generateId('prod'), 
-        name: productData.name,
-        price: productData.price,
-        priceHistory: [productData.price]
+        name: data.name,
+        price: data.price,
+        priceHistory: [data.price]
     };
-    handleSetProducts([newProduct, ...products]);
-    return newProduct;
-  };
+    handleSetProducts([newProd, ...products]);
+    return newProd;
+  }, [products, handleSetProducts]);
   
-  const updateProduct = (updatedProduct: Product) => {
-    handleSetProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-  };
+  const updateProduct = useCallback((updated: Product) => {
+    handleSetProducts(products.map(p => p.id === updated.id ? updated : p));
+  }, [products, handleSetProducts]);
 
-  const deleteProduct = (id: string) => {
+  const deleteProduct = useCallback((id: string) => {
     handleSetProducts(products.filter(p => p.id !== id));
-  };
+  }, [products, handleSetProducts]);
 
-  return (
-    <SettingsContext.Provider value={{ 
+  const contextValue = useMemo(() => ({ 
         companyProfile, setCompanyProfile: handleSetProfile,
         sectors, addSector, deleteSector,
         users, addUser, updateUser, deleteUser,
@@ -319,7 +308,16 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         clearAllData,
         isAuthenticated,
         isLoaded 
-    }}>
+    }), [
+      companyProfile, handleSetProfile, sectors, addSector, deleteSector, users, addUser, updateUser, deleteUser, 
+      appointments, addAppointment, updateAppointment, deleteAppointment, serviceOrders, addServiceOrder, 
+      updateServiceOrder, deleteServiceOrder, customers, addCustomer, updateCustomer, deleteCustomer, 
+      products, addProduct, updateProduct, deleteProduct, currentUser, login, logout, clearAllData, 
+      isAuthenticated, isLoaded
+    ]);
+
+  return (
+    <SettingsContext.Provider value={contextValue}>
       {children}
     </SettingsContext.Provider>
   );
