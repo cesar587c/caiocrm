@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,7 +19,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup, Lock } from 'lucide-react';
+import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup, Lock, ShieldCheck, Users } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -36,6 +37,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MENU_ITEMS } from '@/components/layout/sidebar';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const formSchema = z.object({
   name: z.string().min(1, 'O nome da empresa é obrigatório.'),
@@ -66,7 +69,8 @@ export default function ConfiguracoesPage() {
     clearAllData, 
     isLoaded, 
     rolePermissions, 
-    updateRolePermissions 
+    updateRolePermissions,
+    users 
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -86,6 +90,14 @@ export default function ConfiguracoesPage() {
         form.reset(companyProfile);
     }
   }, [isLoaded, companyProfile, form]);
+
+  const usersByRole = useMemo(() => {
+    return users.reduce((acc, user) => {
+        if (!acc[user.role]) acc[user.role] = [];
+        acc[user.role].push(user);
+        return acc;
+    }, {} as Record<UserRole, typeof users>);
+  }, [users]);
 
   function onSubmit(values: FormValues) {
     setCompanyProfile(values);
@@ -157,7 +169,7 @@ export default function ConfiguracoesPage() {
         <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="company">Dados da Empresa</TabsTrigger>
           <TabsTrigger value="sectors">Setores e Equipe</TabsTrigger>
-          <TabsTrigger value="permissions">Permissões</TabsTrigger>
+          <TabsTrigger value="permissions">Controle de Acesso</TabsTrigger>
           <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
         
@@ -280,7 +292,7 @@ export default function ConfiguracoesPage() {
           <Card>
             <CardHeader>
               <CardTitle>Gerenciar Setores</CardTitle>
-              <CardDescription>Defina os departamentos da sua empresa.</CardDescription>
+              <CardDescription>Defina os departamentos da sua empresa para organizar a equipe.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex gap-2">
@@ -313,7 +325,7 @@ export default function ConfiguracoesPage() {
                 <span>Gestão de Permissões por Cargo</span>
               </CardTitle>
               <CardDescription>
-                Defina quais telas cada cargo/departamento tem autorização para acessar.
+                Defina quais módulos cada cargo pode acessar. As alterações são aplicadas a todos os usuários vinculados.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -321,10 +333,33 @@ export default function ConfiguracoesPage() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b">
-                      <th className="p-4 text-left font-semibold text-sm">Tela / Módulo</th>
+                      <th className="p-4 text-left font-semibold text-sm">Módulo / Tela</th>
                       {roles.map(role => (
-                        <th key={role.id} className="p-4 text-center font-semibold text-sm">
-                          {role.label}
+                        <th key={role.id} className="p-4 text-center font-semibold text-sm min-w-[120px]">
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center gap-1.5">
+                                {role.id === 'admin' && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
+                                <span>{role.label}</span>
+                            </div>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="outline" className="text-[10px] cursor-help">
+                                            {usersByRole[role.id]?.length || 0} usuários
+                                        </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <div className="text-xs space-y-1">
+                                            <p className="font-semibold border-b pb-1 mb-1">Pessoas vinculadas:</p>
+                                            {(usersByRole[role.id] || []).map(u => (
+                                                <p key={u.id}>{u.name}</p>
+                                            ))}
+                                            {(usersByRole[role.id]?.length || 0) === 0 && <p className="italic">Ninguém vinculado</p>}
+                                        </div>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                          </div>
                         </th>
                       ))}
                     </tr>
@@ -346,6 +381,7 @@ export default function ConfiguracoesPage() {
                                 checked={isChecked}
                                 disabled={isDisabled}
                                 onCheckedChange={() => handleTogglePermission(role.id, item.href)}
+                                className={cn(role.id === 'admin' && "data-[state=checked]:bg-primary")}
                               />
                             </td>
                           );
@@ -357,8 +393,9 @@ export default function ConfiguracoesPage() {
               </div>
             </CardContent>
             <CardFooter>
-                <p className="text-xs text-muted-foreground">
-                    * O cargo de Administrador possui acesso obrigatório às Configurações e Usuários para evitar bloqueios permanentes.
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    O cargo de Administrador possui acesso obrigatório às Configurações e Usuários para evitar bloqueios permanentes.
                 </p>
             </CardFooter>
           </Card>
@@ -376,7 +413,7 @@ export default function ConfiguracoesPage() {
               <Alert variant="destructive" className="bg-destructive/5">
                 <AlertTitle>Limpar Base de Dados</AlertTitle>
                 <AlertDescription>
-                  Isso apagará todos os clientes, OS, agendamentos e propostas deste navegador.
+                  Isso apagará todos os clientes, OS, agendamentos e propostas deste navegador. Apenas usuários e permissões serão mantidos.
                 </AlertDescription>
               </Alert>
               <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)}>
@@ -404,7 +441,7 @@ export default function ConfiguracoesPage() {
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Limpeza Total?</AlertDialogTitle>
-            <AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription>
+            <AlertDialogDescription>Essa ação não pode ser desfeita e removerá todos os seus dados operacionais.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -41,10 +42,10 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
   } from "@/components/ui/dropdown-menu";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle } from "lucide-react";
+import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle, ShieldCheck, User as UserIcon } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -176,7 +177,7 @@ export default function UsuariosPage() {
     <>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight font-headline">Usuários e Permissões</h2>
+          <h2 className="text-3xl font-bold tracking-tight font-headline">Usuários e Equipe</h2>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -185,15 +186,15 @@ export default function UsuariosPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                         <UserCog className="h-5 w-5" />
-                        <span>Gerenciamento de Equipe</span>
+                        <span>Gerenciamento de Colaboradores</span>
                         </CardTitle>
-                        <CardDescription>Adicione novos usuários ou clique em um usuário da lista para editar.</CardDescription>
+                        <CardDescription>Gerencie quem acessa o sistema e defina seus níveis de responsabilidade.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead>Nome</TableHead>
+                            <TableHead>Nome / Contato</TableHead>
                             <TableHead>Cargo / Nível</TableHead>
                             <TableHead>Setores</TableHead>
                             <TableHead className="text-right w-[50px]"></TableHead>
@@ -209,12 +210,19 @@ export default function UsuariosPage() {
                                 >
                                 <TableCell className="font-medium">
                                     <div className="flex flex-col">
-                                        <span>{user.name}</span>
+                                        <span className="flex items-center gap-1.5">
+                                            {user.name}
+                                            {user.role === 'admin' && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
+                                        </span>
                                         <span className="text-xs text-muted-foreground">{user.email || 'N/A'}</span>
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                                    <Badge 
+                                        variant={user.role === 'admin' ? 'default' : 'secondary'}
+                                        className={cn(user.role === 'admin' && "bg-primary text-primary-foreground")}
+                                    >
+                                        {user.role === 'admin' && <ShieldCheck className="h-3 w-3 mr-1" />}
                                         {roleMap[user.role]}
                                     </Badge>
                                 </TableCell>
@@ -327,6 +335,9 @@ export default function UsuariosPage() {
                                                         <SelectItem value="service">Atendimento</SelectItem>
                                                     </SelectContent>
                                                 </Select>
+                                                <FormDescription>
+                                                    {field.value === 'admin' ? "Acesso total a todas as configurações e dados." : "Acesso restrito conforme definido nas configurações de permissões."}
+                                                </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}

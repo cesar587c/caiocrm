@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -237,7 +238,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, [users, sectors, handleSetSectors, handleSetUsers]);
 
   const addUser = useCallback((userData: Omit<User, 'id'>) => {
-      const newUser: User = { id: generateId('user'), role: 'technician', ...userData };
+      const newUser: User = { 
+        id: generateId('user'), 
+        ...userData 
+      };
       handleSetUsers([...users, newUser]);
   }, [users, handleSetUsers]);
 
