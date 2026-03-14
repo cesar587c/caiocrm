@@ -39,6 +39,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { MENU_ITEMS } from '@/components/layout/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   name: z.string().min(1, 'O nome da empresa é obrigatório.'),
