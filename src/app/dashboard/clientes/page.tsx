@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -17,9 +17,12 @@ import {
   Trash2,
   UserCheck,
   UserX,
-  ArrowRightLeft
+  Upload,
+  Download,
+  FileSpreadsheet,
+  AlertCircle
 } from "lucide-react";
-import { addDays, format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
@@ -86,6 +89,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 import type { Customer, CustomerStatus, CustomerType } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -93,12 +97,6 @@ const statusMap: Record<string, string> = {
   new: "Novo",
   lead: "Lead",
   discarded: "Descartado",
-};
-
-const potentialMap: Record<string, string> = {
-  high: "Alto",
-  medium: "Médio",
-  low: "Baixo",
 };
 
 const formSchema = z.object({
@@ -121,6 +119,7 @@ export default function ClientesPage() {
   const { customers, addCustomer, updateCustomer, deleteCustomer, currentUser } = useSettings();
   const [isCnpjLoading, setIsCnpjLoading] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
   const [convertingCustomer, setConvertingCustomer] = useState<Customer | null>(null);
@@ -128,6 +127,7 @@ export default function ClientesPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [showInactive, setShowInactive] = useState(false);
   const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
 
@@ -351,6 +351,79 @@ export default function ClientesPage() {
     });
     setDeletingCustomer(null);
   };
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target?.result as string;
+        if (!text) return;
+
+        // Process CSV
+        const lines = text.split(/\r?\n/);
+        if (lines.length < 2) {
+            toast({ variant: 'destructive', title: 'Arquivo Vazio', description: 'O arquivo CSV não possui dados suficientes.' });
+            return;
+        }
+
+        const headers = lines[0].split(/[;,]/).map(h => h.trim().toLowerCase());
+        const importedCustomers: Omit<Customer, 'id'>[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].split(/[;,]/);
+            if (line.length < 1 || !line[0].trim()) continue;
+
+            // Simple column mapping
+            // Column 0: Razao Social, 1: Fantasia, 2: Contato, 3: Email, 4: Telefone, 5: Tipo
+            const razaoSocial = line[0]?.trim() || '';
+            const nomeFantasia = line[1]?.trim() || razaoSocial;
+            const contactName = line[2]?.trim() || '';
+            const email = line[3]?.trim() || '';
+            const telefone = line[4]?.trim() || '';
+            const tipoRaw = line[5]?.trim().toLowerCase() || '';
+
+            let type: CustomerType = 'one_time';
+            let status: CustomerStatus = 'new';
+
+            if (tipoRaw.includes('contrato')) {
+                type = 'active_contract';
+            } else if (tipoRaw.includes('lead')) {
+                type = 'lead';
+                status = 'lead';
+            }
+
+            importedCustomers.push({
+                name: razaoSocial,
+                nomeFantasia,
+                contactName,
+                email,
+                telefone,
+                status,
+                responsible: currentUser?.name || "Importador",
+                potential: "medium",
+                lastContact: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                type,
+            });
+        }
+
+        if (importedCustomers.length > 0) {
+            importedCustomers.forEach(c => addCustomer(c));
+            toast({
+                title: "Importação Concluída!",
+                description: `${importedCustomers.length} registros foram importados com sucesso.`,
+            });
+            setIsImportDialogOpen(false);
+        } else {
+             toast({ variant: 'destructive', title: 'Falha na Importação', description: 'Nenhum dado válido encontrado no arquivo.' });
+        }
+    };
+    reader.readAsText(file);
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
   
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (editingCustomer) {
@@ -427,6 +500,48 @@ export default function ClientesPage() {
             <TabsTrigger value="new">Novos</TabsTrigger>
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
+            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1">
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>Importar CSV</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Importar Clientes via CSV</DialogTitle>
+                  <DialogDescription>
+                    Selecione um arquivo CSV com seus clientes para importar em massa.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <Alert variant="default" className="bg-primary/5 border-primary/20">
+                    <FileSpreadsheet className="h-4 w-4 text-primary" />
+                    <AlertTitle>Formato do Arquivo</AlertTitle>
+                    <AlertDescription className="text-xs">
+                      O arquivo deve conter as colunas: <strong>Razão Social, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
+                      O separador pode ser vírgula (,) ou ponto e vírgula (;).
+                    </AlertDescription>
+                  </Alert>
+                  <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-10 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+                    <p className="text-sm font-medium">Clique para selecionar seu arquivo CSV</p>
+                    <p className="text-xs text-muted-foreground mt-1">Tamanho máximo: 5MB</p>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      accept=".csv" 
+                      onChange={handleImportCSV} 
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setIsImportDialogOpen(false)}>Cancelar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 gap-1">
@@ -739,7 +854,8 @@ export default function ClientesPage() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {displayedCustomers.map((customer) => (
+                    {displayedCustomers.length > 0 ? (
+                        displayedCustomers.map((customer) => (
                         <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
                         <TableCell>
                             <div className="font-medium">{customer.name}</div>
@@ -781,7 +897,18 @@ export default function ClientesPage() {
                             </div>
                         </TableCell>
                         </TableRow>
-                    ))}
+                    ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                                <div className="flex flex-col items-center justify-center">
+                                    <Users className="h-8 w-8 mb-2 opacity-20" />
+                                    <p>Nenhum cliente encontrado.</p>
+                                    <p className="text-xs">Cadastre um novo ou importe via CSV.</p>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    )}
                     </TableBody>
                 </Table>
                 </CardContent>
