@@ -18,7 +18,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2 } from 'lucide-react';
+import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Sector } from '@/lib/types';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
   name: z.string().min(1, 'O nome da empresa é obrigatório.'),
@@ -47,11 +48,12 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function ConfiguracoesPage() {
   const { toast } = useToast();
-  const { companyProfile, setCompanyProfile, sectors, addSector, deleteSector, isLoaded } = useSettings();
+  const { companyProfile, setCompanyProfile, sectors, addSector, deleteSector, clearAllData, isLoaded } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [newSectorName, setNewSectorName] = useState('');
   const [sectorToDelete, setSectorToDelete] = useState<Sector | null>(null);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -117,6 +119,11 @@ export default function ConfiguracoesPage() {
       setSectorToDelete(null);
   };
 
+  const handleResetSystem = () => {
+      clearAllData();
+      toast({ title: 'Sistema Reiniciado', description: 'Todos os dados foram apagados conforme solicitado.' });
+  };
+
 
   if (!isLoaded) {
     return (
@@ -133,9 +140,10 @@ export default function ConfiguracoesPage() {
       </div>
       
       <Tabs defaultValue="company">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-xl grid-cols-3">
           <TabsTrigger value="company">Dados da Empresa</TabsTrigger>
           <TabsTrigger value="sectors">Setores e Equipe</TabsTrigger>
+          <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
         
         <TabsContent value="company">
@@ -341,6 +349,42 @@ export default function ConfiguracoesPage() {
             </CardFooter>
           </Card>
         </TabsContent>
+
+        <TabsContent value="system">
+          <Card className="border-destructive/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <ShieldAlert className="h-5 w-5" />
+                Zona de Perigo
+              </CardTitle>
+              <CardDescription>Operações críticas do sistema. Proceda com cuidado.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Alert variant="destructive" className="bg-destructive/5">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertTitle>Atenção</AlertTitle>
+                <AlertDescription>
+                  A limpeza de dados apagará permanentemente todos os clientes, leads, propostas, agendamentos e ordens de serviço salvos no seu navegador.
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex flex-col gap-4 p-4 border rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-semibold flex items-center gap-2">
+                       <DatabaseBackup className="h-4 w-4" />
+                       Limpar Base de Dados
+                    </h4>
+                    <p className="text-sm text-muted-foreground">Remove todos os registros e reinicia o Local Storage.</p>
+                  </div>
+                  <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)}>
+                    Limpar Tudo
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <AlertDialog open={!!sectorToDelete} onOpenChange={(isOpen) => !isOpen && setSectorToDelete(null)}>
@@ -354,6 +398,24 @@ export default function ConfiguracoesPage() {
             <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteSector}>Confirmar Exclusão</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Confirmar Limpeza Total?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Esta ação **não pode ser desfeita**. Todos os seus dados de clientes, propostas e ordens de serviço serão apagados definitivamente deste navegador.
+                O sistema será reiniciado após a limpeza.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetSystem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Sim, Limpar Todos os Dados
+            </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

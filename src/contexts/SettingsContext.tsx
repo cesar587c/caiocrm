@@ -49,6 +49,7 @@ interface SettingsContextType {
   currentUser: User | null;
   login: (name: string, password: string) => Promise<boolean>;
   logout: () => void;
+  clearAllData: () => void;
   isAuthenticated: boolean;
   isLoaded: boolean;
 }
@@ -97,16 +98,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       let finalUsers = initialUsers;
       const savedUsers = localStorage.getItem('users');
       if (savedUsers) {
-        let parsedUsers = JSON.parse(savedUsers);
-        if (parsedUsers.length > 0) {
-           if (parsedUsers[0].sectorId !== undefined) {
-                parsedUsers = parsedUsers.map((user: any) => ({ ...user, sectorIds: user.sectorId ? [user.sectorId] : [], sectorId: undefined }));
-            }
-            if (!parsedUsers[0].role) {
-                parsedUsers = parsedUsers.map((user: any) => ({ ...user, role: user.name === 'Admin' ? 'admin' : 'technician' }));
-            }
-            finalUsers = parsedUsers;
-        }
+        const parsedUsers = JSON.parse(savedUsers);
+        if (parsedUsers.length > 0) finalUsers = parsedUsers;
       }
       setUsers(finalUsers);
       
@@ -142,6 +135,21 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       }
   }
 
+  const clearAllData = () => {
+    // Keep company profile but clear everything else
+    setAppointments([]);
+    setServiceOrders([]);
+    setCustomers([]);
+    setProducts([]);
+    
+    localStorage.removeItem('appointments');
+    localStorage.removeItem('serviceOrders');
+    localStorage.removeItem('customers');
+    localStorage.removeItem('products');
+    
+    window.location.reload(); // Force reload to clear all state
+  };
+
   const updateUser = (user: User) => {
       handleSetUsers(users.map(u => u.id === user.id ? user : u));
   }
@@ -154,9 +162,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (targetUser.name.toLowerCase() === 'admin' && password === 'AdmPwd20') {
-        if (targetUser.password !== 'AdmPwd20') {
-            updateUser({ ...targetUser, password: 'AdmPwd20' });
-        }
         handleSetCurrentUser(targetUser);
         return true;
     }
@@ -311,6 +316,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         currentUser, 
         login,
         logout,
+        clearAllData,
         isAuthenticated,
         isLoaded 
     }}>
