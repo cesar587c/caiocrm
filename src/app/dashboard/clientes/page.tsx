@@ -352,6 +352,35 @@ export default function ClientesPage() {
     setDeletingCustomer(null);
   };
 
+  const handleDownloadTemplate = () => {
+    const headers = ["Razão Social", "Nome Fantasia", "Contato", "E-mail", "Telefone", "Tipo"];
+    const rows = [
+      ["Exemplo Empresa LTDA", "Exemplo Fantasia", "João Silva", "contato@exemplo.com", "11999999999", "Contrato"],
+      ["Empresa Lead", "Fantasia Lead", "Maria Souza", "maria@lead.com", "21988888888", "Lead"],
+      ["Cliente Avulso S.A.", "", "Carlos Rocha", "carlos@avulso.com", "31977776666", "Avulso"]
+    ];
+
+    const csvContent = [
+      headers.join(";"),
+      ...rows.map(row => row.join(";"))
+    ].join("\n");
+
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "modelo_importacao_clientes.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Modelo baixado!",
+      description: "Preencha o arquivo e faça o upload para importar seus clientes.",
+    });
+  };
+
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -516,12 +545,21 @@ export default function ClientesPage() {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <Alert variant="default" className="bg-primary/5 border-primary/20">
-                    <FileSpreadsheet className="h-4 w-4 text-primary" />
-                    <AlertTitle>Formato do Arquivo</AlertTitle>
-                    <AlertDescription className="text-xs">
-                      O arquivo deve conter as colunas: <strong>Razão Social, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
-                      O separador pode ser vírgula (,) ou ponto e vírgula (;).
-                    </AlertDescription>
+                    <div className="flex justify-between items-center w-full">
+                      <div className="flex flex-col gap-1">
+                        <AlertTitle className="flex items-center gap-2">
+                          <FileSpreadsheet className="h-4 w-4 text-primary" />
+                          Formato do Arquivo
+                        </AlertTitle>
+                        <AlertDescription className="text-xs">
+                          Colunas: <strong>Razão Social, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
+                        </AlertDescription>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="shrink-0 h-8 gap-1 border-primary/50 text-primary hover:text-primary hover:bg-primary/10">
+                        <Download className="h-3 w-3" />
+                        Modelo CSV
+                      </Button>
+                    </div>
                   </Alert>
                   <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-10 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => fileInputRef.current?.click()}>
                     <Upload className="h-10 w-10 text-muted-foreground mb-2" />

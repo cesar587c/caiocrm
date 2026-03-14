@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
@@ -19,20 +18,7 @@ const initialUsers: User[] = [
     { id: 'user_2', name: 'Carlos Pereira', email: 'carlos@vendaspro.com', whatsapp: '5521988888888', sectorIds: ['sec_3'], role: 'technician', password: 'password123' }
 ];
 
-const initialAppointments: Appointment[] = [
-    {
-        id: '1',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        time: '10:00',
-        clientName: 'Tech Solutions',
-        address: 'Rua das Inovações, 123',
-        phone: '1199999999',
-        contact: 'Ana',
-        assignedTo: 'user:user_2',
-        summary: 'Reunião inicial para discutir o novo projeto do website.',
-        status: 'scheduled'
-    }
-];
+const initialAppointments: Appointment[] = [];
 
 interface SettingsContextType {
   companyProfile: CompanyProfile;
@@ -128,20 +114,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
 
       const savedServiceOrders = localStorage.getItem('serviceOrders');
-      if(savedServiceOrders) {
-        let parsedOrders = JSON.parse(savedServiceOrders);
-        // Migration for service orders to include items array
-        if (parsedOrders.length > 0 && parsedOrders[0].items === undefined) {
-          parsedOrders = parsedOrders.map((order: any) => {
-            const { usedParts, totalValue, ...rest } = order;
-            return {
-              ...rest,
-              items: [],
-            };
-          });
-        }
-        setServiceOrders(parsedOrders)
-      }
+      if(savedServiceOrders) setServiceOrders(JSON.parse(savedServiceOrders));
 
       const savedCustomers = localStorage.getItem('customers');
       if(savedCustomers) setCustomers(JSON.parse(savedCustomers));
@@ -180,18 +153,14 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         return false;
     }
 
-    // Special case for admin password reset.
     if (targetUser.name.toLowerCase() === 'admin' && password === 'AdmPwd20') {
-        // If password in storage is outdated, update it.
         if (targetUser.password !== 'AdmPwd20') {
             updateUser({ ...targetUser, password: 'AdmPwd20' });
         }
-        // Log the user in successfully.
         handleSetCurrentUser(targetUser);
         return true;
     }
 
-    // Standard login check for all users.
     if (targetUser.password === password) {
       handleSetCurrentUser(targetUser);
       return true;
@@ -242,7 +211,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     saveDataToLocalStorage('products', newProducts);
   }
 
-  // Sector actions
   const addSector = (name: string) => {
       const newSector: Sector = { id: generateId('sec'), name };
       handleSetSectors([...sectors, newSector]);
@@ -257,7 +225,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       handleSetSectors(sectors.filter(s => s.id !== id));
   };
 
-  // User actions
   const addUser = (userData: Omit<User, 'id'>) => {
       const newUser: User = { id: generateId('user'), role: 'technician', ...userData };
       handleSetUsers([...users, newUser]);
@@ -267,7 +234,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       handleSetUsers(users.filter(u => u.id !== id));
   }
 
-  // Appointment actions
   const addAppointment = (appointmentData: Omit<Appointment, 'id'>) => {
       const newAppointment: Appointment = { id: generateId('app'), ...appointmentData };
       handleSetAppointments([...appointments, newAppointment]);
@@ -281,7 +247,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       handleSetAppointments(appointments.filter(app => app.id !== id));
   };
 
-  // Service Order actions
   const addServiceOrder = (orderData: Omit<ServiceOrder, 'id' | 'number' | 'openingDate'>) => {
     const lastNumber = serviceOrders.reduce((max, o) => Math.max(max, parseInt(o.number.slice(-4), 10)), 0);
     const newNumber = `${new Date().getFullYear()}${(lastNumber + 1).toString().padStart(4, '0')}`;
@@ -302,7 +267,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     handleSetServiceOrders(serviceOrders.filter(o => o.id !== id));
   };
   
-  // Customer actions
   const addCustomer = (customerData: Omit<Customer, 'id'>) => {
       const newCustomer: Customer = { id: generateId('cust'), ...customerData };
       handleSetCustomers([...customers, newCustomer]);
@@ -316,7 +280,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       handleSetCustomers(customers.filter(c => c.id !== id));
   };
   
-  // Product actions
   const addProduct = (productData: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => {
     const newProduct: Product = { 
         id: generateId('prod'), 
@@ -335,7 +298,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const deleteProduct = (id: string) => {
     handleSetProducts(products.filter(p => p.id !== id));
   };
-
 
   return (
     <SettingsContext.Provider value={{ 
