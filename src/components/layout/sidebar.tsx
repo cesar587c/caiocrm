@@ -50,23 +50,23 @@ import {
 import { Button } from "../ui/button";
 import { useSettings } from "@/contexts/SettingsContext";
 
-const MENU_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['admin', 'technician', 'finance', 'service'] },
-  { href: "/dashboard/clientes", label: "Clientes", icon: Users, roles: ['admin', 'technician', 'finance', 'service'] },
-  { href: "/dashboard/funil-vendas", label: "Funil de Vendas", icon: Filter, roles: ['admin', 'finance'] },
-  { href: "/dashboard/propostas", label: "Propostas", icon: FileText, roles: ['admin', 'finance'] },
-  { href: "/dashboard/agenda", label: "Agenda", icon: Calendar, roles: ['admin', 'technician', 'service'] },
-  { href: "/dashboard/chamados", label: "Ordens de Serviço", icon: BookUser, roles: ['admin', 'technician', 'service'] },
-  { href: "/dashboard/relatorios", label: "Relatórios", icon: LineChart, roles: ['admin', 'finance'] },
-  { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings, roles: ['admin'] },
-  { href: "/dashboard/usuarios", label: "Usuários", icon: UserCog, roles: ['admin'] },
+export const MENU_ITEMS = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/clientes", label: "Clientes", icon: Users },
+  { href: "/dashboard/funil-vendas", label: "Funil de Vendas", icon: Filter },
+  { href: "/dashboard/propostas", label: "Propostas", icon: FileText },
+  { href: "/dashboard/agenda", label: "Agenda", icon: Calendar },
+  { href: "/dashboard/chamados", label: "Ordens de Serviço", icon: BookUser },
+  { href: "/dashboard/relatorios", label: "Relatórios", icon: LineChart },
+  { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
+  { href: "/dashboard/usuarios", label: "Usuários", icon: UserCog },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { iconSize, setIconSize } = useSidebar();
-  const { currentUser, logout } = useSettings();
+  const { currentUser, logout, rolePermissions } = useSettings();
 
   const handleLogout = React.useCallback(() => {
     logout();
@@ -74,8 +74,11 @@ export function AppSidebar() {
   }, [logout, router]);
 
   const memoizedMenuItems = useMemo(() => {
+    if (!currentUser) return null;
+    const allowedPaths = rolePermissions[currentUser.role] || ['/dashboard'];
+
     return MENU_ITEMS
-        .filter(item => !item.roles || (currentUser && item.roles.includes(currentUser.role)))
+        .filter(item => allowedPaths.includes(item.href))
         .map((item) => (
             <SidebarMenuItem key={item.href}>
                 <Link href={item.href} prefetch={true}>
@@ -90,7 +93,7 @@ export function AppSidebar() {
                 </Link>
             </SidebarMenuItem>
         ));
-  }, [pathname, iconSize, currentUser]);
+  }, [pathname, iconSize, currentUser, rolePermissions]);
 
   return (
     <>

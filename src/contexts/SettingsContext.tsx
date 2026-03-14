@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer, Product } from '@/lib/types';
+import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer, Product, UserRole, RolePermissions } from '@/lib/types';
 import { companyProfile as initialCompanyProfileData } from '@/lib/company-profile';
 import { initialServiceOrders, initialCustomers, initialProducts } from '@/lib/mock-data';
 
@@ -19,6 +18,13 @@ const initialUsers: User[] = [
 ];
 
 const initialAppointments: Appointment[] = [];
+
+const initialRolePermissions: RolePermissions = {
+    admin: ['/dashboard', '/dashboard/clientes', '/dashboard/funil-vendas', '/dashboard/propostas', '/dashboard/agenda', '/dashboard/chamados', '/dashboard/relatorios', '/dashboard/configuracoes', '/dashboard/usuarios'],
+    technician: ['/dashboard', '/dashboard/clientes', '/dashboard/agenda', '/dashboard/chamados'],
+    finance: ['/dashboard', '/dashboard/clientes', '/dashboard/funil-vendas', '/dashboard/propostas', '/dashboard/relatorios'],
+    service: ['/dashboard', '/dashboard/clientes', '/dashboard/agenda', '/dashboard/chamados'],
+};
 
 interface SettingsContextType {
   companyProfile: CompanyProfile;
@@ -46,6 +52,8 @@ interface SettingsContextType {
   addProduct: (productData: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => Product;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
+  rolePermissions: RolePermissions;
+  updateRolePermissions: (role: UserRole, paths: string[]) => void;
   currentUser: User | null;
   login: (name: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -66,6 +74,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(initialServiceOrders);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [rolePermissions, setRolePermissions] = useState<RolePermissions>(initialRolePermissions);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   
@@ -112,6 +121,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
       const savedProducts = localStorage.getItem('products');
       if (savedProducts) setProducts(JSON.parse(savedProducts));
+
+      const savedPermissions = localStorage.getItem('rolePermissions');
+      if (savedPermissions) {
+          setRolePermissions({ ...initialRolePermissions, ...JSON.parse(savedPermissions) });
+      }
 
       const savedCurrentUserId = localStorage.getItem('currentUserId');
       if (savedCurrentUserId) {
@@ -201,6 +215,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     setProducts(data);
     saveData('products', data);
   }, [saveData]);
+
+  const updateRolePermissions = useCallback((role: UserRole, paths: string[]) => {
+    const newPermissions = { ...rolePermissions, [role]: paths };
+    setRolePermissions(newPermissions);
+    saveData('rolePermissions', newPermissions);
+  }, [rolePermissions, saveData]);
 
   const addSector = useCallback((name: string) => {
       const newSector: Sector = { id: generateId('sec'), name };
@@ -302,6 +322,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder,
         customers, addCustomer, updateCustomer, deleteCustomer,
         products, addProduct, updateProduct, deleteProduct,
+        rolePermissions, updateRolePermissions,
         currentUser, 
         login,
         logout,
@@ -312,8 +333,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       companyProfile, handleSetProfile, sectors, addSector, deleteSector, users, addUser, updateUser, deleteUser, 
       appointments, addAppointment, updateAppointment, deleteAppointment, serviceOrders, addServiceOrder, 
       updateServiceOrder, deleteServiceOrder, customers, addCustomer, updateCustomer, deleteCustomer, 
-      products, addProduct, updateProduct, deleteProduct, currentUser, login, logout, clearAllData, 
-      isAuthenticated, isLoaded
+      products, addProduct, updateProduct, deleteProduct, rolePermissions, updateRolePermissions, currentUser, 
+      login, logout, clearAllData, isAuthenticated, isLoaded
     ]);
 
   return (

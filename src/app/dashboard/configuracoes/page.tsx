@@ -18,7 +18,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup } from 'lucide-react';
+import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup, Lock } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -31,9 +31,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { Sector } from '@/lib/types';
+import type { Sector, UserRole } from '@/lib/types';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
+import { MENU_ITEMS } from '@/components/layout/sidebar';
 
 const formSchema = z.object({
   name: z.string().min(1, 'O nome da empresa é obrigatório.'),
@@ -46,9 +48,26 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const roles: { id: UserRole; label: string }[] = [
+    { id: 'admin', label: 'Administrador' },
+    { id: 'technician', label: 'Técnico' },
+    { id: 'finance', label: 'Financeiro' },
+    { id: 'service', label: 'Atendimento' },
+];
+
 export default function ConfiguracoesPage() {
   const { toast } = useToast();
-  const { companyProfile, setCompanyProfile, sectors, addSector, deleteSector, clearAllData, isLoaded } = useSettings();
+  const { 
+    companyProfile, 
+    setCompanyProfile, 
+    sectors, 
+    addSector, 
+    deleteSector, 
+    clearAllData, 
+    isLoaded, 
+    rolePermissions, 
+    updateRolePermissions 
+  } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [newSectorName, setNewSectorName] = useState('');
@@ -91,39 +110,34 @@ export default function ConfiguracoesPage() {
       reader.onloadend = () => {
         form.setValue('logoUrl', reader.result as string, { shouldDirty: true });
       };
-      reader.onerror = () => {
-        toast({
-          variant: "destructive",
-          title: "Erro ao ler arquivo",
-          description: "Não foi possível carregar a imagem. Tente novamente.",
-        });
-      };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAddSector = () => {
-    if (newSectorName.trim() === '') {
-        toast({ variant: 'destructive', title: 'Nome inválido', description: 'O nome do setor não pode estar vazio.' });
+  const handleTogglePermission = (role: UserRole, path: string) => {
+    // Prevent blocking admin from configurations or users to avoid lockout
+    if (role === 'admin' && (path === '/dashboard/configuracoes' || path === '/dashboard/usuarios')) {
+        toast({
+            variant: "destructive",
+            title: "Acesso Obrigatório",
+            description: "O Administrador deve sempre ter acesso às Configurações e Usuários.",
+        });
         return;
     }
+
+    const currentPaths = rolePermissions[role] || [];
+    const newPaths = currentPaths.includes(path)
+        ? currentPaths.filter(p => p !== path)
+        : [...currentPaths, path];
+    
+    updateRolePermissions(role, newPaths);
+  };
+
+  const handleAddSector = () => {
+    if (newSectorName.trim() === '') return;
     addSector(newSectorName);
     setNewSectorName('');
-    toast({ title: 'Setor Adicionado!', description: `O setor "${newSectorName}" foi criado.`});
   };
-
-  const confirmDeleteSector = () => {
-      if (!sectorToDelete) return;
-      deleteSector(sectorToDelete.id);
-      toast({ title: 'Setor Excluído', description: `O setor "${sectorToDelete.name}" foi removido.`, variant: 'destructive' });
-      setSectorToDelete(null);
-  };
-
-  const handleResetSystem = () => {
-      clearAllData();
-      toast({ title: 'Sistema Reiniciado', description: 'Todos os dados foram apagados conforme solicitado.' });
-  };
-
 
   if (!isLoaded) {
     return (
@@ -140,9 +154,10 @@ export default function ConfiguracoesPage() {
       </div>
       
       <Tabs defaultValue="company">
-        <TabsList className="grid w-full max-w-xl grid-cols-3">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="company">Dados da Empresa</TabsTrigger>
           <TabsTrigger value="sectors">Setores e Equipe</TabsTrigger>
+          <TabsTrigger value="permissions">Permissões</TabsTrigger>
           <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
         
@@ -235,66 +250,24 @@ export default function ConfiguracoesPage() {
                   />
                   <FormItem>
                     <FormLabel>Logo da Empresa</FormLabel>
-                    <Tabs defaultValue="url" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="url"><LinkIcon className="mr-2 h-4 w-4" /> Colar URL</TabsTrigger>
-                            <TabsTrigger value="upload"><UploadCloud className="mr-2 h-4 w-4" /> Carregar Imagem</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="url">
-                            <FormField
-                                control={form.control}
-                                name="logoUrl"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormControl>
-                                            <Input placeholder="https://suaempresa.com/logo.png" {...(field as any)} value={field.value ?? ''} />
-                                        </FormControl>
-                                        <FormDescription>
-                                            Insira a URL completa da imagem do seu logo.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </TabsContent>
-                        <TabsContent value="upload">
-                            <FormControl>
-                                <div
-                                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <UploadCloud className="w-8 h-8 mb-3 text-muted-foreground" />
-                                        <p className="mb-2 text-sm text-muted-foreground">
-                                            <span className="font-semibold">Clique para carregar</span> ou arraste e solte
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">PNG, JPG ou GIF (máx. 2MB)</p>
-                                    </div>
-                                    <Input 
-                                        ref={fileInputRef}
-                                        id="file-upload" 
-                                        type="file" 
-                                        className="hidden" 
-                                        accept="image/png, image/jpeg, image/gif"
-                                        onChange={handleFileChange}
-                                    />
-                                </div>
-                            </FormControl>
-                        </TabsContent>
-                    </Tabs>
-                    {currentLogoUrl && (
-                        <div className="mt-4">
-                            <FormLabel>Pré-visualização do Logo</FormLabel>
-                            <div className="mt-2 p-4 border rounded-md flex items-center justify-center bg-muted/20 min-h-[100px]">
-                                <img 
-                                    src={currentLogoUrl} 
-                                    alt="Pré-visualização do logo" 
-                                    data-ai-hint="logo"
-                                    className="max-h-24 w-auto object-contain"
-                                />
+                    <div className="flex flex-col gap-4">
+                        <div
+                            className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                <UploadCloud className="w-8 h-8 mb-3 text-muted-foreground" />
+                                <p className="mb-2 text-sm text-muted-foreground">Clique para carregar o logo</p>
+                                <p className="text-xs text-muted-foreground">Máx. 2MB</p>
                             </div>
+                            <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                         </div>
-                    )}
+                        {currentLogoUrl && (
+                            <div className="p-4 border rounded-md flex items-center justify-center bg-muted/20">
+                                <img src={currentLogoUrl} alt="Logo Preview" className="max-h-24 w-auto object-contain" />
+                            </div>
+                        )}
+                    </div>
                   </FormItem>
                   <Button type="submit">Salvar Alterações</Button>
                 </form>
@@ -307,45 +280,86 @@ export default function ConfiguracoesPage() {
           <Card>
             <CardHeader>
               <CardTitle>Gerenciar Setores</CardTitle>
-              <CardDescription>Adicione ou remova setores para organizar sua equipe. Os setores são usados na Agenda e no cadastro de Usuários.</CardDescription>
+              <CardDescription>Defina os departamentos da sua empresa.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div>
-                <Label htmlFor="new-sector">Adicionar novo setor</Label>
-                <div className="flex gap-2 mt-2">
-                  <Input 
-                    id="new-sector"
-                    value={newSectorName} 
-                    onChange={(e) => setNewSectorName(e.target.value)} 
-                    placeholder="Nome do novo setor" 
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddSector()}
-                  />
-                  <Button onClick={handleAddSector}>Adicionar</Button>
-                </div>
+              <div className="flex gap-2">
+                <Input 
+                  value={newSectorName} 
+                  onChange={(e) => setNewSectorName(e.target.value)} 
+                  placeholder="Nome do novo setor" 
+                />
+                <Button onClick={handleAddSector}>Adicionar</Button>
               </div>
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground">Setores existentes</h3>
-                {sectors.length > 0 ? (
-                  <ul className="divide-y rounded-md border">
-                    {sectors.map(sector => (
-                      <li key={sector.id} className="flex items-center justify-between p-3 pl-4">
-                        <span className="font-medium">{sector.name}</span>
-                        <Button variant="ghost" size="icon" onClick={() => setSectorToDelete(sector)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </li>
+              <ul className="divide-y rounded-md border">
+                {sectors.map(sector => (
+                  <li key={sector.id} className="flex items-center justify-between p-3 pl-4">
+                    <span>{sector.name}</span>
+                    <Button variant="ghost" size="icon" onClick={() => setSectorToDelete(sector)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="permissions">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                <span>Gestão de Permissões por Cargo</span>
+              </CardTitle>
+              <CardDescription>
+                Defina quais telas cada cargo/departamento tem autorização para acessar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="p-4 text-left font-semibold text-sm">Tela / Módulo</th>
+                      {roles.map(role => (
+                        <th key={role.id} className="p-4 text-center font-semibold text-sm">
+                          {role.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {MENU_ITEMS.map((item) => (
+                      <tr key={item.href} className="border-b hover:bg-muted/30">
+                        <td className="p-4 flex items-center gap-3">
+                          <item.icon className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{item.label}</span>
+                        </td>
+                        {roles.map((role) => {
+                          const isChecked = rolePermissions[role.id]?.includes(item.href);
+                          const isDisabled = role.id === 'admin' && (item.href === '/dashboard/configuracoes' || item.href === '/dashboard/usuarios');
+
+                          return (
+                            <td key={role.id} className="p-4 text-center">
+                              <Checkbox 
+                                checked={isChecked}
+                                disabled={isDisabled}
+                                onCheckedChange={() => handleTogglePermission(role.id, item.href)}
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
                     ))}
-                  </ul>
-                ) : (
-                  <div className="text-sm text-center text-muted-foreground py-8 border-2 border-dashed rounded-md">
-                    <p>Nenhum setor cadastrado.</p>
-                    <p className="text-xs">Use o campo acima para adicionar o primeiro.</p>
-                  </div>
-                )}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
             <CardFooter>
-                <p className="text-xs text-muted-foreground">Para gerenciar usuários e associá-los a setores, vá para a página de <Link href="/dashboard/usuarios" className="underline hover:text-primary">Usuários</Link>.</p>
+                <p className="text-xs text-muted-foreground">
+                    * O cargo de Administrador possui acesso obrigatório às Configurações e Usuários para evitar bloqueios permanentes.
+                </p>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -353,35 +367,21 @@ export default function ConfiguracoesPage() {
         <TabsContent value="system">
           <Card className="border-destructive/20">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-destructive">
+              <CardTitle className="text-destructive flex items-center gap-2">
                 <ShieldAlert className="h-5 w-5" />
                 Zona de Perigo
               </CardTitle>
-              <CardDescription>Operações críticas do sistema. Proceda com cuidado.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               <Alert variant="destructive" className="bg-destructive/5">
-                <ShieldAlert className="h-4 w-4" />
-                <AlertTitle>Atenção</AlertTitle>
+                <AlertTitle>Limpar Base de Dados</AlertTitle>
                 <AlertDescription>
-                  A limpeza de dados apagará permanentemente todos os clientes, leads, propostas, agendamentos e ordens de serviço salvos no seu navegador.
+                  Isso apagará todos os clientes, OS, agendamentos e propostas deste navegador.
                 </AlertDescription>
               </Alert>
-
-              <div className="flex flex-col gap-4 p-4 border rounded-lg bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="font-semibold flex items-center gap-2">
-                       <DatabaseBackup className="h-4 w-4" />
-                       Limpar Base de Dados
-                    </h4>
-                    <p className="text-sm text-muted-foreground">Remove todos os registros e reinicia o Local Storage.</p>
-                  </div>
-                  <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)}>
-                    Limpar Tudo
-                  </Button>
-                </div>
-              </div>
+              <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)}>
+                Limpar Tudo
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -390,14 +390,12 @@ export default function ConfiguracoesPage() {
       <AlertDialog open={!!sectorToDelete} onOpenChange={(isOpen) => !isOpen && setSectorToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-                Esta ação excluirá o setor <span className="font-medium">{sectorToDelete?.name}</span>. Os usuários neste setor não serão excluídos, mas ficarão sem um setor atribuído.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Excluir Setor?</AlertDialogTitle>
+            <AlertDialogDescription>O setor "{sectorToDelete?.name}" será removido.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteSector}>Confirmar Exclusão</AlertDialogAction>
+            <AlertDialogAction onClick={() => { deleteSector(sectorToDelete!.id); setSectorToDelete(null); }}>Confirmar</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -405,17 +403,12 @@ export default function ConfiguracoesPage() {
       <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">Confirmar Limpeza Total?</AlertDialogTitle>
-            <AlertDialogDescription>
-                Esta ação **não pode ser desfeita**. Todos os seus dados de clientes, propostas e ordens de serviço serão apagados definitivamente deste navegador.
-                O sistema será reiniciado após a limpeza.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Confirmar Limpeza Total?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleResetSystem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Sim, Limpar Todos os Dados
-            </AlertDialogAction>
+            <AlertDialogAction onClick={clearAllData} className="bg-destructive hover:bg-destructive/90">Limpar Tudo</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

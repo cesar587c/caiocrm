@@ -12,13 +12,15 @@ export type Sector = {
   name: string;
 };
 
+export type UserRole = 'admin' | 'technician' | 'finance' | 'service';
+
 export type User = {
   id: string;
   name: string;
   email?: string;
   whatsapp?: string;
   sectorIds: string[];
-  role: 'admin' | 'technician' | 'finance' | 'service';
+  role: UserRole;
   password?: string;
 };
 
@@ -85,10 +87,11 @@ export type Customer = {
     type: CustomerType;
 };
 
-// Estrutura do produto com histórico de preços
 export type Product = {
   id: string;
   name: string;
   price: number;
   priceHistory: number[];
 };
+
+export type RolePermissions = Record<UserRole, string[]>;
