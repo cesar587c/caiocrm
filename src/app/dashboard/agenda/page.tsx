@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -689,7 +690,7 @@ export default function AgendaPage() {
                                                 {users
                                                     .filter(u => u.sectorIds.includes(sector.id))
                                                     .map(user => (
-                                                        <SelectItem key={user.id} value={`user:${user.id}`}>{user.name}</SelectItem>
+                                                        <SelectItem key={`${sector.id}-${user.id}`} value={`user:${user.id}`}>{user.name}</SelectItem>
                                                     ))
                                                 }
                                             </SelectGroup>
