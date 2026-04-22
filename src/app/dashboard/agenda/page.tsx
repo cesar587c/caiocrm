@@ -55,7 +55,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, SelectSeparator } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import type { Appointment } from '@/lib/types';
@@ -179,7 +179,6 @@ export default function AgendaPage() {
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
     
-    // If there is an appointment being edited, we keep its data.
     if(editingAppointment) {
       form.setValue('date', day);
     } else {
@@ -267,7 +266,6 @@ export default function AgendaPage() {
 
     const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
 
-    // Client reminder logic
     const { time, phone, contact } = appointmentForReminders;
     const clientTemplate = companyProfile.whatsappReminderMessage || "Olá, {cliente}! 👋\n\nEste é um lembrete do seu agendamento com a {empresa} no dia {data} às {hora}.\n\nAté breve!";
     const clientMessage = clientTemplate
@@ -293,7 +291,6 @@ export default function AgendaPage() {
         });
     }
 
-    // Internal reminder logic
     const { clientName, assignedTo, summary } = appointmentForReminders;
     const [type, id] = assignedTo.split(':');
 
@@ -327,7 +324,7 @@ export default function AgendaPage() {
         } else {
              toast({ title: 'Usuário não encontrado', description: 'Não foi possível encontrar o usuário para notificar.', variant: 'destructive'});
         }
-    } else { // 'sector'
+    } else {
         const sector = sectors.find(s => s.id === id) || sectors.find(s => s.name === assignedTo);
         const sectorName = sector?.name || 'Setor desconhecido';
         toast({
@@ -399,7 +396,7 @@ export default function AgendaPage() {
           status: 'scheduled' as const,
         }
         addAppointment(newAppointmentData);
-        setAppointmentForReminders({ id: 'temp', ...newAppointmentData}); // Use temp id for reminder flow
+        setAppointmentForReminders({ id: 'temp', ...newAppointmentData});
         toast({
             title: 'Agendamento Criado!',
             description: `Visita para ${values.clientName} agendada para as ${values.time}.`,
@@ -683,19 +680,26 @@ export default function AgendaPage() {
                                     </SelectTrigger>
                                     </FormControl>
                                     <SelectContent className="max-h-60">
-                                        {sectors.map(sector => (
-                                            <SelectGroup key={sector.id}>
-                                                <SelectLabel>{sector.name}</SelectLabel>
-                                                <SelectItem value={`sector:${sector.id}`}>{`Todo o setor`}</SelectItem>
-                                                {users
-                                                    .filter(u => u.sectorIds.includes(sector.id))
-                                                    .map(user => (
-                                                        <SelectItem key={`${sector.id}-${user.id}`} value={`user:${user.id}`}>{user.name}</SelectItem>
-                                                    ))
-                                                }
-                                            </SelectGroup>
-                                        ))}
-                                        {sectors.length === 0 && <p className='p-2 text-xs text-muted-foreground'>Nenhum setor cadastrado.</p>}
+                                        <SelectGroup>
+                                            <SelectLabel>Setores</SelectLabel>
+                                            {sectors.map(sector => (
+                                                <SelectItem key={`sector-${sector.id}`} value={`sector:${sector.id}`}>
+                                                    {sector.name} (Equipe Toda)
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                        <SelectSeparator />
+                                        <SelectGroup>
+                                            <SelectLabel>Colaboradores</SelectLabel>
+                                            {users.map(user => (
+                                                <SelectItem key={`user-${user.id}`} value={`user:${user.id}`}>
+                                                    {user.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                        {sectors.length === 0 && users.length === 0 && (
+                                            <p className='p-2 text-xs text-muted-foreground'>Nenhum setor ou usuário cadastrado.</p>
+                                        )}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
