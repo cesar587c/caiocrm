@@ -77,6 +77,7 @@ export type Customer = {
     name: string;
     nomeFantasia?: string;
     contactName?: string;
+    cnpj?: string;
     email: string;
     telefone?: string;
     status: CustomerStatus;

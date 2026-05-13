@@ -22,7 +22,9 @@ import {
   Upload,
   Download,
   FileSpreadsheet,
-  AlertCircle
+  AlertCircle,
+  Phone,
+  Building2
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -186,7 +188,8 @@ export default function ClientesPage() {
         c.name.toLowerCase().includes(lowercasedSearchTerm) ||
         (c.nomeFantasia && c.nomeFantasia.toLowerCase().includes(lowercasedSearchTerm)) ||
         (c.contactName && c.contactName.toLowerCase().includes(lowercasedSearchTerm)) ||
-        c.email.toLowerCase().includes(lowercasedSearchTerm)
+        c.email.toLowerCase().includes(lowercasedSearchTerm) ||
+        (c.cnpj && c.cnpj.replace(/\D/g, "").includes(lowercasedSearchTerm))
     );
 
     if (showInactive) {
@@ -311,7 +314,7 @@ export default function ClientesPage() {
         email: customer.email,
         isLead: customer.status === "lead",
         tipoCliente: customer.type === "active_contract" ? "active_contract" : "one_time",
-        cnpj: '', 
+        cnpj: customer.cnpj || '', 
         telefone: customer.telefone || '',
         inscricaoEstadual: '',
     });
@@ -359,6 +362,7 @@ export default function ClientesPage() {
       {
         "Razão Social": "Exemplo Empresa LTDA",
         "Nome Fantasia": "Exemplo Fantasia",
+        "CNPJ": "00.000.000/0000-00",
         "Contato": "João Silva",
         "E-mail": "contato@exemplo.com",
         "Telefone": "11999999999",
@@ -367,18 +371,11 @@ export default function ClientesPage() {
       {
         "Razão Social": "Empresa Lead",
         "Nome Fantasia": "Fantasia Lead",
+        "CNPJ": "",
         "Contato": "Maria Souza",
         "E-mail": "maria@lead.com",
         "Telefone": "21988888888",
         "Tipo": "Lead"
-      },
-      {
-        "Razão Social": "Cliente Avulso S.A.",
-        "Nome Fantasia": "",
-        "Contato": "Carlos Rocha",
-        "E-mail": "carlos@avulso.com",
-        "Telefone": "31977776666",
-        "Tipo": "Avulso"
       }
     ];
 
@@ -386,7 +383,6 @@ export default function ClientesPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Planilha de Importação");
     
-    // Auto-size columns
     const maxWidth = 25;
     const colWidths = Object.keys(data[0]).map(() => ({ wch: maxWidth }));
     worksheet["!cols"] = colWidths;
@@ -412,7 +408,6 @@ export default function ClientesPage() {
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
             
-            // Converte para JSON usando os cabeçalhos da primeira linha
             const rawData = XLSX.utils.sheet_to_json<any>(worksheet);
 
             if (rawData.length === 0) {
@@ -423,7 +418,6 @@ export default function ClientesPage() {
             const importedCustomers: Omit<Customer, 'id'>[] = [];
 
             rawData.forEach((row: any) => {
-                // Mapeamento flexível de cabeçalhos
                 const findValue = (keys: string[]) => {
                     const key = Object.keys(row).find(k => keys.includes(k.trim().toLowerCase()));
                     return key ? String(row[key]).trim() : '';
@@ -434,6 +428,7 @@ export default function ClientesPage() {
                 const contactName = findValue(['contato', 'pessoal', 'responsável', 'responsavel']);
                 const email = findValue(['e-mail', 'email', 'correio']);
                 const telefone = findValue(['telefone', 'celular', 'whatsapp', 'tel']);
+                const cnpj = findValue(['cnpj', 'c.n.p.j.']);
                 const tipoRaw = findValue(['tipo', 'categoria']).toLowerCase();
 
                 if (!razaoSocial) return;
@@ -454,6 +449,7 @@ export default function ClientesPage() {
                     contactName,
                     email,
                     telefone,
+                    cnpj,
                     status,
                     responsible: currentUser?.name || "Importador",
                     potential: "medium",
@@ -490,6 +486,7 @@ export default function ClientesPage() {
         name: values.razaoSocial,
         nomeFantasia: values.nomeFantasia,
         contactName: values.contactName,
+        cnpj: values.cnpj,
         email: values.email || '',
         telefone: values.telefone,
         status: values.isLead ? "lead" : (editingCustomer.status === "lead" ? "new" : editingCustomer.status),
@@ -516,6 +513,7 @@ export default function ClientesPage() {
         name: values.razaoSocial,
         nomeFantasia: values.nomeFantasia,
         contactName: values.contactName,
+        cnpj: values.cnpj,
         email: values.email || '',
         telefone: values.telefone,
         status: values.isLead ? "lead" : "new",
@@ -581,7 +579,7 @@ export default function ClientesPage() {
                           Formato do Arquivo
                         </AlertTitle>
                         <AlertDescription className="text-xs">
-                          Colunas aceitas: <strong>Razão Social, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
+                          Colunas aceitas: <strong>Razão Social, CNPJ, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
                         </AlertDescription>
                       </div>
                       <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="shrink-0 h-8 gap-1 border-primary/50 text-primary hover:text-primary hover:bg-primary/10">
@@ -913,7 +911,7 @@ export default function ClientesPage() {
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead>Nome / Contato</TableHead>
+                        <TableHead>Nome / Contato / Identificação</TableHead>
                         <TableHead className="hidden sm:table-cell">Status</TableHead>
                         <TableHead className="hidden md:table-cell">Responsável</TableHead>
                         <TableHead className="hidden lg:table-cell">Cadastro</TableHead>
@@ -933,6 +931,20 @@ export default function ClientesPage() {
                                     <span>{customer.contactName}</span>
                                 </div>
                             )}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {customer.cnpj && (
+                                    <div className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        <Building2 className="h-3 w-3" />
+                                        <span>CNPJ: {formatCnpj(customer.cnpj)}</span>
+                                    </div>
+                                )}
+                                {customer.telefone && (
+                                    <div className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        <Phone className="h-3 w-3" />
+                                        <span>Tel: {formatPhoneNumber(customer.telefone)}</span>
+                                    </div>
+                                )}
+                            </div>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
                             <Badge variant={
@@ -971,7 +983,7 @@ export default function ClientesPage() {
                                 <div className="flex flex-col items-center justify-center">
                                     <Users className="h-8 w-8 mb-2 opacity-20" />
                                     <p>Nenhum cliente encontrado.</p>
-                                    <p className="text-xs">Cadastre um novo ou importe via CSV.</p>
+                                    <p className="text-xs">Cadastre um novo ou importe via planilha.</p>
                                 </div>
                             </TableCell>
                         </TableRow>
