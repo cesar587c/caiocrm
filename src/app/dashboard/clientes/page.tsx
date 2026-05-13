@@ -118,7 +118,7 @@ const formSchema = z.object({
 
 
 export default function ClientesPage() {
-  const { customers, addCustomer, updateCustomer, deleteCustomer, currentUser } = useSettings();
+  const { customers, addCustomer, addCustomers, updateCustomer, deleteCustomer, currentUser } = useSettings();
   const [isCnpjLoading, setIsCnpjLoading] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -429,7 +429,7 @@ export default function ClientesPage() {
                     return key ? String(row[key]).trim() : '';
                 };
 
-                const razaoSocial = findValue(['razão social', 'razao social', 'nome', 'empresa', 'razão']);
+                const razaoSocial = findValue(['razão social', 'razao social', 'nome', 'empresa', 'razão', 'razao']);
                 const nomeFantasia = findValue(['nome fantasia', 'fantasia']) || razaoSocial;
                 const contactName = findValue(['contato', 'pessoal', 'responsável', 'responsavel']);
                 const email = findValue(['e-mail', 'email', 'correio']);
@@ -464,7 +464,7 @@ export default function ClientesPage() {
             });
 
             if (importedCustomers.length > 0) {
-                importedCustomers.forEach(c => addCustomer(c));
+                addCustomers(importedCustomers);
                 toast({
                     title: "Importação Concluída!",
                     description: `${importedCustomers.length} registros foram importados com sucesso.`,

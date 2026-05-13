@@ -47,6 +47,7 @@ interface SettingsContextType {
   deleteServiceOrder: (id: string) => void;
   customers: Customer[];
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
+  addCustomers: (customers: Omit<Customer, 'id'>[]) => void;
   updateCustomer: (customer: Customer) => void;
   deleteCustomer: (id: string) => void;
   products: Product[];
@@ -65,7 +66,7 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-const generateId = (prefix: string) => `${prefix}_${Date.now()}`;
+const generateId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(initialCompanyProfileData);
@@ -93,13 +94,13 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     try {
       // Force one-time cleanup of demo data if not already done
-      const isDemoCleaned = localStorage.getItem('vendaspro_demo_cleaned_v2');
+      const isDemoCleaned = localStorage.getItem('vendaspro_demo_cleaned_v3');
       if (!isDemoCleaned) {
           localStorage.removeItem('appointments');
           localStorage.removeItem('serviceOrders');
           localStorage.removeItem('customers');
           localStorage.removeItem('products');
-          localStorage.setItem('vendaspro_demo_cleaned_v2', 'true');
+          localStorage.setItem('vendaspro_demo_cleaned_v3', 'true');
           // Start with initial empty arrays
           setAppointments(initialAppointments);
           setServiceOrders(initialServiceOrders);
@@ -208,10 +209,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const handleSetUsers = useCallback((newUsers: User[]) => {
       setUsers(newUsers);
       saveData('users', newUsers);
-      if (currentUser && !newUsers.find(u => u.id === currentUser.id)) {
-        handleSetCurrentUser(newUsers[0] || null);
-      }
-  }, [currentUser, handleSetCurrentUser, saveData]);
+  }, [saveData]);
 
   const handleSetAppointments = useCallback((data: Appointment[]) => {
     setAppointments(data);
@@ -241,79 +239,147 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   const addSector = useCallback((name: string) => {
       const newSector: Sector = { id: generateId('sec'), name };
-      handleSetSectors([...sectors, newSector]);
-  }, [sectors, handleSetSectors]);
+      setSectors(prev => {
+          const updated = [...prev, newSector];
+          saveData('sectors', updated);
+          return updated;
+      });
+  }, [saveData]);
 
   const deleteSector = useCallback((id: string) => {
-      const updatedUsers = users.map(u => ({
-          ...u,
-          sectorIds: u.sectorIds.filter(sectorId => sectorId !== id),
-      }));
-      handleSetUsers(updatedUsers);
-      handleSetSectors(sectors.filter(s => s.id !== id));
-  }, [users, sectors, handleSetSectors, handleSetUsers]);
+      setUsers(prevUsers => {
+          const updated = prevUsers.map(u => ({
+              ...u,
+              sectorIds: u.sectorIds.filter(sectorId => sectorId !== id),
+          }));
+          saveData('users', updated);
+          return updated;
+      });
+      setSectors(prevSectors => {
+          const updated = prevSectors.filter(s => s.id !== id);
+          saveData('sectors', updated);
+          return updated;
+      });
+  }, [saveData]);
 
   const addUser = useCallback((userData: Omit<User, 'id'>) => {
-      const newUser: User = { 
-        id: generateId('user'), 
-        ...userData 
-      };
-      handleSetUsers([...users, newUser]);
-  }, [users, handleSetUsers]);
+      setUsers(prev => {
+          const newUser: User = { id: generateId('user'), ...userData };
+          const updated = [...prev, newUser];
+          saveData('users', updated);
+          return updated;
+      });
+  }, [saveData]);
 
   const updateUser = useCallback((user: User) => {
-      handleSetUsers(users.map(u => u.id === user.id ? user : u));
-  }, [users, handleSetUsers]);
+      setUsers(prev => {
+          const updated = prev.map(u => u.id === user.id ? user : u);
+          saveData('users', updated);
+          return updated;
+      });
+  }, [saveData]);
 
   const deleteUser = useCallback((id: string) => {
-      handleSetUsers(users.filter(u => u.id !== id));
-  }, [users, handleSetUsers]);
+      setUsers(prev => {
+          const updated = prev.filter(u => u.id !== id);
+          saveData('users', updated);
+          return updated;
+      });
+  }, [saveData]);
 
   const addAppointment = useCallback((data: Omit<Appointment, 'id'>) => {
-      const newApp: Appointment = { id: generateId('app'), ...data };
-      handleSetAppointments([...appointments, newApp]);
-  }, [appointments, handleSetAppointments]);
+      setAppointments(prev => {
+          const newApp: Appointment = { id: generateId('app'), ...data };
+          const updated = [...prev, newApp];
+          saveData('appointments', updated);
+          return updated;
+      });
+  }, [saveData]);
 
   const updateAppointment = useCallback((updated: Appointment) => {
-      handleSetAppointments(appointments.map(app => app.id === updated.id ? updated : app));
-  }, [appointments, handleSetAppointments]);
+      setAppointments(prev => {
+          const newState = prev.map(app => app.id === updated.id ? updated : app);
+          saveData('appointments', newState);
+          return newState;
+      });
+  }, [saveData]);
   
   const deleteAppointment = useCallback((id: string) => {
-      handleSetAppointments(appointments.filter(app => app.id !== id));
-  }, [appointments, handleSetAppointments]);
+      setAppointments(prev => {
+          const updated = prev.filter(app => app.id !== id);
+          saveData('appointments', updated);
+          return updated;
+      });
+  }, [saveData]);
 
   const addServiceOrder = useCallback((data: Omit<ServiceOrder, 'id' | 'number' | 'openingDate'>) => {
-    const lastNum = serviceOrders.reduce((max, o) => Math.max(max, parseInt(o.number.slice(-4), 10)), 0);
-    const newNum = `${new Date().getFullYear()}${(lastNum + 1).toString().padStart(4, '0')}`;
-    const newOrder: ServiceOrder = {
-        id: generateId('os'),
-        number: newNum,
-        openingDate: new Date().toISOString(),
-        ...data
-    };
-    handleSetServiceOrders([...serviceOrders, newOrder]);
-  }, [serviceOrders, handleSetServiceOrders]);
+    setServiceOrders(prev => {
+        const lastNum = prev.reduce((max, o) => Math.max(max, parseInt(o.number.slice(-4), 10)), 0);
+        const newNum = `${new Date().getFullYear()}${(lastNum + 1).toString().padStart(4, '0')}`;
+        const newOrder: ServiceOrder = {
+            id: generateId('os'),
+            number: newNum,
+            openingDate: new Date().toISOString(),
+            ...data
+        };
+        const updated = [...prev, newOrder];
+        saveData('serviceOrders', updated);
+        return updated;
+    });
+  }, [saveData]);
 
   const updateServiceOrder = useCallback((updated: ServiceOrder) => {
-    handleSetServiceOrders(serviceOrders.map(o => o.id === updated.id ? updated : o));
-  }, [serviceOrders, handleSetServiceOrders]);
+    setServiceOrders(prev => {
+        const newState = prev.map(o => o.id === updated.id ? updated : o);
+        saveData('serviceOrders', newState);
+        return newState;
+    });
+  }, [saveData]);
 
   const deleteServiceOrder = useCallback((id: string) => {
-    handleSetServiceOrders(serviceOrders.filter(o => o.id !== id));
-  }, [serviceOrders, handleSetServiceOrders]);
+    setServiceOrders(prev => {
+        const updated = prev.filter(o => o.id !== id);
+        saveData('serviceOrders', updated);
+        return updated;
+    });
+  }, [saveData]);
   
   const addCustomer = useCallback((data: Omit<Customer, 'id'>) => {
-      const newCust: Customer = { id: generateId('cust'), ...data };
-      handleSetCustomers([...customers, newCust]);
-  }, [customers, handleSetCustomers]);
+      setCustomers(prev => {
+          const newCust: Customer = { id: generateId('cust'), ...data };
+          const updated = [...prev, newCust];
+          saveData('customers', updated);
+          return updated;
+      });
+  }, [saveData]);
+
+  const addCustomers = useCallback((dataList: Omit<Customer, 'id'>[]) => {
+      setCustomers(prev => {
+          const newCustomers = dataList.map(data => ({
+              id: generateId('cust'),
+              ...data
+          }));
+          const updated = [...prev, ...newCustomers];
+          saveData('customers', updated);
+          return updated;
+      });
+  }, [saveData]);
 
   const updateCustomer = useCallback((updated: Customer) => {
-      handleSetCustomers(customers.map(c => c.id === updated.id ? updated : c));
-  }, [customers, handleSetCustomers]);
+      setCustomers(prev => {
+          const newState = prev.map(c => c.id === updated.id ? updated : c);
+          saveData('customers', newState);
+          return newState;
+      });
+  }, [saveData]);
 
   const deleteCustomer = useCallback((id: string) => {
-      handleSetCustomers(customers.filter(c => c.id !== id));
-  }, [customers, handleSetCustomers]);
+      setCustomers(prev => {
+          const updated = prev.filter(c => c.id !== id);
+          saveData('customers', updated);
+          return updated;
+      });
+  }, [saveData]);
   
   const addProduct = useCallback((data: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => {
     const newProd: Product = { 
@@ -322,17 +388,29 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         price: data.price,
         priceHistory: [data.price]
     };
-    handleSetProducts([newProd, ...products]);
+    setProducts(prev => {
+        const updated = [newProd, ...prev];
+        saveData('products', updated);
+        return updated;
+    });
     return newProd;
-  }, [products, handleSetProducts]);
+  }, [saveData]);
   
   const updateProduct = useCallback((updated: Product) => {
-    handleSetProducts(products.map(p => p.id === updated.id ? updated : p));
-  }, [products, handleSetProducts]);
+    setProducts(prev => {
+        const newState = prev.map(p => p.id === updated.id ? updated : p);
+        saveData('products', newState);
+        return newState;
+    });
+  }, [saveData]);
 
   const deleteProduct = useCallback((id: string) => {
-    handleSetProducts(products.filter(p => p.id !== id));
-  }, [products, handleSetProducts]);
+    setProducts(prev => {
+        const updated = prev.filter(p => p.id !== id);
+        saveData('products', updated);
+        return updated;
+    });
+  }, [saveData]);
 
   const contextValue = useMemo(() => ({ 
         companyProfile, setCompanyProfile: handleSetProfile,
@@ -340,7 +418,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         users, addUser, updateUser, deleteUser,
         appointments, addAppointment, updateAppointment, deleteAppointment,
         serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder,
-        customers, addCustomer, updateCustomer, deleteCustomer,
+        customers, addCustomer, addCustomers, updateCustomer, deleteCustomer,
         products, addProduct, updateProduct, deleteProduct,
         rolePermissions, updateRolePermissions,
         currentUser, 
@@ -352,7 +430,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }), [
       companyProfile, handleSetProfile, sectors, addSector, deleteSector, users, addUser, updateUser, deleteUser, 
       appointments, addAppointment, updateAppointment, deleteAppointment, serviceOrders, addServiceOrder, 
-      updateServiceOrder, deleteServiceOrder, customers, addCustomer, updateCustomer, deleteCustomer, 
+      updateServiceOrder, deleteServiceOrder, customers, addCustomer, addCustomers, updateCustomer, deleteCustomer, 
       products, addProduct, updateProduct, deleteProduct, rolePermissions, updateRolePermissions, currentUser, 
       login, logout, clearAllData, isAuthenticated, isLoaded
     ]);
