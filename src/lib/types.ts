@@ -80,6 +80,8 @@ export type Customer = {
     cnpj?: string;
     email: string;
     telefone?: string;
+    endereco?: string;
+    cep?: string;
     status: CustomerStatus;
     responsible: string;
     potential: "high" | "medium" | "low";

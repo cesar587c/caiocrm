@@ -24,7 +24,8 @@ import {
   FileSpreadsheet,
   AlertCircle,
   Phone,
-  Building2
+  Building2,
+  MapPin
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -94,6 +95,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import type { Customer, CustomerStatus, CustomerType } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -110,6 +112,8 @@ const formSchema = z.object({
   contactName: z.string().optional(),
   email: z.string().email({ message: "E-mail inválido." }).optional().or(z.literal('')),
   telefone: z.string().optional(),
+  endereco: z.string().optional(),
+  cep: z.string().optional(),
   inscricaoEstadual: z.string().optional(),
   isLead: z.boolean().default(false),
   tipoCliente: z.enum(["active_contract", "one_time"]).default("one_time"),
@@ -170,6 +174,8 @@ export default function ClientesPage() {
       contactName: "",
       email: "",
       telefone: "",
+      endereco: "",
+      cep: "",
       inscricaoEstadual: "",
       isLead: false,
       tipoCliente: "one_time",
@@ -269,6 +275,14 @@ export default function ClientesPage() {
         form.setValue("email", data.email || "");
         form.setValue("telefone", data.ddd_telefone_1 || data.ddd_telefone_2 || "");
         form.setValue("inscricaoEstadual", inscricaoEstadual);
+        
+        // Populate address if available
+        if (data.logradouro) {
+          const fullAddress = `${data.logradouro}${data.numero ? `, ${data.numero}` : ''}${data.complemento ? ` - ${data.complemento}` : ''} - ${data.bairro}, ${data.municipio} - ${data.uf}`;
+          form.setValue("endereco", fullAddress);
+          form.setValue("cep", data.cep || "");
+        }
+
         toast({
             title: "CNPJ Consultado!",
             description: "Os dados da empresa foram preenchidos.",
@@ -294,6 +308,8 @@ export default function ClientesPage() {
       contactName: "",
       email: "",
       telefone: "",
+      endereco: "",
+      cep: "",
       inscricaoEstadual: "",
       isLead: false,
       tipoCliente: "one_time",
@@ -312,6 +328,8 @@ export default function ClientesPage() {
         tipoCliente: customer.type === "active_contract" ? "active_contract" : "one_time",
         cnpj: customer.cnpj || '', 
         telefone: customer.telefone || '',
+        endereco: customer.endereco || '',
+        cep: customer.cep || '',
         inscricaoEstadual: '',
     });
     setIsFormDialogOpen(true);
@@ -362,16 +380,9 @@ export default function ClientesPage() {
         "Contato": "João Silva",
         "E-mail": "contato@exemplo.com",
         "Telefone": "11999999999",
+        "Endereço": "Rua das Flores, 123 - Centro, São Paulo - SP",
+        "CEP": "01001-000",
         "Tipo": "Contrato"
-      },
-      {
-        "Razão Social": "Empresa Lead",
-        "Nome Fantasia": "Fantasia Lead",
-        "CNPJ/CPF": "000.000.000-00",
-        "Contato": "Maria Souza",
-        "E-mail": "maria@lead.com",
-        "Telefone": "21988888888",
-        "Tipo": "Lead"
       }
     ];
 
@@ -379,7 +390,7 @@ export default function ClientesPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Planilha de Importação");
     
-    const maxWidth = 25;
+    const maxWidth = 30;
     const colWidths = Object.keys(data[0]).map(() => ({ wch: maxWidth }));
     worksheet["!cols"] = colWidths;
 
@@ -425,6 +436,8 @@ export default function ClientesPage() {
                 const email = findValue(['e-mail', 'email', 'correio']);
                 const telefone = findValue(['telefone', 'celular', 'whatsapp', 'tel']);
                 const cnpj = findValue(['cnpj', 'cpf', 'identificação', 'identificacao', 'cadastro', 'documento', 'doc', 'inscricao', 'inscrição']);
+                const endereco = findValue(['endereço', 'endereco', 'rua', 'logradouro', 'address', 'localização', 'localizacao']);
+                const cep = findValue(['cep', 'postal', 'código postal', 'zip']);
                 const tipoRaw = findValue(['tipo', 'categoria', 'classificação', 'classificacao']).toLowerCase();
 
                 if (!razaoSocial) return;
@@ -445,7 +458,9 @@ export default function ClientesPage() {
                     contactName,
                     email,
                     telefone,
-                    cnpj: String(cnpj).replace(/\D/g, ''), // Limpa para salvar apenas números
+                    cnpj: String(cnpj).replace(/\D/g, ''),
+                    endereco,
+                    cep,
                     status,
                     responsible: currentUser?.name || "Importador",
                     potential: "medium",
@@ -485,6 +500,8 @@ export default function ClientesPage() {
         cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
         email: values.email || '',
         telefone: values.telefone,
+        endereco: values.endereco,
+        cep: values.cep,
         status: values.isLead ? "lead" : (editingCustomer.status === "lead" ? "new" : editingCustomer.status),
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
       });
@@ -512,6 +529,8 @@ export default function ClientesPage() {
         cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
         email: values.email || '',
         telefone: values.telefone,
+        endereco: values.endereco,
+        cep: values.cep,
         status: values.isLead ? "lead" : "new",
         responsible: currentUser?.name || "Admin",
         potential: "medium",
@@ -575,7 +594,7 @@ export default function ClientesPage() {
                           Formato do Arquivo
                         </AlertTitle>
                         <AlertDescription className="text-xs">
-                          Colunas aceitas: <strong>Razão Social, CNPJ/CPF, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
+                          Colunas aceitas: <strong>Razão Social, CNPJ/CPF, Nome Fantasia, Contato, E-mail, Telefone, Endereço, CEP, Tipo</strong>. 
                         </AlertDescription>
                       </div>
                       <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="shrink-0 h-8 gap-1 border-primary/50 text-primary hover:text-primary hover:bg-primary/10">
@@ -677,7 +696,7 @@ export default function ClientesPage() {
                   </span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[625px]">
+              <DialogContent className="sm:max-w-[700px]">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
@@ -686,185 +705,188 @@ export default function ClientesPage() {
                         {editingCustomer ? 'Altere os dados abaixo para atualizar.' : 'Preencha os dados abaixo para adicionar um novo lead ou cliente.'}
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-2 py-4 max-h-[60vh] overflow-y-auto -mx-6 px-6">
+                    <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto -mx-6 px-6">
                         <FormField
                             control={form.control}
                             name="isLead"
                             render={({ field }) => (
-                            <FormItem className="grid grid-cols-4 items-center gap-4 bg-primary/5 p-4 rounded-lg mb-4">
-                                <FormLabel className="text-right">Tipo de Registro</FormLabel>
-                                <div className="col-span-3 flex items-center space-x-2">
-                                    <span className={cn("text-sm font-medium", !field.value && "text-primary")}>Cliente</span>
+                            <FormItem className="flex items-center justify-between bg-primary/5 p-4 rounded-lg">
+                                <div className="space-y-0.5">
+                                    <FormLabel>Tipo de Registro</FormLabel>
+                                    <FormDescription>
+                                        {field.value ? "Lead: Prospecção aguardando fechamento." : "Cliente: Possui relacionamento comercial."}
+                                    </FormDescription>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <span className={cn("text-xs font-medium", !field.value && "text-primary")}>Cliente</span>
                                     <FormControl>
                                         <Switch
                                             checked={field.value}
                                             onCheckedChange={field.onChange}
                                         />
                                     </FormControl>
-                                    <span className={cn("text-sm font-medium", field.value && "text-primary")}>Lead</span>
+                                    <span className={cn("text-xs font-medium", field.value && "text-primary")}>Lead</span>
                                 </div>
-                                <FormDescription className="col-start-2 col-span-3">
-                                    {field.value ? "Leads são prospecções que ainda não fecharam negócio." : "Clientes já possuem relacionamento comercial."}
-                                </FormDescription>
                             </FormItem>
                             )}
                         />
 
-                       <FormField
-                        control={form.control}
-                        name="cnpj"
-                        render={({ field }) => (
-                          <FormItem className="grid grid-cols-4 items-center gap-4">
-                            <FormLabel className="text-right">CNPJ/CPF</FormLabel>
-                            <div className="col-span-3 flex items-center gap-2">
-                              <FormControl>
-                                <Input
-                                  placeholder="000.000.000-00"
-                                  className="flex-1"
-                                  {...field}
-                                  onChange={(e) => field.onChange(formatDocument(e.target.value))}
-                                />
-                              </FormControl>
-                              <Button type="button" variant="secondary" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
-                                {isCnpjLoading ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Search className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                             <div className="col-start-2 col-span-3">
-                               <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="razaoSocial"
-                        render={({ field }) => (
-                          <FormItem className="grid grid-cols-4 items-center gap-4">
-                            <FormLabel className="text-right">Razão Social</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Nome da empresa"
-                                className="col-span-3"
-                                {...field}
-                              />
-                            </FormControl>
-                             <div className="col-start-2 col-span-3">
-                               <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                       <FormField
-                        control={form.control}
-                        name="nomeFantasia"
-                        render={({ field }) => (
-                          <FormItem className="grid grid-cols-4 items-center gap-4">
-                            <FormLabel className="text-right">Nome Fantasia</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Nome popular da empresa"
-                                className="col-span-3"
-                                {...field}
-                              />
-                             </FormControl>
-                             <div className="col-start-2 col-span-3">
-                               <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="contactName"
-                        render={({ field }) => (
-                           <FormItem className="grid grid-cols-4 items-center gap-4">
-                            <FormLabel className="text-right">Nome do Contato</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Pessoa de contato"
-                                className="col-span-3"
-                                {...field}
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                             <div className="col-start-2 col-span-3">
-                               <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                       <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem className="grid grid-cols-4 items-center gap-4">
-                            <FormLabel className="text-right">E-mail</FormLabel>
-                             <FormControl>
-                              <Input
-                                type="email"
-                                placeholder="contato@empresa.com"
-                                className="col-span-3"
-                                {...field}
-                              />
-                            </FormControl>
-                             <div className="col-start-2 col-span-3">
-                               <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                       <FormField
-                        control={form.control}
-                        name="telefone"
-                        render={({ field }) => (
-                          <FormItem className="grid grid-cols-4 items-center gap-4">
-                            <FormLabel className="text-right">Telefone</FormLabel>
-                            <FormControl>
-                            <Input
-                              placeholder="(00) 00000-0000"
-                              className="col-span-3"
-                              {...field}
-                              onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
-                              value={field.value || ''}
-                            />
-                            </FormControl>
-                             <div className="col-start-2 col-span-3">
-                               <FormMessage />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                       {!isLead && (
-                         <FormField
-                            control={form.control}
-                            name="tipoCliente"
-                            render={({ field }) => (
-                            <FormItem className="grid grid-cols-4 items-center gap-4">
-                                <FormLabel className="text-right">Tipo de Cliente</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados Gerais</h3>
+                          <Separator />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="cnpj"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>CNPJ/CPF</FormLabel>
+                                  <div className="flex items-center gap-2">
                                     <FormControl>
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Selecione o tipo" />
-                                    </SelectTrigger>
+                                      <Input
+                                        placeholder="000.000.000-00"
+                                        {...field}
+                                        onChange={(e) => field.onChange(formatDocument(e.target.value))}
+                                      />
                                     </FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="active_contract">Contrato Ativo</SelectItem>
-                                        <SelectItem value="one_time">Cliente Avulso</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <div className="col-start-2 col-span-3">
-                                <FormMessage />
-                                </div>
-                            </FormItem>
-                            )}
-                        />
+                                    <Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
+                                      {isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                    </Button>
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="razaoSocial"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Razão Social</FormLabel>
+                                  <FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="nomeFantasia"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Nome Fantasia</FormLabel>
+                                  <FormControl><Input placeholder="Nome popular" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="contactName"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Nome do Contato</FormLabel>
+                                  <FormControl><Input placeholder="Pessoa de contato" {...field} value={field.value || ''} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 mt-2">
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><Phone className="h-4 w-4" /> Comunicação</h3>
+                          <Separator />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="email"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>E-mail</FormLabel>
+                                  <FormControl><Input type="email" placeholder="contato@empresa.com" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="telefone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Telefone</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="(00) 00000-0000"
+                                      {...field}
+                                      onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                                      value={field.value || ''}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 mt-2">
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Localização</h3>
+                          <Separator />
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="cep"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>CEP</FormLabel>
+                                  <FormControl><Input placeholder="00000-000" {...field} value={field.value || ''} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="endereco"
+                              render={({ field }) => (
+                                <FormItem className="md:col-span-3">
+                                  <FormLabel>Endereço Completo</FormLabel>
+                                  <FormControl><Input placeholder="Rua, número, bairro, cidade - UF" {...field} value={field.value || ''} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                       {!isLead && (
+                         <div className="space-y-4 mt-2">
+                            <h3 className="text-sm font-semibold flex items-center gap-2"><File className="h-4 w-4" /> Classificação</h3>
+                            <Separator />
+                            <FormField
+                                control={form.control}
+                                name="tipoCliente"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Tipo de Cliente</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecione o tipo" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="active_contract">Contrato Ativo</SelectItem>
+                                            <SelectItem value="one_time">Cliente Avulso</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                         </div>
                        )}
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="gap-2">
                       {editingCustomer && (
                           <Button
                               type="button"
@@ -875,10 +897,11 @@ export default function ClientesPage() {
                                   handleDeleteClick(editingCustomer);
                               }}
                               >
-                              Excluir permanentemente
+                              Excluir
                           </Button>
                       )}
-                      <Button type="submit">{editingCustomer ? 'Salvar Alterações' : 'Cadastrar'}</Button>
+                      <Button variant="ghost" type="button" onClick={() => setIsFormDialogOpen(false)}>Cancelar</Button>
+                      <Button type="submit">{editingCustomer ? 'Salvar Alterações' : 'Cadastrar Cliente'}</Button>
                     </DialogFooter>
                   </form>
                 </Form>
@@ -900,7 +923,7 @@ export default function ClientesPage() {
                 </CardDescription>
                     <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar por nome, fantasia ou e-mail..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <Input placeholder="Buscar por nome, fantasia, documento ou e-mail..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -909,8 +932,8 @@ export default function ClientesPage() {
                     <TableRow>
                         <TableHead>Nome / Contato / Identificação</TableHead>
                         <TableHead className="hidden sm:table-cell">Status</TableHead>
-                        <TableHead className="hidden md:table-cell">Responsável</TableHead>
-                        <TableHead className="hidden lg:table-cell">Cadastro</TableHead>
+                        <TableHead className="hidden md:table-cell">Localização</TableHead>
+                        <TableHead className="hidden lg:table-cell">Responsável</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                     </TableHeader>
@@ -929,15 +952,15 @@ export default function ClientesPage() {
                             )}
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {customer.cnpj && (
-                                    <div className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <div className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded flex items-center gap-1 border">
                                         <Building2 className="h-3 w-3" />
-                                        <span>Doc: {formatDocument(customer.cnpj)}</span>
+                                        <span>{formatDocument(customer.cnpj)}</span>
                                     </div>
                                 )}
                                 {customer.telefone && (
-                                    <div className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <div className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded flex items-center gap-1 border">
                                         <Phone className="h-3 w-3" />
-                                        <span>Tel: {formatPhoneNumber(customer.telefone)}</span>
+                                        <span>{formatPhoneNumber(customer.telefone)}</span>
                                     </div>
                                 )}
                             </div>
@@ -951,11 +974,22 @@ export default function ClientesPage() {
                                 {statusMap[customer.status]}
                             </Badge>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                            {customer.responsible}
+                        <TableCell className="hidden md:table-cell max-w-[200px]">
+                            {customer.endereco ? (
+                              <div className="flex flex-col gap-1">
+                                <div className="text-xs truncate" title={customer.endereco}>
+                                  <MapPin className="h-3 w-3 inline mr-1" />
+                                  {customer.endereco}
+                                </div>
+                                {customer.cep && <span className="text-[10px] text-muted-foreground">CEP: {customer.cep}</span>}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Não informado</span>
+                            )}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                            {format(new Date(customer.createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                            <div className="text-xs">{customer.responsible}</div>
+                            <div className="text-[10px] text-muted-foreground">Cad.: {format(new Date(customer.createdAt), "dd/MM/yy", { locale: ptBR })}</div>
                         </TableCell>
                         <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
