@@ -92,6 +92,34 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     try {
+      // Force one-time cleanup of demo data if not already done
+      const isDemoCleaned = localStorage.getItem('vendaspro_demo_cleaned_v2');
+      if (!isDemoCleaned) {
+          localStorage.removeItem('appointments');
+          localStorage.removeItem('serviceOrders');
+          localStorage.removeItem('customers');
+          localStorage.removeItem('products');
+          localStorage.setItem('vendaspro_demo_cleaned_v2', 'true');
+          // Start with initial empty arrays
+          setAppointments(initialAppointments);
+          setServiceOrders(initialServiceOrders);
+          setCustomers(initialCustomers);
+          setProducts(initialProducts);
+      } else {
+          // Normal loading logic
+          const savedAppointments = localStorage.getItem('appointments');
+          if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
+
+          const savedServiceOrders = localStorage.getItem('serviceOrders');
+          if(savedServiceOrders) setServiceOrders(JSON.parse(savedServiceOrders));
+
+          const savedCustomers = localStorage.getItem('customers');
+          if(savedCustomers) setCustomers(JSON.parse(savedCustomers));
+
+          const savedProducts = localStorage.getItem('products');
+          if (savedProducts) setProducts(JSON.parse(savedProducts));
+      }
+
       const savedProfile = localStorage.getItem('companyProfile');
       if (savedProfile) {
         setCompanyProfile({ ...initialCompanyProfileData, ...JSON.parse(savedProfile) });
@@ -110,18 +138,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         if (parsed.length > 0) finalUsers = parsed;
       }
       setUsers(finalUsers);
-      
-      const savedAppointments = localStorage.getItem('appointments');
-      if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
-
-      const savedServiceOrders = localStorage.getItem('serviceOrders');
-      if(savedServiceOrders) setServiceOrders(JSON.parse(savedServiceOrders));
-
-      const savedCustomers = localStorage.getItem('customers');
-      if(savedCustomers) setCustomers(JSON.parse(savedCustomers));
-
-      const savedProducts = localStorage.getItem('products');
-      if (savedProducts) setProducts(JSON.parse(savedProducts));
 
       const savedPermissions = localStorage.getItem('rolePermissions');
       if (savedPermissions) {
