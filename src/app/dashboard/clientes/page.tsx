@@ -146,10 +146,18 @@ export default function ClientesPage() {
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
   }
   
-  const formatCnpj = (value: string) => {
+  const formatDocument = (value: string) => {
     if (!value) return "";
-    const cnpj = value.replace(/\D/g, "").padStart(14, '0').slice(0, 14);
+    const cleaned = value.replace(/\D/g, "");
+    
+    // CPF
+    if (cleaned.length <= 11) {
+        const cpf = cleaned.padStart(11, '0').slice(0, 11);
+        return `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9, 11)}`;
+    }
 
+    // CNPJ
+    const cnpj = cleaned.padStart(14, '0').slice(0, 14);
     return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12, 14)}`;
   }
 
@@ -350,7 +358,7 @@ export default function ClientesPage() {
       {
         "Razão Social": "Exemplo Empresa LTDA",
         "Nome Fantasia": "Exemplo Fantasia",
-        "CNPJ": "00.000.000/0000-00",
+        "CNPJ/CPF": "00.000.000/0000-00",
         "Contato": "João Silva",
         "E-mail": "contato@exemplo.com",
         "Telefone": "11999999999",
@@ -359,7 +367,7 @@ export default function ClientesPage() {
       {
         "Razão Social": "Empresa Lead",
         "Nome Fantasia": "Fantasia Lead",
-        "CNPJ": "",
+        "CNPJ/CPF": "000.000.000-00",
         "Contato": "Maria Souza",
         "E-mail": "maria@lead.com",
         "Telefone": "21988888888",
@@ -407,7 +415,7 @@ export default function ClientesPage() {
 
             rawData.forEach((row: any) => {
                 const findValue = (keys: string[]) => {
-                    const key = Object.keys(row).find(k => keys.includes(k.trim().toLowerCase()));
+                    const key = Object.keys(row).find(k => keys.some(sk => k.trim().toLowerCase().includes(sk)));
                     return key ? String(row[key]).trim() : '';
                 };
 
@@ -416,7 +424,7 @@ export default function ClientesPage() {
                 const contactName = findValue(['contato', 'pessoal', 'responsável', 'responsavel']);
                 const email = findValue(['e-mail', 'email', 'correio']);
                 const telefone = findValue(['telefone', 'celular', 'whatsapp', 'tel']);
-                const cnpj = findValue(['cnpj', 'c.n.p.j.', 'c.n.p.j', 'identificação', 'identificacao', 'cadastro']);
+                const cnpj = findValue(['cnpj', 'cpf', 'identificação', 'identificacao', 'cadastro', 'documento', 'doc', 'inscricao', 'inscrição']);
                 const tipoRaw = findValue(['tipo', 'categoria', 'classificação', 'classificacao']).toLowerCase();
 
                 if (!razaoSocial) return;
@@ -437,7 +445,7 @@ export default function ClientesPage() {
                     contactName,
                     email,
                     telefone,
-                    cnpj: cnpj.replace(/\D/g, ''), // Limpa para salvar apenas números
+                    cnpj: String(cnpj).replace(/\D/g, ''), // Limpa para salvar apenas números
                     status,
                     responsible: currentUser?.name || "Importador",
                     potential: "medium",
@@ -567,7 +575,7 @@ export default function ClientesPage() {
                           Formato do Arquivo
                         </AlertTitle>
                         <AlertDescription className="text-xs">
-                          Colunas aceitas: <strong>Razão Social, CNPJ, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
+                          Colunas aceitas: <strong>Razão Social, CNPJ/CPF, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
                         </AlertDescription>
                       </div>
                       <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="shrink-0 h-8 gap-1 border-primary/50 text-primary hover:text-primary hover:bg-primary/10">
@@ -707,14 +715,14 @@ export default function ClientesPage() {
                         name="cnpj"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-4 items-center gap-4">
-                            <FormLabel className="text-right">CNPJ</FormLabel>
+                            <FormLabel className="text-right">CNPJ/CPF</FormLabel>
                             <div className="col-span-3 flex items-center gap-2">
                               <FormControl>
                                 <Input
-                                  placeholder="00.000.000/0000-00"
+                                  placeholder="000.000.000-00"
                                   className="flex-1"
                                   {...field}
-                                  onChange={(e) => field.onChange(formatCnpj(e.target.value))}
+                                  onChange={(e) => field.onChange(formatDocument(e.target.value))}
                                 />
                               </FormControl>
                               <Button type="button" variant="secondary" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
@@ -923,7 +931,7 @@ export default function ClientesPage() {
                                 {customer.cnpj && (
                                     <div className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded flex items-center gap-1">
                                         <Building2 className="h-3 w-3" />
-                                        <span>CNPJ: {formatCnpj(customer.cnpj)}</span>
+                                        <span>Doc: {formatDocument(customer.cnpj)}</span>
                                     </div>
                                 )}
                                 {customer.telefone && (
