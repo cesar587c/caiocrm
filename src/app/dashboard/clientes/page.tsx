@@ -1,9 +1,11 @@
+
 "use client";
 
 import { useState, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import * as XLSX from 'xlsx';
 import {
   Calendar as CalendarIcon,
   File,
@@ -353,104 +355,131 @@ export default function ClientesPage() {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ["Razão Social", "Nome Fantasia", "Contato", "E-mail", "Telefone", "Tipo"];
-    const rows = [
-      ["Exemplo Empresa LTDA", "Exemplo Fantasia", "João Silva", "contato@exemplo.com", "11999999999", "Contrato"],
-      ["Empresa Lead", "Fantasia Lead", "Maria Souza", "maria@lead.com", "21988888888", "Lead"],
-      ["Cliente Avulso S.A.", "", "Carlos Rocha", "carlos@avulso.com", "31977776666", "Avulso"]
+    const data = [
+      {
+        "Razão Social": "Exemplo Empresa LTDA",
+        "Nome Fantasia": "Exemplo Fantasia",
+        "Contato": "João Silva",
+        "E-mail": "contato@exemplo.com",
+        "Telefone": "11999999999",
+        "Tipo": "Contrato"
+      },
+      {
+        "Razão Social": "Empresa Lead",
+        "Nome Fantasia": "Fantasia Lead",
+        "Contato": "Maria Souza",
+        "E-mail": "maria@lead.com",
+        "Telefone": "21988888888",
+        "Tipo": "Lead"
+      },
+      {
+        "Razão Social": "Cliente Avulso S.A.",
+        "Nome Fantasia": "",
+        "Contato": "Carlos Rocha",
+        "E-mail": "carlos@avulso.com",
+        "Telefone": "31977776666",
+        "Tipo": "Avulso"
+      }
     ];
 
-    const csvContent = [
-      headers.join(";"),
-      ...rows.map(row => row.join(";"))
-    ].join("\n");
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Planilha de Importação");
+    
+    // Auto-size columns
+    const maxWidth = 25;
+    const colWidths = Object.keys(data[0]).map(() => ({ wch: maxWidth }));
+    worksheet["!cols"] = colWidths;
 
-    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "modelo_importacao_clientes.csv");
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    XLSX.writeFile(workbook, "modelo_importacao_clientes.xlsx");
     
     toast({
       title: "Modelo baixado!",
-      description: "Preencha o arquivo e faça o upload para importar seus clientes.",
+      description: "Preencha o arquivo Excel e faça o upload para importar seus clientes.",
     });
   };
 
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
-        const text = e.target?.result as string;
-        if (!text) return;
+        try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            
+            // Converte para JSON usando os cabeçalhos da primeira linha
+            const rawData = XLSX.utils.sheet_to_json<any>(worksheet);
 
-        // Process CSV
-        const lines = text.split(/\r?\n/);
-        if (lines.length < 2) {
-            toast({ variant: 'destructive', title: 'Arquivo Vazio', description: 'O arquivo CSV não possui dados suficientes.' });
-            return;
-        }
-
-        const headers = lines[0].split(/[;,]/).map(h => h.trim().toLowerCase());
-        const importedCustomers: Omit<Customer, 'id'>[] = [];
-
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].split(/[;,]/);
-            if (line.length < 1 || !line[0].trim()) continue;
-
-            // Simple column mapping
-            // Column 0: Razao Social, 1: Fantasia, 2: Contato, 3: Email, 4: Telefone, 5: Tipo
-            const razaoSocial = line[0]?.trim() || '';
-            const nomeFantasia = line[1]?.trim() || razaoSocial;
-            const contactName = line[2]?.trim() || '';
-            const email = line[3]?.trim() || '';
-            const telefone = line[4]?.trim() || '';
-            const tipoRaw = line[5]?.trim().toLowerCase() || '';
-
-            let type: CustomerType = 'one_time';
-            let status: CustomerStatus = 'new';
-
-            if (tipoRaw.includes('contrato')) {
-                type = 'active_contract';
-            } else if (tipoRaw.includes('lead')) {
-                type = 'lead';
-                status = 'lead';
+            if (rawData.length === 0) {
+                toast({ variant: 'destructive', title: 'Arquivo Vazio', description: 'Não foram encontrados dados válidos no arquivo.' });
+                return;
             }
 
-            importedCustomers.push({
-                name: razaoSocial,
-                nomeFantasia,
-                contactName,
-                email,
-                telefone,
-                status,
-                responsible: currentUser?.name || "Importador",
-                potential: "medium",
-                lastContact: new Date().toISOString(),
-                createdAt: new Date().toISOString(),
-                type,
-            });
-        }
+            const importedCustomers: Omit<Customer, 'id'>[] = [];
 
-        if (importedCustomers.length > 0) {
-            importedCustomers.forEach(c => addCustomer(c));
-            toast({
-                title: "Importação Concluída!",
-                description: `${importedCustomers.length} registros foram importados com sucesso.`,
+            rawData.forEach((row: any) => {
+                // Mapeamento flexível de cabeçalhos
+                const findValue = (keys: string[]) => {
+                    const key = Object.keys(row).find(k => keys.includes(k.trim().toLowerCase()));
+                    return key ? String(row[key]).trim() : '';
+                };
+
+                const razaoSocial = findValue(['razão social', 'razao social', 'nome', 'empresa', 'razão']);
+                const nomeFantasia = findValue(['nome fantasia', 'fantasia']) || razaoSocial;
+                const contactName = findValue(['contato', 'pessoal', 'responsável', 'responsavel']);
+                const email = findValue(['e-mail', 'email', 'correio']);
+                const telefone = findValue(['telefone', 'celular', 'whatsapp', 'tel']);
+                const tipoRaw = findValue(['tipo', 'categoria']).toLowerCase();
+
+                if (!razaoSocial) return;
+
+                let type: CustomerType = 'one_time';
+                let status: CustomerStatus = 'new';
+
+                if (tipoRaw.includes('contrato')) {
+                    type = 'active_contract';
+                } else if (tipoRaw.includes('lead')) {
+                    type = 'lead';
+                    status = 'lead';
+                }
+
+                importedCustomers.push({
+                    name: razaoSocial,
+                    nomeFantasia,
+                    contactName,
+                    email,
+                    telefone,
+                    status,
+                    responsible: currentUser?.name || "Importador",
+                    potential: "medium",
+                    lastContact: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    type,
+                });
             });
-            setIsImportDialogOpen(false);
-        } else {
-             toast({ variant: 'destructive', title: 'Falha na Importação', description: 'Nenhum dado válido encontrado no arquivo.' });
+
+            if (importedCustomers.length > 0) {
+                importedCustomers.forEach(c => addCustomer(c));
+                toast({
+                    title: "Importação Concluída!",
+                    description: `${importedCustomers.length} registros foram importados com sucesso.`,
+                });
+                setIsImportDialogOpen(false);
+            } else {
+                toast({ variant: 'destructive', title: 'Falha na Importação', description: 'Nenhum dado válido encontrado. Verifique os cabeçalhos.' });
+            }
+        } catch (error) {
+            console.error("Erro ao importar arquivo:", error);
+            toast({ variant: 'destructive', title: 'Erro no Processamento', description: 'Não foi possível ler o arquivo. Certifique-se de que ele não está corrompido.' });
         }
     };
-    reader.readAsText(file);
-    // Reset input
+    reader.readAsArrayBuffer(file);
+    
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
   
@@ -533,14 +562,14 @@ export default function ClientesPage() {
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 gap-1">
                   <Upload className="h-3.5 w-3.5" />
-                  <span>Importar CSV</span>
+                  <span>Importar Planilha</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                  <DialogTitle>Importar Clientes via CSV</DialogTitle>
+                  <DialogTitle>Importar Clientes (Excel / CSV)</DialogTitle>
                   <DialogDescription>
-                    Selecione um arquivo CSV com seus clientes para importar em massa.
+                    Selecione um arquivo .xlsx, .xls ou .csv com seus clientes.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -552,25 +581,25 @@ export default function ClientesPage() {
                           Formato do Arquivo
                         </AlertTitle>
                         <AlertDescription className="text-xs">
-                          Colunas: <strong>Razão Social, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
+                          Colunas aceitas: <strong>Razão Social, Nome Fantasia, Contato, E-mail, Telefone, Tipo</strong>. 
                         </AlertDescription>
                       </div>
                       <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="shrink-0 h-8 gap-1 border-primary/50 text-primary hover:text-primary hover:bg-primary/10">
                         <Download className="h-3 w-3" />
-                        Modelo CSV
+                        Modelo Excel
                       </Button>
                     </div>
                   </Alert>
                   <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-10 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => fileInputRef.current?.click()}>
                     <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-                    <p className="text-sm font-medium">Clique para selecionar seu arquivo CSV</p>
-                    <p className="text-xs text-muted-foreground mt-1">Tamanho máximo: 5MB</p>
+                    <p className="text-sm font-medium">Clique para selecionar seu arquivo</p>
+                    <p className="text-xs text-muted-foreground mt-1">Formatos: .xlsx, .xls, .csv</p>
                     <input 
                       type="file" 
                       ref={fileInputRef} 
                       className="hidden" 
-                      accept=".csv" 
-                      onChange={handleImportCSV} 
+                      accept=".xlsx, .xls, .csv" 
+                      onChange={handleImportFile} 
                     />
                   </div>
                 </div>
