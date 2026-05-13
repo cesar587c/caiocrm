@@ -148,21 +148,9 @@ export default function ClientesPage() {
   
   const formatCnpj = (value: string) => {
     if (!value) return "";
-    const cnpj = value.replace(/\D/g, "").slice(0, 14);
+    const cnpj = value.replace(/\D/g, "").padStart(14, '0').slice(0, 14);
 
-    if (cnpj.length > 12) {
-      return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12, 14)}`;
-    }
-    if (cnpj.length > 8) {
-      return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8)}`;
-    }
-    if (cnpj.length > 5) {
-      return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5)}`;
-    }
-    if (cnpj.length > 2) {
-      return `${cnpj.slice(0, 2)}.${cnpj.slice(2)}`;
-    }
-    return cnpj;
+    return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12, 14)}`;
   }
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -423,13 +411,13 @@ export default function ClientesPage() {
                     return key ? String(row[key]).trim() : '';
                 };
 
-                const razaoSocial = findValue(['razão social', 'razao social', 'nome', 'empresa', 'razão', 'razao']);
+                const razaoSocial = findValue(['razão social', 'razao social', 'nome', 'empresa', 'razão', 'razao', 'cliente']);
                 const nomeFantasia = findValue(['nome fantasia', 'fantasia']) || razaoSocial;
                 const contactName = findValue(['contato', 'pessoal', 'responsável', 'responsavel']);
                 const email = findValue(['e-mail', 'email', 'correio']);
                 const telefone = findValue(['telefone', 'celular', 'whatsapp', 'tel']);
-                const cnpj = findValue(['cnpj', 'c.n.p.j.']);
-                const tipoRaw = findValue(['tipo', 'categoria']).toLowerCase();
+                const cnpj = findValue(['cnpj', 'c.n.p.j.', 'c.n.p.j', 'identificação', 'identificacao', 'cadastro']);
+                const tipoRaw = findValue(['tipo', 'categoria', 'classificação', 'classificacao']).toLowerCase();
 
                 if (!razaoSocial) return;
 
@@ -449,7 +437,7 @@ export default function ClientesPage() {
                     contactName,
                     email,
                     telefone,
-                    cnpj,
+                    cnpj: cnpj.replace(/\D/g, ''), // Limpa para salvar apenas números
                     status,
                     responsible: currentUser?.name || "Importador",
                     potential: "medium",
@@ -486,7 +474,7 @@ export default function ClientesPage() {
         name: values.razaoSocial,
         nomeFantasia: values.nomeFantasia,
         contactName: values.contactName,
-        cnpj: values.cnpj,
+        cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
         email: values.email || '',
         telefone: values.telefone,
         status: values.isLead ? "lead" : (editingCustomer.status === "lead" ? "new" : editingCustomer.status),
@@ -513,7 +501,7 @@ export default function ClientesPage() {
         name: values.razaoSocial,
         nomeFantasia: values.nomeFantasia,
         contactName: values.contactName,
-        cnpj: values.cnpj,
+        cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
         email: values.email || '',
         telefone: values.telefone,
         status: values.isLead ? "lead" : "new",
