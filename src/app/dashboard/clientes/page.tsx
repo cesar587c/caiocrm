@@ -344,6 +344,8 @@ export default function ClientesPage() {
   };
 
   const handleDeleteClick = (customer: Customer) => {
+    // Para evitar travamento, fechamos o modal principal antes de abrir o de confirmação
+    setIsFormDialogOpen(false);
     setDeletingCustomer(customer);
   };
 
@@ -355,6 +357,7 @@ export default function ClientesPage() {
       description: `${deletingCustomer.name} foi removido com sucesso.`,
     });
     setDeletingCustomer(null);
+    setEditingCustomer(null);
   };
 
   const handleDownloadTemplate = () => {
@@ -374,7 +377,7 @@ export default function ClientesPage() {
 
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Planilha de Importação");
+    XLSX.book_append_sheet(workbook, worksheet, "Planilha de Importação");
     
     const maxWidth = 30;
     const colWidths = Object.keys(data[0]).map(() => ({ wch: maxWidth }));
@@ -559,7 +562,7 @@ export default function ClientesPage() {
                   <span>Importar Planilha</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
+              <DialogContent className="sm:max-w-[500px]" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <DialogHeader>
                   <DialogTitle>Importar Clientes (Excel / CSV)</DialogTitle>
                   <DialogDescription>
@@ -836,7 +839,7 @@ export default function ClientesPage() {
                               name="endereco"
                               render={({ field }) => (
                                 <FormItem className="md:col-span-3">
-                                  <FormLabel>Endereço Completo</FormLabel>
+                                  <FormLabel>Endereço Completos</FormLabel>
                                   <FormControl><Input placeholder="Rua, número, bairro, cidade - UF" {...field} value={field.value || ''} /></FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -1026,7 +1029,7 @@ export default function ClientesPage() {
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteAction}>Confirmar Exclusão</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
@@ -1051,7 +1054,7 @@ export default function ClientesPage() {
                 </Button>
             </div>
             <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setConvertingCustomer(null)}>Cancelar</AlertDialogCancel>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
