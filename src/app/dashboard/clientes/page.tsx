@@ -692,7 +692,7 @@ export default function ClientesPage() {
                     <TableHeader>
                     <TableRow>
                         <TableHead>Nome / Contato</TableHead>
-                        <TableHead>Status / Serviços</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead className="hidden md:table-cell">Localização</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -702,28 +702,30 @@ export default function ClientesPage() {
                         displayedCustomers.map((customer) => (
                         <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
                         <TableCell>
-                            <div className="font-medium text-base">{customer.name}</div>
-                            <div className="text-xs text-muted-foreground">{customer.email}</div>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                                {customer.cnpj && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Building2 className="h-3 w-3" /><span>{formatDocument(customer.cnpj)}</span></div>}
-                                {customer.telefone && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Phone className="h-3 w-3" /><span>{formatPhoneNumber(customer.telefone)}</span></div>}
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                    <span className="font-medium text-base">{customer.name}</span>
+                                    <div className="flex gap-1">
+                                        {(customer.serviceCategories || []).map(catId => {
+                                            const cat = SERVICE_CATEGORIES.find(c => c.id === catId);
+                                            if (!cat) return null;
+                                            return (
+                                                <Badge key={catId} variant="outline" className={cn("text-[8px] h-4 leading-none uppercase font-bold px-1 py-0", cat.color)}>
+                                                    {cat.label}
+                                                </Badge>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <div className="text-xs text-muted-foreground">{customer.email}</div>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {customer.cnpj && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Building2 className="h-3 w-3" /><span>{formatDocument(customer.cnpj)}</span></div>}
+                                    {customer.telefone && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Phone className="h-3 w-3" /><span>{formatPhoneNumber(customer.telefone)}</span></div>}
+                                </div>
                             </div>
                         </TableCell>
                         <TableCell>
-                            <div className="space-y-2">
-                                <div className="flex flex-wrap gap-1">
-                                    {(customer.serviceCategories || []).map(catId => {
-                                        const cat = SERVICE_CATEGORIES.find(c => c.id === catId);
-                                        if (!cat) return null;
-                                        return (
-                                            <Badge key={catId} variant="outline" className={cn("text-[9px] uppercase font-bold px-1.5 py-0", cat.color)}>
-                                                {cat.label}
-                                            </Badge>
-                                        );
-                                    })}
-                                </div>
-                                <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
-                            </div>
+                            <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell max-w-[200px]">
                             {customer.endereco ? <div className="text-xs truncate"><MapPin className="h-3 w-3 inline mr-1" />{customer.endereco}</div> : <span className="text-xs text-muted-foreground italic">N/A</span>}
