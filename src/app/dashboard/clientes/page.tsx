@@ -256,7 +256,8 @@ export default function ClientesPage() {
       });
     }
 
-    return filtered;
+    // Sort alphabetically by name
+    return filtered.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   }, [customers, searchTerm, activeTab, date]);
 
