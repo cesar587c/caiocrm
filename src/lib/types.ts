@@ -89,6 +89,7 @@ export type Customer = {
     createdAt: string;
     type: CustomerType;
     serviceCategories?: string[];
+    observations?: string;
 };
 
 export type Product = {

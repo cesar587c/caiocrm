@@ -30,7 +30,8 @@ import {
   Archive,
   RotateCcw,
   Tags,
-  Check
+  Check,
+  ClipboardList
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -103,6 +104,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -114,8 +116,10 @@ const statusMap: Record<string, string> = {
 
 const SERVICE_CATEGORIES = [
   { id: "ponto", label: "Ponto", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  { id: "manutencao", label: "Manutenção", color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  { id: "gestao", label: "Sistema de Gestão", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+  { id: "manutencao", label: "Manut. PC", color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+  { id: "gestao", label: "Gestão", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+  { id: "acesso", label: "Acesso", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  { id: "catraca", label: "Catraca", color: "bg-pink-500/20 text-pink-400 border-pink-500/30" },
 ];
 
 const formSchema = z.object({
@@ -131,6 +135,7 @@ const formSchema = z.object({
   isLead: z.boolean().default(false),
   tipoCliente: z.enum(["active_contract", "one_time"]).default("one_time"),
   serviceCategories: z.array(z.string()).default([]),
+  observations: z.string().optional(),
 }).refine((data) => data.isLead || !!data.email || !!data.telefone, {
     message: "Para clientes, é obrigatório informar um e-mail ou telefone.",
     path: ["telefone"],
@@ -149,6 +154,7 @@ const defaultFormValues = {
   isLead: false,
   tipoCliente: "one_time" as const,
   serviceCategories: [],
+  observations: "",
 };
 
 export default function ClientesPage() {
@@ -319,6 +325,7 @@ export default function ClientesPage() {
         cep: customer.cep || '',
         inscricaoEstadual: '',
         serviceCategories: customer.serviceCategories || [],
+        observations: customer.observations || "",
     });
     setIsFormDialogOpen(true);
   };
@@ -332,6 +339,7 @@ export default function ClientesPage() {
       lastContact: new Date().toISOString(),
       status: 'new',
       serviceCategories: customer.serviceCategories ? [...customer.serviceCategories] : [],
+      observations: customer.observations || "",
     };
     addCustomer(clonedCustomer);
     toast({
@@ -392,7 +400,8 @@ export default function ClientesPage() {
         "Telefone": "11999999999",
         "Endereço": "Rua das Flores, 123",
         "CEP": "01001-000",
-        "Tipo": "Contrato"
+        "Tipo": "Contrato",
+        "Observações": "Descreva detalhes técnicos aqui..."
       }
     ];
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -434,7 +443,7 @@ export default function ClientesPage() {
                     contactName: findValue(['contato', 'responsável']),
                     email: findValue(['e-mail', 'email']),
                     telefone: findValue(['telefone', 'celular', 'whatsapp']),
-                    cnpj: findValue(['cnpj', 'cpf', 'documento', 'identificação', 'cadastro']).replace(/\D/g, ''),
+                    cnpj: findValue(['cnpj', 'cpf', 'documento', 'identificação', 'cadastro', 'cnpj/cpf']).replace(/\D/g, ''),
                     endereco: findValue(['endereço', 'endereco', 'rua', 'logradouro']),
                     cep: findValue(['cep', 'postal', 'código postal']),
                     status: 'new',
@@ -444,6 +453,7 @@ export default function ClientesPage() {
                     createdAt: new Date().toISOString(),
                     type: findValue(['tipo']).toLowerCase().includes('contrato') ? 'active_contract' : 'one_time',
                     serviceCategories: [],
+                    observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']),
                 });
             });
 
@@ -461,7 +471,6 @@ export default function ClientesPage() {
   
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (editingCustomer) {
-      // If it's a customer (not lead) and was 'new', mark as 'active' upon interaction (save)
       let nextStatus = editingCustomer.status;
       if (values.isLead) {
           nextStatus = "lead";
@@ -484,6 +493,7 @@ export default function ClientesPage() {
         status: nextStatus,
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
         serviceCategories: values.serviceCategories,
+        observations: values.observations,
       });
       toast({ title: "Dados Atualizados!" });
     } else {
@@ -503,6 +513,7 @@ export default function ClientesPage() {
         createdAt: new Date().toISOString(),
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
         serviceCategories: values.serviceCategories,
+        observations: values.observations,
       };
       addCustomer(newCustomerData);
       toast({ title: "Cliente Salvo!" });
@@ -626,29 +637,27 @@ export default function ClientesPage() {
                         </div>
 
                         <div className="space-y-4 mt-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados Gerais</h3>
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Observações de Serviço</h3>
                           <Separator />
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="cnpj"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>CNPJ/CPF</FormLabel>
-                                  <div className="flex items-center gap-2">
-                                    <FormControl><Input placeholder="00.000.000/0000-00" {...field} onChange={(e) => field.onChange(formatDocument(e.target.value))} /></FormControl>
-                                    <Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
-                                      {isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                                    </Button>
-                                  </div>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField control={form.control} name="razaoSocial" render={({ field }) => (<FormItem><FormLabel>Razão Social</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                            <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>Nome do Contato</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                          </div>
+                          <FormField
+                            control={form.control}
+                            name="observations"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Detalhes Técnicos / Notas Internas</FormLabel>
+                                <FormControl>
+                                  <Textarea 
+                                    placeholder="Ex: 5 PCs, 2 Impressoras HP, todos com Win 11. Manutenção preventiva mensal..." 
+                                    className="min-h-[100px]"
+                                    {...field} 
+                                    value={field.value || ''}
+                                  />
+                                </FormControl>
+                                <FormDescription>Especifique os equipamentos e particularidades do serviço.</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
 
                         <div className="space-y-4 mt-2">
@@ -698,6 +707,32 @@ export default function ClientesPage() {
                               </FormItem>
                             )}
                           />
+                        </div>
+
+                        <div className="space-y-4 mt-2">
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados Gerais</h3>
+                          <Separator />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="cnpj"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>CNPJ/CPF</FormLabel>
+                                  <div className="flex items-center gap-2">
+                                    <FormControl><Input placeholder="00.000.000/0000-00" {...field} onChange={(e) => field.onChange(formatDocument(e.target.value))} /></FormControl>
+                                    <Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
+                                      {isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                    </Button>
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField control={form.control} name="razaoSocial" render={({ field }) => (<FormItem><FormLabel>Razão Social</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>Nome do Contato</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                          </div>
                         </div>
 
                         <div className="space-y-4 mt-2">
