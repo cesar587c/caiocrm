@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer, Product, UserRole, RolePermissions } from '@/lib/types';
+import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer, Product, UserRole, RolePermissions, CustomerStatus } from '@/lib/types';
 import { companyProfile as initialCompanyProfileData } from '@/lib/company-profile';
 import { initialServiceOrders, initialCustomers, initialProducts } from '@/lib/mock-data';
 
@@ -93,7 +93,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     try {
-      // Force one-time cleanup of demo data if not already done
       const isDemoCleaned = localStorage.getItem('vendaspro_demo_cleaned_v3');
       if (!isDemoCleaned) {
           localStorage.removeItem('appointments');
@@ -101,13 +100,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           localStorage.removeItem('customers');
           localStorage.removeItem('products');
           localStorage.setItem('vendaspro_demo_cleaned_v3', 'true');
-          // Start with initial empty arrays
           setAppointments(initialAppointments);
           setServiceOrders(initialServiceOrders);
           setCustomers(initialCustomers);
           setProducts(initialProducts);
       } else {
-          // Normal loading logic
           const savedAppointments = localStorage.getItem('appointments');
           if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
 
@@ -200,42 +197,19 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     setCompanyProfile(profile);
     saveData('companyProfile', profile);
   }, [saveData]);
-  
-  const handleSetSectors = useCallback((newSectors: Sector[]) => {
-      setSectors(newSectors);
-      saveData('sectors', newSectors);
-  }, [saveData]);
-  
-  const handleSetUsers = useCallback((newUsers: User[]) => {
-      setUsers(newUsers);
-      saveData('users', newUsers);
-  }, [saveData]);
 
-  const handleSetAppointments = useCallback((data: Appointment[]) => {
-    setAppointments(data);
-    saveData('appointments', data);
+  const triggerCustomerActivation = useCallback((customerId: string) => {
+      setCustomers(prev => {
+          const updated = prev.map(c => {
+              if (c.id === customerId && c.status === 'new') {
+                  return { ...c, status: 'active' as CustomerStatus };
+              }
+              return c;
+          });
+          saveData('customers', updated);
+          return updated;
+      });
   }, [saveData]);
-
-  const handleSetServiceOrders = useCallback((data: ServiceOrder[]) => {
-    setServiceOrders(data);
-    saveData('serviceOrders', data);
-  }, [saveData]);
-
-  const handleSetCustomers = useCallback((data: Customer[]) => {
-    setCustomers(data);
-    saveData('customers', data);
-  }, [saveData]);
-  
-  const handleSetProducts = useCallback((data: Product[]) => {
-    setProducts(data);
-    saveData('products', data);
-  }, [saveData]);
-
-  const updateRolePermissions = useCallback((role: UserRole, paths: string[]) => {
-    const newPermissions = { ...rolePermissions, [role]: paths };
-    setRolePermissions(newPermissions);
-    saveData('rolePermissions', newPermissions);
-  }, [rolePermissions, saveData]);
 
   const addSector = useCallback((name: string) => {
       const newSector: Sector = { id: generateId('sec'), name };
@@ -294,7 +268,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           saveData('appointments', updated);
           return updated;
       });
-  }, [saveData]);
+      // Interaction triggers customer activation if they are 'new'
+      const customer = customers.find(c => c.name === data.clientName);
+      if (customer) triggerCustomerActivation(customer.id);
+  }, [saveData, customers, triggerCustomerActivation]);
 
   const updateAppointment = useCallback((updated: Appointment) => {
       setAppointments(prev => {
@@ -326,7 +303,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         saveData('serviceOrders', updated);
         return updated;
     });
-  }, [saveData]);
+    // OS creation is a strong interaction, activate customer
+    triggerCustomerActivation(data.clientId);
+  }, [saveData, triggerCustomerActivation]);
 
   const updateServiceOrder = useCallback((updated: ServiceOrder) => {
     setServiceOrders(prev => {
@@ -411,6 +390,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         return updated;
     });
   }, [saveData]);
+
+  const updateRolePermissions = useCallback((role: UserRole, paths: string[]) => {
+    const newPermissions = { ...rolePermissions, [role]: paths };
+    setRolePermissions(newPermissions);
+    saveData('rolePermissions', newPermissions);
+  }, [rolePermissions, saveData]);
 
   const contextValue = useMemo(() => ({ 
         companyProfile, setCompanyProfile: handleSetProfile,

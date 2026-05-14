@@ -102,6 +102,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -460,6 +461,16 @@ export default function ClientesPage() {
   
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (editingCustomer) {
+      // If it's a customer (not lead) and was 'new', mark as 'active' upon interaction (save)
+      let nextStatus = editingCustomer.status;
+      if (values.isLead) {
+          nextStatus = "lead";
+      } else {
+          if (editingCustomer.status === "lead" || editingCustomer.status === "new") {
+              nextStatus = "active";
+          }
+      }
+
       updateCustomer({
         ...editingCustomer,
         name: values.razaoSocial,
@@ -470,7 +481,7 @@ export default function ClientesPage() {
         telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '',
         endereco: values.endereco,
         cep: values.cep,
-        status: values.isLead ? "lead" : (editingCustomer.status === "lead" ? "new" : editingCustomer.status),
+        status: nextStatus,
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
         serviceCategories: values.serviceCategories,
       });
@@ -499,6 +510,8 @@ export default function ClientesPage() {
     setIsFormDialogOpen(false);
     setEditingCustomer(null);
   }
+
+  const isLead = form.watch("isLead");
 
   return (
     <>
@@ -555,21 +568,64 @@ export default function ClientesPage() {
                       <DialogTitle>{editingCustomer ? 'Editar Registro' : 'Cadastrar Novo'}</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto px-1">
-                        <FormField
-                            control={form.control}
-                            name="isLead"
-                            render={({ field }) => (
-                            <FormItem className="flex items-center justify-between bg-primary/5 p-4 rounded-lg">
-                                <div className="space-y-0.5"><FormLabel>Tipo de Registro</FormLabel></div>
-                                <div className="flex items-center space-x-2">
-                                    <span className={cn("text-xs", !field.value && "text-primary font-bold")}>Cliente</span>
-                                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                    <span className={cn("text-xs", field.value && "text-primary font-bold")}>Lead</span>
-                                </div>
-                            </FormItem>
+                        <div className="space-y-4 bg-primary/5 p-4 rounded-lg">
+                            <FormField
+                                control={form.control}
+                                name="isLead"
+                                render={({ field }) => (
+                                <FormItem className="flex items-center justify-between">
+                                    <div className="space-y-0.5"><FormLabel>Tipo de Registro</FormLabel></div>
+                                    <div className="flex items-center space-x-2">
+                                        <span className={cn("text-xs", !field.value && "text-primary font-bold")}>Cliente</span>
+                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        <span className={cn("text-xs", field.value && "text-primary font-bold")}>Lead</span>
+                                    </div>
+                                </FormItem>
+                                )}
+                            />
+                            
+                            {!isLead && (
+                                <>
+                                <Separator className="bg-primary/10" />
+                                <FormField
+                                    control={form.control}
+                                    name="tipoCliente"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-3">
+                                            <FormLabel>Classificação do Cliente</FormLabel>
+                                            <FormControl>
+                                                <RadioGroup
+                                                    onValueChange={field.onChange}
+                                                    defaultValue={field.value}
+                                                    className="flex flex-row space-x-4"
+                                                >
+                                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                                        <FormControl>
+                                                            <RadioGroupItem value="one_time" />
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal cursor-pointer">
+                                                            Avulso
+                                                        </FormLabel>
+                                                    </FormItem>
+                                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                                        <FormControl>
+                                                            <RadioGroupItem value="active_contract" />
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal cursor-pointer">
+                                                            Contrato Ativo
+                                                        </FormLabel>
+                                                    </FormItem>
+                                                </RadioGroup>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                </>
                             )}
-                        />
-                        <div className="space-y-4">
+                        </div>
+
+                        <div className="space-y-4 mt-2">
                           <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados Gerais</h3>
                           <Separator />
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -725,7 +781,14 @@ export default function ClientesPage() {
                             </div>
                         </TableCell>
                         <TableCell>
-                            <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
+                            <div className="flex flex-col gap-1">
+                                <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
+                                {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && (
+                                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
+                                        {customer.type === 'active_contract' ? 'Contrato Ativo' : 'Avulso'}
+                                    </span>
+                                )}
+                            </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell max-w-[200px]">
                             {customer.endereco ? <div className="text-xs truncate"><MapPin className="h-3 w-3 inline mr-1" />{customer.endereco}</div> : <span className="text-xs text-muted-foreground italic">N/A</span>}
