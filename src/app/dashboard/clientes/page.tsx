@@ -26,7 +26,9 @@ import {
   Phone,
   Building2,
   MapPin,
-  Copy
+  Copy,
+  Archive,
+  RotateCcw
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -147,17 +149,14 @@ export default function ClientesPage() {
   const [convertingCustomer, setConvertingCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  const [showInactive, setShowInactive] = useState(false);
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
 
-  // FORCE CLEANUP: Proteção contra travamento da interface (pointer-events stuck)
   useEffect(() => {
     const anyModalOpen = isFormDialogOpen || isImportDialogOpen || !!deletingCustomer || !!convertingCustomer;
     if (!anyModalOpen) {
-      // Pequeno delay para garantir que a animação de fechamento terminou
       const timer = setTimeout(() => {
         document.body.style.pointerEvents = 'auto';
         document.body.style.overflow = 'auto';
@@ -207,28 +206,27 @@ export default function ClientesPage() {
         (c.cnpj && c.cnpj.replace(/\D/g, "").includes(lowercasedSearchTerm))
     );
 
-    if (showInactive) {
-        filtered = filtered.filter(c => c.status === 'inactive' || c.status === 'discarded');
-    } else {
-        switch (activeTab) {
-            case 'all':
-                filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded' && c.status !== 'lead');
-                break;
-            case 'active_contract':
-                filtered = filtered.filter(c => c.type === 'active_contract' && c.status !== 'lead');
-                break;
-            case 'one_time':
-                filtered = filtered.filter(c => c.type === 'one_time' && c.status !== 'lead');
-                break;
-            case 'leads':
-                filtered = filtered.filter(c => c.status === 'lead');
-                break;
-            case 'new':
-                filtered = filtered.filter(c => c.status === 'new');
-                break;
-            default:
-                filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded');
-        }
+    switch (activeTab) {
+        case 'inactive':
+            filtered = filtered.filter(c => c.status === 'inactive' || c.status === 'discarded');
+            break;
+        case 'all':
+            filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded' && c.status !== 'lead');
+            break;
+        case 'active_contract':
+            filtered = filtered.filter(c => c.type === 'active_contract' && c.status !== 'lead' && c.status !== 'inactive');
+            break;
+        case 'one_time':
+            filtered = filtered.filter(c => c.type === 'one_time' && c.status !== 'lead' && c.status !== 'inactive');
+            break;
+        case 'leads':
+            filtered = filtered.filter(c => c.status === 'lead' && c.status !== 'inactive');
+            break;
+        case 'new':
+            filtered = filtered.filter(c => c.status === 'new' && c.status !== 'inactive');
+            break;
+        default:
+            filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded');
     }
     
     if (date?.from) {
@@ -242,7 +240,7 @@ export default function ClientesPage() {
 
     return filtered;
 
-  }, [customers, searchTerm, activeTab, showInactive, date]);
+  }, [customers, searchTerm, activeTab, date]);
 
 
   const handleCnpjLookup = async () => {
@@ -328,6 +326,16 @@ export default function ClientesPage() {
     });
   };
 
+  const handleInactivateClick = (customer: Customer) => {
+    updateCustomer({ ...customer, status: 'inactive' });
+    toast({ title: "Cliente Inativado", description: `${customer.name} foi movido para a aba de Inativos.` });
+  };
+
+  const handleReactivateClick = (customer: Customer) => {
+    updateCustomer({ ...customer, status: 'new' });
+    toast({ title: "Cliente Reativado!", description: `${customer.name} retornou à carteira ativa.` });
+  };
+
   const handleDiscardClick = (customer: Customer) => {
     updateCustomer({ ...customer, status: 'discarded' });
     toast({ title: "Lead Descartado", description: `${customer.name} foi movido para inativos.` });
@@ -345,7 +353,6 @@ export default function ClientesPage() {
   };
 
   const handleDeleteClick = (customer: Customer) => {
-    // Para evitar travamento de conflito de modais, fechamos o primeiro antes de abrir o segundo com um delay
     setIsFormDialogOpen(false);
     setTimeout(() => {
         setDeletingCustomer(customer);
@@ -483,7 +490,7 @@ export default function ClientesPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">Gestão de Clientes e Leads</h2>
       </div>
-      <Tabs defaultValue="all" onValueChange={(value) => { setActiveTab(value); setShowInactive(false); }}>
+      <Tabs defaultValue="all" onValueChange={(value) => setActiveTab(value)}>
         <div className="flex items-center">
           <TabsList>
             <TabsTrigger value="all">Clientes</TabsTrigger>
@@ -491,6 +498,7 @@ export default function ClientesPage() {
             <TabsTrigger value="one_time">Avulsos</TabsTrigger>
             <TabsTrigger value="leads">Leads</TabsTrigger>
             <TabsTrigger value="new">Novos</TabsTrigger>
+            <TabsTrigger value="inactive">Inativos</TabsTrigger>
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
@@ -516,17 +524,6 @@ export default function ClientesPage() {
                 </div>
               </DialogContent>
             </Dialog>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-1"><ListFilter className="h-3.5 w-3.5" /><span>Filtrar</span></Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filtros</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem checked={showInactive} onCheckedChange={setShowInactive}>Mostrar Inativos</DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
 
             <Dialog open={isFormDialogOpen} onOpenChange={(open) => {
                 if (!open) { setEditingCustomer(null); form.reset(defaultFormValues); }
@@ -600,7 +597,12 @@ export default function ClientesPage() {
                     </div>
                     <DialogFooter className="gap-2">
                       {editingCustomer && (
+                        <>
                           <Button type="button" variant="destructive" className="mr-auto" onClick={() => handleDeleteClick(editingCustomer)}>Excluir</Button>
+                          {editingCustomer.status !== 'inactive' && (
+                             <Button type="button" variant="outline" className="text-yellow-600 border-yellow-600/30" onClick={() => { handleInactivateClick(editingCustomer); setIsFormDialogOpen(false); }}>Inativar</Button>
+                          )}
+                        </>
                       )}
                       <Button variant="ghost" type="button" onClick={() => setIsFormDialogOpen(false)}>Cancelar</Button>
                       <Button type="submit">{editingCustomer ? 'Salvar' : 'Cadastrar'}</Button>
@@ -648,6 +650,13 @@ export default function ClientesPage() {
                         <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleCloneClick(customer); }} title="Clonar Cliente"><Copy className="h-4 w-4" /></Button>
+                                
+                                {customer.status !== 'inactive' && customer.status !== 'discarded' ? (
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={(e) => { e.stopPropagation(); handleInactivateClick(customer); }} title="Inativar Cliente"><Archive className="h-4 w-4" /></Button>
+                                ) : (
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={(e) => { e.stopPropagation(); handleReactivateClick(customer); }} title="Reativar Cliente"><RotateCcw className="h-4 w-4" /></Button>
+                                )}
+
                                 {customer.status === 'lead' && (
                                     <>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}><UserCheck className="h-4 w-4" /></Button>
