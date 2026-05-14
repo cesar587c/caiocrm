@@ -28,7 +28,9 @@ import {
   MapPin,
   Copy,
   Archive,
-  RotateCcw
+  RotateCcw,
+  Tags,
+  Check
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -99,6 +101,7 @@ import type { Customer, CustomerStatus, CustomerType } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -107,6 +110,12 @@ const statusMap: Record<string, string> = {
   lead: "Lead",
   discarded: "Descartado",
 };
+
+const SERVICE_CATEGORIES = [
+  { id: "ponto", label: "Ponto", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  { id: "manutencao", label: "Manutenção", color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+  { id: "gestao", label: "Sistema de Gestão", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+];
 
 const formSchema = z.object({
   cnpj: z.string().optional(),
@@ -120,6 +129,7 @@ const formSchema = z.object({
   inscricaoEstadual: z.string().optional(),
   isLead: z.boolean().default(false),
   tipoCliente: z.enum(["active_contract", "one_time"]).default("one_time"),
+  serviceCategories: z.array(z.string()).default([]),
 }).refine((data) => data.isLead || !!data.email || !!data.telefone, {
     message: "Para clientes, é obrigatório informar um e-mail ou telefone.",
     path: ["telefone"],
@@ -137,6 +147,7 @@ const defaultFormValues = {
   inscricaoEstadual: "",
   isLead: false,
   tipoCliente: "one_time" as const,
+  serviceCategories: [],
 };
 
 export default function ClientesPage() {
@@ -306,6 +317,7 @@ export default function ClientesPage() {
         endereco: customer.endereco || '',
         cep: customer.cep || '',
         inscricaoEstadual: '',
+        serviceCategories: customer.serviceCategories || [],
     });
     setIsFormDialogOpen(true);
   };
@@ -318,6 +330,7 @@ export default function ClientesPage() {
       createdAt: new Date().toISOString(),
       lastContact: new Date().toISOString(),
       status: 'new',
+      serviceCategories: customer.serviceCategories ? [...customer.serviceCategories] : [],
     };
     addCustomer(clonedCustomer);
     toast({
@@ -429,6 +442,7 @@ export default function ClientesPage() {
                     lastContact: new Date().toISOString(),
                     createdAt: new Date().toISOString(),
                     type: findValue(['tipo']).toLowerCase().includes('contrato') ? 'active_contract' : 'one_time',
+                    serviceCategories: [],
                 });
             });
 
@@ -458,6 +472,7 @@ export default function ClientesPage() {
         cep: values.cep,
         status: values.isLead ? "lead" : (editingCustomer.status === "lead" ? "new" : editingCustomer.status),
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
+        serviceCategories: values.serviceCategories,
       });
       toast({ title: "Dados Atualizados!" });
     } else {
@@ -476,6 +491,7 @@ export default function ClientesPage() {
         lastContact: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
+        serviceCategories: values.serviceCategories,
       };
       addCustomer(newCustomerData);
       toast({ title: "Cliente Salvo!" });
@@ -578,6 +594,56 @@ export default function ClientesPage() {
                             <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>Nome do Contato</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
                           </div>
                         </div>
+
+                        <div className="space-y-4 mt-2">
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><Tags className="h-4 w-4" /> Serviços Contratados</h3>
+                          <Separator />
+                          <FormField
+                            control={form.control}
+                            name="serviceCategories"
+                            render={() => (
+                              <FormItem>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                  {SERVICE_CATEGORIES.map((category) => (
+                                    <FormField
+                                      key={category.id}
+                                      control={form.control}
+                                      name="serviceCategories"
+                                      render={({ field }) => {
+                                        return (
+                                          <FormItem
+                                            key={category.id}
+                                            className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-muted/20"
+                                          >
+                                            <FormControl>
+                                              <Checkbox
+                                                checked={field.value?.includes(category.id)}
+                                                onCheckedChange={(checked) => {
+                                                  return checked
+                                                    ? field.onChange([...field.value, category.id])
+                                                    : field.onChange(
+                                                        field.value?.filter(
+                                                          (value) => value !== category.id
+                                                        )
+                                                      )
+                                                }}
+                                              />
+                                            </FormControl>
+                                            <FormLabel className="font-normal cursor-pointer">
+                                              {category.label}
+                                            </FormLabel>
+                                          </FormItem>
+                                        )
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
                         <div className="space-y-4 mt-2">
                           <h3 className="text-sm font-semibold flex items-center gap-2"><Phone className="h-4 w-4" /> Comunicação</h3>
                           <Separator />
@@ -626,7 +692,7 @@ export default function ClientesPage() {
                     <TableHeader>
                     <TableRow>
                         <TableHead>Nome / Contato</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Status / Serviços</TableHead>
                         <TableHead className="hidden md:table-cell">Localização</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -636,14 +702,29 @@ export default function ClientesPage() {
                         displayedCustomers.map((customer) => (
                         <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
                         <TableCell>
-                            <div className="font-medium">{customer.name}</div>
+                            <div className="font-medium text-base">{customer.name}</div>
                             <div className="text-xs text-muted-foreground">{customer.email}</div>
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {customer.cnpj && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Building2 className="h-3 w-3" /><span>{formatDocument(customer.cnpj)}</span></div>}
                                 {customer.telefone && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Phone className="h-3 w-3" /><span>{formatPhoneNumber(customer.telefone)}</span></div>}
                             </div>
                         </TableCell>
-                        <TableCell><Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge></TableCell>
+                        <TableCell>
+                            <div className="space-y-2">
+                                <div className="flex flex-wrap gap-1">
+                                    {(customer.serviceCategories || []).map(catId => {
+                                        const cat = SERVICE_CATEGORIES.find(c => c.id === catId);
+                                        if (!cat) return null;
+                                        return (
+                                            <Badge key={catId} variant="outline" className={cn("text-[9px] uppercase font-bold px-1.5 py-0", cat.color)}>
+                                                {cat.label}
+                                            </Badge>
+                                        );
+                                    })}
+                                </div>
+                                <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
+                            </div>
+                        </TableCell>
                         <TableCell className="hidden md:table-cell max-w-[200px]">
                             {customer.endereco ? <div className="text-xs truncate"><MapPin className="h-3 w-3 inline mr-1" />{customer.endereco}</div> : <span className="text-xs text-muted-foreground italic">N/A</span>}
                         </TableCell>

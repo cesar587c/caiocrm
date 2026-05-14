@@ -88,6 +88,7 @@ export type Customer = {
     lastContact: string;
     createdAt: string;
     type: CustomerType;
+    serviceCategories?: string[];
 };
 
 export type Product = {
