@@ -62,7 +62,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { format, parseISO, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { PlusCircle, User as UserIcon, AlertCircle, Edit, Printer, Download, Mail, Send, Loader2, Trash2, Search, History, XCircle } from "lucide-react";
+import { PlusCircle, User as UserIcon, AlertCircle, Edit, Printer, Download, Mail, Send, Loader2, Trash2, Search, History, XCircle, Copy } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -285,6 +285,26 @@ export default function ChamadosPage() {
 
   const handleEdit = (order: ServiceOrder) => {
     setEditingOrder(order);
+  };
+  
+  const handleCloneClick = (order: ServiceOrder) => {
+    const { id, number, openingDate, history, status, deliveryDate, technicalDiagnosis, executedServices, ...rest } = order;
+    const clonedOrder: Omit<ServiceOrder, 'id' | 'number' | 'openingDate'> = {
+      ...rest,
+      status: 'Aberta',
+      items: order.items.map(item => ({ ...item })),
+      history: [{
+          userId: currentUser?.id || 'system',
+          userName: currentUser?.name || 'Sistema',
+          timestamp: new Date().toISOString(),
+          action: `clonou a OS #${order.number}`,
+      }]
+    };
+    addServiceOrder(clonedOrder);
+    toast({
+        title: "OS Clonada!",
+        description: `Uma nova OS foi criada com base na #${order.number}.`,
+    });
   };
 
   const handlePreview = (order: ServiceOrder) => {
@@ -519,7 +539,6 @@ export default function ChamadosPage() {
                                             <TableHead>Cliente</TableHead>
                                             <TableHead>Técnico</TableHead>
                                             <TableHead>Status</TableHead>
-                                            <TableHead>Abertura</TableHead>
                                             <TableHead>Prazo</TableHead>
                                             <TableHead className="text-right">Ações</TableHead>
                                         </TableRow>
@@ -540,7 +559,6 @@ export default function ChamadosPage() {
                                                             {order.status}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell>{safeFormat(order.openingDate, 'dd/MM/yyyy')}</TableCell>
                                                     <TableCell>
                                                         <div className="flex items-center gap-2">
                                                             {safeFormat(order.deliveryDate, 'dd/MM/yyyy')}
@@ -560,6 +578,9 @@ export default function ChamadosPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-1">
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => {e.stopPropagation(); handleCloneClick(order)}} title="Clonar OS">
+                                                                <Copy className="h-4 w-4"/>
+                                                            </Button>
                                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {e.stopPropagation(); handlePreview(order)}}>
                                                                 <Printer className="h-4 w-4"/>
                                                             </Button>
@@ -572,7 +593,7 @@ export default function ChamadosPage() {
                                             )})
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={7} className="h-24 text-center">
+                                                <TableCell colSpan={6} className="h-24 text-center">
                                                     Nenhuma ordem de serviço encontrada.
                                                 </TableCell>
                                             </TableRow>

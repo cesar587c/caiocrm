@@ -25,7 +25,8 @@ import {
   AlertCircle,
   Phone,
   Building2,
-  MapPin
+  MapPin,
+  Copy
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -311,6 +312,22 @@ export default function ClientesPage() {
     setIsFormDialogOpen(true);
   };
   
+  const handleCloneClick = (customer: Customer) => {
+    const { id, createdAt, lastContact, ...rest } = customer;
+    const clonedCustomer: Omit<Customer, 'id'> = {
+      ...rest,
+      name: `${customer.name} (Cópia)`,
+      createdAt: new Date().toISOString(),
+      lastContact: new Date().toISOString(),
+      status: 'new',
+    };
+    addCustomer(clonedCustomer);
+    toast({
+        title: "Cliente Clonado!",
+        description: `O registro de "${customer.name}" foi duplicado.`,
+    });
+  };
+
   const handleDiscardClick = (customer: Customer) => {
     updateCustomer({ ...customer, status: 'discarded' });
     toast({ title: "Lead Descartado", description: `${customer.name} foi movido para inativos.` });
@@ -396,9 +413,9 @@ export default function ClientesPage() {
                     contactName: findValue(['contato', 'responsável']),
                     email: findValue(['e-mail', 'email']),
                     telefone: findValue(['telefone', 'celular', 'whatsapp']),
-                    cnpj: findValue(['cnpj', 'cpf', 'documento']).replace(/\D/g, ''),
-                    endereco: findValue(['endereço', 'endereco', 'rua']),
-                    cep: findValue(['cep', 'postal']),
+                    cnpj: findValue(['cnpj', 'cpf', 'documento', 'identificação', 'cadastro']).replace(/\D/g, ''),
+                    endereco: findValue(['endereço', 'endereco', 'rua', 'logradouro']),
+                    cep: findValue(['cep', 'postal', 'código postal']),
                     status: 'new',
                     responsible: currentUser?.name || "Admin",
                     potential: "medium",
@@ -630,6 +647,7 @@ export default function ClientesPage() {
                         </TableCell>
                         <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleCloneClick(customer); }} title="Clonar Cliente"><Copy className="h-4 w-4" /></Button>
                                 {customer.status === 'lead' && (
                                     <>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}><UserCheck className="h-4 w-4" /></Button>
