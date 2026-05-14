@@ -33,7 +33,8 @@ import {
   TrendingUp, 
   CheckCircle2, 
   Briefcase,
-  Layers
+  Layers,
+  PieChart as PieChartIcon
 } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 
@@ -54,8 +55,8 @@ export default function RelatoriosPage() {
     const leads = customers.filter(c => c.status === 'lead').length;
     const inactive = customers.filter(c => c.status === 'inactive' || c.status === 'discarded').length;
     
-    const contracts = customers.filter(c => c.type === 'active_contract').length;
-    const oneTime = customers.filter(c => c.type === 'one_time').length;
+    const contracts = customers.filter(c => c.type === 'active_contract' && c.status !== 'inactive').length;
+    const oneTime = customers.filter(c => c.type === 'one_time' && c.status !== 'inactive').length;
 
     // Distribuição por Serviço
     const servicesData = SERVICE_CATEGORIES.map(cat => ({
@@ -71,6 +72,12 @@ export default function RelatoriosPage() {
       { name: 'Inativos', value: inactive, fill: 'hsl(var(--muted))' },
     ].filter(d => d.value > 0);
 
+    // Dados para Gráfico de Tipo (Contrato vs Avulso)
+    const typeData = [
+      { name: 'Contrato Ativo', value: contracts, fill: 'hsl(var(--primary))' },
+      { name: 'Serviço Avulso', value: oneTime, fill: 'hsl(var(--secondary))' },
+    ].filter(d => d.value > 0);
+
     return {
       total,
       active,
@@ -79,7 +86,8 @@ export default function RelatoriosPage() {
       contracts,
       oneTime,
       servicesData,
-      statusData
+      statusData,
+      typeData
     };
   }, [customers]);
 
@@ -185,16 +193,16 @@ export default function RelatoriosPage() {
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5" />
-              Status da Carteira
+              <PieChartIcon className="h-5 w-5" />
+              Modalidade Contratual
             </CardTitle>
-            <CardDescription>Divisão proporcional de clientes e leads.</CardDescription>
+            <CardDescription>Proporção entre contratos e avulsos.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
-                  data={stats.statusData}
+                  data={stats.typeData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -202,7 +210,7 @@ export default function RelatoriosPage() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {stats.statusData.map((entry, index) => (
+                  {stats.typeData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Pie>
@@ -210,17 +218,15 @@ export default function RelatoriosPage() {
                 <Legend verticalAlign="bottom" height={36}/>
               </PieChart>
             </ResponsiveContainer>
-            
-            <div className="mt-4 w-full space-y-4">
-              {stats.statusData.map((item) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.fill }} />
-                    <span className="text-sm font-medium">{item.name}</span>
-                  </div>
-                  <span className="text-sm font-bold">{item.value}</span>
+             <div className="mt-4 w-full space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground font-medium">Contratos Ativos</span>
+                    <span className="font-bold">{stats.contracts}</span>
                 </div>
-              ))}
+                <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground font-medium">Serviços Avulsos</span>
+                    <span className="font-bold">{stats.oneTime}</span>
+                </div>
             </div>
           </CardContent>
         </Card>
@@ -246,32 +252,35 @@ export default function RelatoriosPage() {
 
          <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Classificação Comercial</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5" />
+                Status da Carteira
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between border-b pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
-                    <Briefcase className="h-5 w-5 text-blue-500" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10">
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Contratos Ativos</p>
-                    <p className="text-xs text-muted-foreground">Clientes com recorrência mensal</p>
+                    <p className="text-sm font-medium">Clientes Ativos</p>
+                    <p className="text-xs text-muted-foreground">Já tiveram interação comercial</p>
                   </div>
                 </div>
-                <div className="text-right font-bold text-xl">{stats.contracts}</div>
+                <div className="text-right font-bold text-xl">{stats.active}</div>
               </div>
               <div className="flex items-center justify-between border-b pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
-                    <Activity className="h-5 w-5 text-orange-500" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
+                    <TrendingUp className="h-5 w-5 text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Clientes Avulsos</p>
-                    <p className="text-xs text-muted-foreground">Atendimentos sob demanda</p>
+                    <p className="text-sm font-medium">Leads</p>
+                    <p className="text-xs text-muted-foreground">Oportunidades em aberto</p>
                   </div>
                 </div>
-                <div className="text-right font-bold text-xl">{stats.oneTime}</div>
+                <div className="text-right font-bold text-xl">{stats.leads}</div>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

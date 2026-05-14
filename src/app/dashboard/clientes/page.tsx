@@ -221,7 +221,6 @@ export default function ClientesPage() {
         (c.cnpj && c.cnpj.replace(/\D/g, "").includes(lowercasedSearchTerm))
     );
 
-    // Filtro por Serviço
     if (selectedServices.length > 0) {
       filtered = filtered.filter(c => 
         c.serviceCategories?.some(catId => selectedServices.includes(catId))
@@ -407,6 +406,34 @@ export default function ClientesPage() {
     XLSX.writeFile(workbook, "modelo_importacao.xlsx");
   };
 
+  const handleExportExcel = () => {
+    const dataToExport = displayedCustomers.map(c => ({
+      "Razão Social": c.name,
+      "Nome Fantasia": c.nomeFantasia || "",
+      "CNPJ/CPF": c.cnpj ? formatDocument(c.cnpj) : "",
+      "Contato": c.contactName || "",
+      "E-mail": c.email,
+      "Telefone": c.telefone ? formatPhoneNumber(c.telefone) : "",
+      "Endereço": c.endereco || "",
+      "CEP": c.cep || "",
+      "Status": statusMap[c.status],
+      "Tipo": c.type === 'active_contract' ? 'Contrato Ativo' : (c.type === 'one_time' ? 'Avulso' : 'Lead'),
+      "Categorias": (c.serviceCategories || []).map(catId => SERVICE_CATEGORIES.find(s => s.id === catId)?.label).join(", "),
+      "Observações": c.observations || "",
+      "Data de Cadastro": format(new Date(c.createdAt), 'dd/MM/yyyy HH:mm'),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.book_append_sheet(workbook, worksheet, "Clientes");
+    XLSX.writeFile(workbook, `clientes_vendaspro_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    
+    toast({
+        title: "Exportação Concluída",
+        description: `${dataToExport.length} registros exportados para Excel.`
+    });
+  };
+
   const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -536,6 +563,11 @@ export default function ClientesPage() {
             <TabsTrigger value="inactive">Inativos</TabsTrigger>
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 gap-1" onClick={handleExportExcel}>
+                <Download className="h-3.5 w-3.5" />
+                <span>Exportar</span>
+            </Button>
+            
             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 gap-1"><Upload className="h-3.5 w-3.5" /><span>Importar</span></Button>
