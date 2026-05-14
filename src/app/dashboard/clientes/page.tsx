@@ -31,7 +31,8 @@ import {
   RotateCcw,
   Tags,
   Check,
-  ClipboardList
+  ClipboardList,
+  XCircle
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -172,14 +173,12 @@ export default function ClientesPage() {
 
   const { toast } = useToast();
 
+  // Force body to be interactive when no dialogs are open
   useEffect(() => {
     const anyModalOpen = isFormDialogOpen || isImportDialogOpen || !!deletingCustomer || !!convertingCustomer;
     if (!anyModalOpen) {
-      const timer = setTimeout(() => {
-        document.body.style.pointerEvents = 'auto';
-        document.body.style.overflow = 'auto';
-      }, 300);
-      return () => clearTimeout(timer);
+      document.body.style.pointerEvents = 'auto';
+      document.body.style.overflow = 'auto';
     }
   }, [isFormDialogOpen, isImportDialogOpen, deletingCustomer, convertingCustomer]);
 
@@ -256,7 +255,6 @@ export default function ClientesPage() {
       });
     }
 
-    // Sort alphabetically by name
     return filtered.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
   }, [customers, searchTerm, activeTab, date]);
@@ -570,14 +568,21 @@ export default function ClientesPage() {
                 if (!open) { setEditingCustomer(null); form.reset(defaultFormValues); }
                 setIsFormDialogOpen(open);
             }}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}><PlusCircle className="h-3.5 w-3.5" /><span>Novo</span></Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[700px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}><PlusCircle className="h-3.5 w-3.5" /><span>Novo</span></Button>
+              <DialogContent 
+                className="sm:max-w-[700px]" 
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                onCloseAutoFocus={(e) => e.preventDefault()} // Evita pular para o topo da lista
+              >
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
-                      <DialogTitle>{editingCustomer ? 'Editar Registro' : 'Cadastrar Novo'}</DialogTitle>
+                      <div className="flex items-center justify-between">
+                        <DialogTitle>{editingCustomer ? 'Editar Registro' : 'Cadastrar Novo'}</DialogTitle>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsFormDialogOpen(false)}>
+                            <XCircle className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </DialogHeader>
                     <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto px-1">
                         <div className="space-y-4 bg-primary/5 p-4 rounded-lg">
@@ -861,7 +866,7 @@ export default function ClientesPage() {
     </div>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
-        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
             <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
             <AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.name}</span>.</AlertDialogDescription>
@@ -874,7 +879,7 @@ export default function ClientesPage() {
     </AlertDialog>
 
     <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}>
-        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader><AlertDialogTitle>Converter Lead</AlertDialogTitle></AlertDialogHeader>
             <div className="grid grid-cols-2 gap-4 py-4">
                 <Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('one_time')}><Users className="h-6 w-6" /><span>Avulso</span></Button>
