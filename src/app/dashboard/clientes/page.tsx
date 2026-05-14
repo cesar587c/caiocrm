@@ -122,6 +122,19 @@ const formSchema = z.object({
     path: ["telefone"],
 });
 
+const defaultFormValues = {
+  cnpj: "",
+  razaoSocial: "",
+  nomeFantasia: "",
+  contactName: "",
+  email: "",
+  telefone: "",
+  endereco: "",
+  cep: "",
+  inscricaoEstadual: "",
+  isLead: false,
+  tipoCliente: "one_time" as const,
+};
 
 export default function ClientesPage() {
   const { customers, addCustomer, addCustomers, updateCustomer, deleteCustomer, currentUser } = useSettings();
@@ -167,19 +180,7 @@ export default function ClientesPage() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      cnpj: "",
-      razaoSocial: "",
-      nomeFantasia: "",
-      contactName: "",
-      email: "",
-      telefone: "",
-      endereco: "",
-      cep: "",
-      inscricaoEstadual: "",
-      isLead: false,
-      tipoCliente: "one_time",
-    },
+    defaultValues: defaultFormValues,
   });
 
   const displayedCustomers = useMemo(() => {
@@ -261,8 +262,6 @@ export default function ClientesPage() {
             if (response.status === 404) {
                  throw new Error('CNPJ não encontrado na base de dados da BrasilAPI.');
             }
-            const errorText = await response.text();
-            console.error(`BrasilAPI request failed with status ${response.status}: ${errorText}`);
             throw new Error(`A consulta na BrasilAPI falhou: ${response.statusText}`);
         }
 
@@ -276,7 +275,6 @@ export default function ClientesPage() {
         form.setValue("telefone", data.ddd_telefone_1 || data.ddd_telefone_2 || "");
         form.setValue("inscricaoEstadual", inscricaoEstadual);
         
-        // Populate address if available
         if (data.logradouro) {
           const fullAddress = `${data.logradouro}${data.numero ? `, ${data.numero}` : ''}${data.complemento ? ` - ${data.complemento}` : ''} - ${data.bairro}, ${data.municipio} - ${data.uf}`;
           form.setValue("endereco", fullAddress);
@@ -301,19 +299,7 @@ export default function ClientesPage() {
   
   const handleAddNewClick = () => {
     setEditingCustomer(null);
-    form.reset({
-      cnpj: "",
-      razaoSocial: "",
-      nomeFantasia: "",
-      contactName: "",
-      email: "",
-      telefone: "",
-      endereco: "",
-      cep: "",
-      inscricaoEstadual: "",
-      isLead: false,
-      tipoCliente: "one_time",
-    });
+    form.reset(defaultFormValues);
     setIsFormDialogOpen(true);
   };
 
@@ -326,8 +312,8 @@ export default function ClientesPage() {
         email: customer.email,
         isLead: customer.status === "lead",
         tipoCliente: customer.type === "active_contract" ? "active_contract" : "one_time",
-        cnpj: customer.cnpj || '', 
-        telefone: customer.telefone || '',
+        cnpj: customer.cnpj ? formatDocument(customer.cnpj) : '', 
+        telefone: customer.telefone ? formatPhoneNumber(customer.telefone) : '',
         endereco: customer.endereco || '',
         cep: customer.cep || '',
         inscricaoEstadual: '',
@@ -395,11 +381,6 @@ export default function ClientesPage() {
     worksheet["!cols"] = colWidths;
 
     XLSX.writeFile(workbook, "modelo_importacao_clientes.xlsx");
-    
-    toast({
-      title: "Modelo baixado!",
-      description: "Preencha o arquivo Excel e faça o upload para importar seus clientes.",
-    });
   };
 
   const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -499,7 +480,7 @@ export default function ClientesPage() {
         contactName: values.contactName,
         cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
         email: values.email || '',
-        telefone: values.telefone,
+        telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '',
         endereco: values.endereco,
         cep: values.cep,
         status: values.isLead ? "lead" : (editingCustomer.status === "lead" ? "new" : editingCustomer.status),
@@ -528,7 +509,7 @@ export default function ClientesPage() {
         contactName: values.contactName,
         cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
         email: values.email || '',
-        telefone: values.telefone,
+        telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '',
         endereco: values.endereco,
         cep: values.cep,
         status: values.isLead ? "lead" : "new",
@@ -687,7 +668,13 @@ export default function ClientesPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+            <Dialog open={isFormDialogOpen} onOpenChange={(open) => {
+                if (!open) {
+                    setEditingCustomer(null);
+                    form.reset(defaultFormValues);
+                }
+                setIsFormDialogOpen(open);
+            }}>
               <DialogTrigger asChild>
                 <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}>
                   <PlusCircle className="h-3.5 w-3.5" />
@@ -696,7 +683,7 @@ export default function ClientesPage() {
                   </span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[700px]">
+              <DialogContent className="sm:max-w-[700px]" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
@@ -893,7 +880,6 @@ export default function ClientesPage() {
                               variant="destructive"
                               className="mr-auto"
                               onClick={() => {
-                                  setIsFormDialogOpen(false);
                                   handleDeleteClick(editingCustomer);
                               }}
                               >
@@ -1047,7 +1033,7 @@ export default function ClientesPage() {
     </AlertDialog>
 
     <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
                 <AlertDialogTitle>Converter Lead em Cliente</AlertDialogTitle>
                 <AlertDialogDescription>
