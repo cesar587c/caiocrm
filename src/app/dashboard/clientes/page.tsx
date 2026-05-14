@@ -32,7 +32,8 @@ import {
   Tags,
   Check,
   ClipboardList,
-  XCircle
+  XCircle,
+  Filter
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -168,12 +169,12 @@ export default function ClientesPage() {
   const [convertingCustomer, setConvertingCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
 
-  // Force body to be interactive when no dialogs are open
   useEffect(() => {
     const anyModalOpen = isFormDialogOpen || isImportDialogOpen || !!deletingCustomer || !!convertingCustomer;
     if (!anyModalOpen) {
@@ -186,7 +187,6 @@ export default function ClientesPage() {
     if (!value) return "";
     const cleaned = value.replace(/\D/g, "");
     const length = cleaned.length;
-
     if (length <= 2) return `(${cleaned}`;
     if (length <= 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
     if (length <= 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
@@ -196,12 +196,10 @@ export default function ClientesPage() {
   const formatDocument = (value: string) => {
     if (!value) return "";
     const cleaned = value.replace(/\D/g, "");
-    
     if (cleaned.length <= 11) {
         const cpf = cleaned.padStart(11, '0').slice(0, 11);
         return `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9, 11)}`;
     }
-
     const cnpj = cleaned.padStart(14, '0').slice(0, 14);
     return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12, 14)}`;
   }
@@ -222,6 +220,13 @@ export default function ClientesPage() {
         c.email.toLowerCase().includes(lowercasedSearchTerm) ||
         (c.cnpj && c.cnpj.replace(/\D/g, "").includes(lowercasedSearchTerm))
     );
+
+    // Filtro por Serviço
+    if (selectedServices.length > 0) {
+      filtered = filtered.filter(c => 
+        c.serviceCategories?.some(catId => selectedServices.includes(catId))
+      );
+    }
 
     switch (activeTab) {
         case 'inactive':
@@ -257,7 +262,7 @@ export default function ClientesPage() {
 
     return filtered.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
-  }, [customers, searchTerm, activeTab, date]);
+  }, [customers, searchTerm, activeTab, selectedServices, date]);
 
 
   const handleCnpjLookup = async () => {
@@ -266,35 +271,28 @@ export default function ClientesPage() {
       toast({ variant: "destructive", title: "CNPJ Inválido", description: "Por favor, insira um CNPJ para consultar." });
       return;
     }
-
     const cleanedCnpj = cnpj.replace(/\D/g, "");
     if (cleanedCnpj.length !== 14) {
         toast({ variant: "destructive", title: "CNPJ Inválido", description: "O CNPJ deve conter 14 dígitos." });
         return;
     }
-
     setIsCnpjLoading(true);
     try {
         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanedCnpj}`);
-        
         if (!response.ok) {
             if (response.status === 404) throw new Error('CNPJ não encontrado.');
             throw new Error(`A consulta falhou.`);
         }
-
         const data = await response.json();
-        
         form.setValue("razaoSocial", data.razao_social || "");
         form.setValue("nomeFantasia", data.nome_fantasia || data.razao_social || "");
         form.setValue("email", data.email || "");
         form.setValue("telefone", data.ddd_telefone_1 || data.ddd_telefone_2 || "");
-        
         if (data.logradouro) {
           const fullAddress = `${data.logradouro}${data.numero ? `, ${data.numero}` : ''}${data.complemento ? ` - ${data.complemento}` : ''} - ${data.bairro}, ${data.municipio} - ${data.uf}`;
           form.setValue("endereco", fullAddress);
           form.setValue("cep", data.cep || "");
         }
-
         toast({ title: "CNPJ Consultado!", description: "Os dados foram preenchidos." });
     } catch (error) {
         toast({ variant: "destructive", title: "Erro na Consulta", description: "Não foi possível obter os dados do CNPJ." });
@@ -412,7 +410,6 @@ export default function ClientesPage() {
   const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
@@ -420,22 +417,18 @@ export default function ClientesPage() {
             const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const rawData = XLSX.utils.sheet_to_json<any>(worksheet);
-
             if (rawData.length === 0) {
                 toast({ variant: 'destructive', title: 'Arquivo Vazio' });
                 return;
             }
-
             const importedCustomers: Omit<Customer, 'id'>[] = [];
             rawData.forEach((row: any) => {
                 const findValue = (keys: string[]) => {
                     const key = Object.keys(row).find(k => keys.some(sk => k.trim().toLowerCase().includes(sk)));
                     return key ? String(row[key]).trim() : '';
                 };
-
                 const razaoSocial = findValue(['razão social', 'razao social', 'nome', 'empresa', 'cliente']);
                 if (!razaoSocial) return;
-
                 importedCustomers.push({
                     name: razaoSocial,
                     nomeFantasia: findValue(['nome fantasia', 'fantasia']) || razaoSocial,
@@ -455,7 +448,6 @@ export default function ClientesPage() {
                     observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']),
                 });
             });
-
             if (importedCustomers.length > 0) {
                 addCustomers(importedCustomers);
                 toast({ title: "Importação Concluída!", description: `${importedCustomers.length} registros importados.` });
@@ -478,7 +470,6 @@ export default function ClientesPage() {
               nextStatus = "active";
           }
       }
-
       updateCustomer({
         ...editingCustomer,
         name: values.razaoSocial,
@@ -528,6 +519,11 @@ export default function ClientesPage() {
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">Gestão de Clientes e Leads</h2>
+        <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="px-3 py-1 text-sm font-medium">
+                {displayedCustomers.length} Registro(s) encontrado(s)
+            </Badge>
+        </div>
       </div>
       <Tabs defaultValue="all" onValueChange={(value) => setActiveTab(value)}>
         <div className="flex items-center">
@@ -572,7 +568,7 @@ export default function ClientesPage() {
               <DialogContent 
                 className="sm:max-w-[700px]" 
                 onOpenAutoFocus={(e) => e.preventDefault()}
-                onCloseAutoFocus={(e) => e.preventDefault()} // Evita pular para o topo da lista
+                onCloseAutoFocus={(e) => e.preventDefault()}
               >
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -779,9 +775,49 @@ export default function ClientesPage() {
         <TabsContent value={activeTab} forceMount className="mt-4">
             <Card>
                 <CardHeader>
-                    <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar cliente..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Buscar cliente..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                      </div>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="gap-2">
+                            <Filter className="h-4 w-4" />
+                            Serviços {selectedServices.length > 0 && `(${selectedServices.length})`}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel>Filtrar por Serviço</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {SERVICE_CATEGORIES.map((cat) => (
+                            <DropdownMenuCheckboxItem
+                              key={cat.id}
+                              checked={selectedServices.includes(cat.id)}
+                              onCheckedChange={(checked) => {
+                                setSelectedServices(prev => 
+                                  checked ? [...prev, cat.id] : prev.filter(id => id !== cat.id)
+                                );
+                              }}
+                              onSelect={(e) => e.preventDefault()}
+                            >
+                              {cat.label}
+                            </DropdownMenuCheckboxItem>
+                          ))}
+                          {selectedServices.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="justify-center text-primary font-medium"
+                                onClick={() => setSelectedServices([])}
+                              >
+                                Limpar Filtros
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -860,6 +896,11 @@ export default function ClientesPage() {
                     </TableBody>
                 </Table>
                 </CardContent>
+                <CardFooter className="justify-center border-t py-4">
+                  <p className="text-sm text-muted-foreground">
+                    Mostrando <strong>{displayedCustomers.length}</strong> registro(s) de um total de <strong>{customers.length}</strong> cadastrados.
+                  </p>
+                </CardFooter>
             </Card>
         </TabsContent>
       </Tabs>
