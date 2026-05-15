@@ -20,7 +20,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -529,10 +529,13 @@ export default function AgendaPage() {
                                     {app.status === 'missed' && app.justification && <p className="text-destructive/80 flex items-start gap-2 pt-2 border-t border-destructive/20 mt-2"><Info className="h-4 w-4 mt-0.5 shrink-0"/>{app.justification}</p>}
 
                                     <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditClick(app, selectedDate); }}>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={(e) => { e.stopPropagation(); setAppointmentForReminders(app); setReminderStep('confirming'); }} title="Reenviar Lembretes">
+                                            <Send className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditClick(app, selectedDate); }} title="Editar">
                                             <Pencil className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteClick(app); }}>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteClick(app); }} title="Excluir">
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -777,10 +780,16 @@ export default function AgendaPage() {
                         </>
                     )}
                     {selectedAppointment && !editingAppointment && (
-                        <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar
-                        </Button>
+                        <>
+                            <Button type="button" variant="outline" onClick={() => { setAppointmentForReminders(selectedAppointment); setReminderStep('confirming'); }}>
+                                <Send className="mr-2 h-4 w-4" />
+                                Reenviar Lembretes
+                            </Button>
+                            <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                            </Button>
+                        </>
                     )}
                     <Button type="submit" form="appointment-form">
                         <Plus className="mr-2 h-4 w-4" />
@@ -840,7 +849,7 @@ export default function AgendaPage() {
             </div>
             <DialogFooter>
                 <AlertDialogCancel onClick={() => { setJustification(''); setAppointmentToProcess(null); }}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmMissed}>Confirmar Não Conclusão</AlertDialogAction>
+                <AlertDialogAction onClick={handleConfirmMissed}>Confirmar Não Concluído</AlertDialogAction>
             </DialogFooter>
         </DialogContent>
     </Dialog>
