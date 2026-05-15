@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -20,7 +19,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -56,16 +55,10 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, SelectSeparator } from '@/components/ui/select';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
-    DropdownMenuCheckboxItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-  } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { Appointment } from '@/lib/types';
 import { Calendar } from '@/components/ui/calendar';
 
@@ -92,6 +85,7 @@ export default function AgendaPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [reminderStep, setReminderStep] = useState<'idle' | 'confirming'>('idle');
   const [appointmentForReminders, setAppointmentForReminders] = useState<Appointment | null>(null);
+  const [searchTermAssignees, setSearchTermAssignees] = useState('');
 
   const [isJustificationDialogOpen, setIsJustificationDialogOpen] = useState(false);
   const [appointmentToProcess, setAppointmentToProcess] = useState<Appointment | null>(null);
@@ -177,6 +171,7 @@ export default function AgendaPage() {
 
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
+    setSearchTermAssignees('');
     
     if(editingAppointment) {
       form.setValue('date', day);
@@ -205,8 +200,8 @@ export default function AgendaPage() {
 
   const handleEditClick = (appointment: Appointment, day: Date) => {
     setEditingAppointment(appointment);
+    setSearchTermAssignees('');
     
-    // Safety convert string to array for old data
     const assignedToArray = Array.isArray(appointment.assignedTo) 
         ? appointment.assignedTo 
         : [appointment.assignedTo];
@@ -253,6 +248,7 @@ export default function AgendaPage() {
   const handleCancelEdit = () => {
     setEditingAppointment(null);
     setSelectedAppointment(null);
+    setSearchTermAssignees('');
     form.reset({
       date: selectedDate,
       clientName: '',
@@ -394,6 +390,9 @@ export default function AgendaPage() {
     const dateKey = format(selectedDate, 'yyyy-MM-dd');
     return (appointmentsByDate[dateKey] || []).sort((a, b) => a.time.localeCompare(b.time));
   }, [selectedDate, appointmentsByDate]);
+
+  const filteredSectors = sectors.filter(s => s.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
+  const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
 
   return (
     <>
@@ -665,8 +664,8 @@ export default function AgendaPage() {
                             render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Setor/Responsável (Múltiplos)</FormLabel>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
+                                <Popover>
+                                    <PopoverTrigger asChild>
                                         <FormControl>
                                             <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10 px-3 py-2">
                                                 {field.value?.length > 0 ? (
@@ -682,54 +681,59 @@ export default function AgendaPage() {
                                                 )}
                                             </Button>
                                         </FormControl>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent className="w-full max-w-[var(--radix-dropdown-menu-trigger-width)]">
-                                        <DropdownMenuLabel>Designar Responsáveis</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        <ScrollArea className="max-h-60">
-                                            <div className="p-1">
-                                                <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-1.5">Setores</p>
-                                                {sectors.map(sector => (
-                                                    <DropdownMenuCheckboxItem
-                                                        key={`sector-${sector.id}`}
-                                                        checked={field.value?.includes(`sector:${sector.id}`)}
-                                                        onCheckedChange={(checked) => {
-                                                            const current = field.value || [];
-                                                            const next = checked 
-                                                                ? [...current, `sector:${sector.id}`]
-                                                                : current.filter(v => v !== `sector:${sector.id}`);
-                                                            field.onChange(next);
-                                                        }}
-                                                        onSelect={(e) => e.preventDefault()}
-                                                    >
-                                                        {sector.name} (Equipe Toda)
-                                                    </DropdownMenuCheckboxItem>
-                                                ))}
-                                                <DropdownMenuSeparator />
-                                                <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-1.5">Técnicos</p>
-                                                {users.map(user => (
-                                                    <DropdownMenuCheckboxItem
-                                                        key={`user-${user.id}`}
-                                                        checked={field.value?.includes(`user:${user.id}`)}
-                                                        onCheckedChange={(checked) => {
-                                                            const current = field.value || [];
-                                                            const next = checked 
-                                                                ? [...current, `user:${user.id}`]
-                                                                : current.filter(v => v !== `user:${user.id}`);
-                                                            field.onChange(next);
-                                                        }}
-                                                        onSelect={(e) => e.preventDefault()}
-                                                    >
-                                                        {user.name}
-                                                    </DropdownMenuCheckboxItem>
-                                                ))}
-                                                {sectors.length === 0 && users.length === 0 && (
-                                                    <p className='p-2 text-xs text-muted-foreground text-center'>Nenhum cadastro encontrado.</p>
-                                                )}
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                        <div className="p-2 border-b">
+                                            <div className="relative">
+                                                <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
+                                                <Input 
+                                                    placeholder="Buscar por nome..." 
+                                                    className="pl-7 h-8 text-xs" 
+                                                    value={searchTermAssignees} 
+                                                    onChange={(e) => setSearchTermAssignees(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <ScrollArea className="h-72">
+                                            <div className="p-2 space-y-4">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Setores</p>
+                                                    <div className="space-y-1">
+                                                        {filteredSectors.map(sector => (
+                                                            <div key={`sector-${sector.id}`} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={() => {
+                                                                const current = field.value || [];
+                                                                const val = `sector:${sector.id}`;
+                                                                const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
+                                                                field.onChange(next);
+                                                            }}>
+                                                                <Checkbox checked={field.value?.includes(`sector:${sector.id}`)} />
+                                                                <span className="text-sm">{sector.name} (Equipe Toda)</span>
+                                                            </div>
+                                                        ))}
+                                                        {filteredSectors.length === 0 && <p className="text-[10px] text-center text-muted-foreground py-2">Nenhum setor encontrado.</p>}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Técnicos</p>
+                                                    <div className="space-y-1">
+                                                        {filteredUsers.map(user => (
+                                                            <div key={`user-${user.id}`} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={() => {
+                                                                const current = field.value || [];
+                                                                const val = `user:${user.id}`;
+                                                                const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
+                                                                field.onChange(next);
+                                                            }}>
+                                                                <Checkbox checked={field.value?.includes(`user:${user.id}`)} />
+                                                                <span className="text-sm">{user.name}</span>
+                                                            </div>
+                                                        ))}
+                                                        {filteredUsers.length === 0 && <p className="text-[10px] text-center text-muted-foreground py-2">Nenhum técnico encontrado.</p>}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </ScrollArea>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                    </PopoverContent>
+                                </Popover>
                                 <FormMessage />
                                 </FormItem>
                             )}

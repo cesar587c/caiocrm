@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -34,22 +33,16 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
-    DropdownMenuCheckboxItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-  } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle, ShieldCheck, User as UserIcon } from "lucide-react";
+import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle, ShieldCheck, User as UserIcon, Search } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const userFormSchema = z.object({
   name: z.string().min(2, 'O nome de usuário deve ter pelo menos 2 caracteres.'),
@@ -80,6 +73,7 @@ export default function UsuariosPage() {
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [searchTermSectors, setSearchTermSectors] = useState('');
   const [showPasswords, setShowPasswords] = useState({
     password: false,
     confirmPassword: false,
@@ -105,6 +99,7 @@ export default function UsuariosPage() {
         form.reset({ name: '', email: '', whatsapp: '', role: 'technician', sectorIds: [], password: '', confirmPassword: '' });
     }
      setShowPasswords({ password: false, confirmPassword: false });
+     setSearchTermSectors('');
   }, [selectedUser, form]);
 
 
@@ -156,7 +151,6 @@ export default function UsuariosPage() {
         ...selectedUser, 
         ...values,
       };
-      // Do not update password if it's empty
       if (!values.password) {
         delete userToUpdate.password;
       }
@@ -172,6 +166,8 @@ export default function UsuariosPage() {
     }
     setSelectedUser(null);
   }
+
+  const filteredSectors = sectors.filter(s => s.name.toLowerCase().includes(searchTermSectors.toLowerCase()));
 
   return (
     <>
@@ -406,10 +402,10 @@ export default function UsuariosPage() {
                                      render={({ field }) => (
                                          <FormItem>
                                          <FormLabel>Setores Associados</FormLabel>
-                                         <DropdownMenu>
-                                             <DropdownMenuTrigger asChild>
+                                         <Popover>
+                                             <PopoverTrigger asChild>
                                                  <FormControl>
-                                                     <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10">
+                                                     <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10 px-3 py-2">
                                                          {field.value?.length > 0 ? (
                                                              <div className="flex flex-wrap gap-1">
                                                                  {field.value.map(id => (
@@ -417,35 +413,41 @@ export default function UsuariosPage() {
                                                                  ))}
                                                              </div>
                                                          ) : (
-                                                             <span className="text-muted-foreground">Selecione os setores</span>
+                                                             <span className="text-muted-foreground text-sm">Selecione os setores</span>
                                                          )}
                                                      </Button>
                                                  </FormControl>
-                                             </DropdownMenuTrigger>
-                                             <DropdownMenuContent className="w-full max-w-[var(--radix-dropdown-menu-trigger-width)]">
-                                                 <DropdownMenuLabel>Setores Disponíveis</DropdownMenuLabel>
-                                                 <DropdownMenuSeparator />
-                                                 <ScrollArea className="max-h-40">
-                                                     {sectors.map(sector => (
-                                                     <DropdownMenuCheckboxItem
-                                                         key={sector.id}
-                                                         checked={field.value?.includes(sector.id)}
-                                                         onCheckedChange={(checked) => {
-                                                             const currentIds = field.value || [];
-                                                             const newIds = checked 
-                                                                 ? [...currentIds, sector.id]
-                                                                 : currentIds.filter(id => id !== sector.id);
-                                                             field.onChange(newIds);
-                                                         }}
-                                                         onSelect={(e) => e.preventDefault()} // Prevent closing on select
-                                                     >
-                                                         {sector.name}
-                                                     </DropdownMenuCheckboxItem>
-                                                     ))}
-                                                     {sectors.length === 0 && <p className="p-2 text-xs text-muted-foreground">Nenhum setor cadastrado.</p>}
+                                             </PopoverTrigger>
+                                             <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                                 <div className="p-2 border-b">
+                                                     <div className="relative">
+                                                         <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
+                                                         <Input 
+                                                             placeholder="Buscar setor..." 
+                                                             className="pl-7 h-8 text-xs" 
+                                                             value={searchTermSectors} 
+                                                             onChange={(e) => setSearchTermSectors(e.target.value)}
+                                                         />
+                                                     </div>
+                                                 </div>
+                                                 <ScrollArea className="h-48">
+                                                     <div className="p-2">
+                                                         {filteredSectors.map(sector => (
+                                                             <div key={sector.id} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={() => {
+                                                                 const current = field.value || [];
+                                                                 const val = sector.id;
+                                                                 const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
+                                                                 field.onChange(next);
+                                                             }}>
+                                                                 <Checkbox checked={field.value?.includes(sector.id)} />
+                                                                 <span className="text-sm">{sector.name}</span>
+                                                             </div>
+                                                         ))}
+                                                         {filteredSectors.length === 0 && <p className="text-[10px] text-center text-muted-foreground py-4">Nenhum setor encontrado.</p>}
+                                                     </div>
                                                  </ScrollArea>
-                                             </DropdownMenuContent>
-                                         </DropdownMenu>
+                                             </PopoverContent>
+                                         </Popover>
                                          <FormMessage />
                                          </FormItem>
                                      )}
