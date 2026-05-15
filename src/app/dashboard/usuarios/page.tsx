@@ -41,7 +41,7 @@ import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle, ShieldCheck, User as
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -79,6 +79,15 @@ export default function UsuariosPage() {
     password: false,
     confirmPassword: false,
   });
+
+  // Fix for system "lock"
+  useEffect(() => {
+    const anyDialogOpen = !!deletingUser;
+    if (!anyDialogOpen) {
+      document.body.style.pointerEvents = 'auto';
+      document.body.style.overflow = 'auto';
+    }
+  }, [deletingUser]);
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -475,7 +484,7 @@ export default function UsuariosPage() {
       </div>
       
       <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>

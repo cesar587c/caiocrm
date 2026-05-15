@@ -95,6 +95,15 @@ export default function AgendaPage() {
   const { toast } = useToast();
   const { companyProfile, sectors, users, appointments, addAppointment, updateAppointment, deleteAppointment } = useSettings();
 
+  // Fix for system "lock" by forcing cleanup of pointer-events and overflow when no dialog is open
+  useEffect(() => {
+    const anyDialogOpen = isModalOpen || isDeleteDialogOpen || reminderStep === 'confirming' || isJustificationDialogOpen;
+    if (!anyDialogOpen) {
+      document.body.style.pointerEvents = 'auto';
+      document.body.style.overflow = 'auto';
+    }
+  }, [isModalOpen, isDeleteDialogOpen, reminderStep, isJustificationDialogOpen]);
+
   const appointmentsByDate = useMemo(() => {
     return appointments.reduce((acc, app) => {
         const dateKey = app.date;
@@ -465,7 +474,7 @@ export default function AgendaPage() {
           }
           setIsModalOpen(isOpen);
       }}>
-        <DialogContent className="sm:max-w-[425px] md:max-w-3xl flex flex-col h-[90vh]">
+        <DialogContent className="sm:max-w-[425px] md:max-w-3xl flex flex-col h-[90vh]" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader className='flex-none'>
             <DialogTitle>
               Agenda para {format(selectedDate, 'dd/MM/yyyy', { locale: ptBR })}
@@ -561,7 +570,7 @@ export default function AgendaPage() {
                                                 </Button>
                                             </FormControl>
                                         </DialogTrigger>
-                                        <DialogContent className="w-auto">
+                                        <DialogContent className="w-auto" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
                                             <Calendar
                                                 mode="single"
                                                 selected={field.value}
@@ -784,7 +793,7 @@ export default function AgendaPage() {
       </Dialog>
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -799,7 +808,7 @@ export default function AgendaPage() {
       </AlertDialog>
 
     <AlertDialog open={reminderStep === 'confirming'} onOpenChange={(isOpen) => !isOpen && setReminderStep('idle')}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
                 <AlertDialogTitle>Enviar Lembretes via WhatsApp?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -814,7 +823,7 @@ export default function AgendaPage() {
     </AlertDialog>
     
     <Dialog open={isJustificationDialogOpen} onOpenChange={setIsJustificationDialogOpen}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <DialogHeader>
                 <DialogTitle>Justificar Não Conclusão</DialogTitle>
                 <DialogDescription>
