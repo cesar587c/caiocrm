@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -40,7 +41,7 @@ import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle, ShieldCheck, User as
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -402,7 +403,7 @@ export default function UsuariosPage() {
                                      render={({ field }) => (
                                          <FormItem>
                                          <FormLabel>Setores Associados</FormLabel>
-                                         <Popover>
+                                         <Popover modal={false}>
                                              <PopoverTrigger asChild>
                                                  <FormControl>
                                                      <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10 px-3 py-2">
@@ -419,9 +420,10 @@ export default function UsuariosPage() {
                                                  </FormControl>
                                              </PopoverTrigger>
                                              <PopoverContent 
-                                                className="w-[var(--radix-popover-trigger-width)] p-0" 
+                                                className="w-[var(--radix-popover-trigger-width)] p-0 pointer-events-auto" 
                                                 align="start"
                                                 onWheel={(e) => e.stopPropagation()}
+                                                onPointerDown={(e) => e.stopPropagation()}
                                              >
                                                  <div className="p-2 border-b bg-background">
                                                      <div className="relative">
@@ -434,7 +436,10 @@ export default function UsuariosPage() {
                                                          />
                                                      </div>
                                                  </div>
-                                                 <div className="max-h-60 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-muted-foreground/20">
+                                                 <div 
+                                                    className="max-h-60 overflow-y-auto overscroll-contain"
+                                                    onWheel={(e) => e.stopPropagation()}
+                                                 >
                                                      <div className="p-2">
                                                          {filteredSectors.map(sector => (
                                                              <div key={sector.id} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={(e) => {

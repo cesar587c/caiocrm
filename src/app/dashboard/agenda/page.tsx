@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -664,7 +665,7 @@ export default function AgendaPage() {
                             render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Setor/Responsável (Múltiplos)</FormLabel>
-                                <Popover>
+                                <Popover modal={false}>
                                     <PopoverTrigger asChild>
                                         <FormControl>
                                             <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10 px-3 py-2">
@@ -683,9 +684,10 @@ export default function AgendaPage() {
                                         </FormControl>
                                     </PopoverTrigger>
                                     <PopoverContent 
-                                        className="w-[var(--radix-popover-trigger-width)] p-0" 
+                                        className="w-[var(--radix-popover-trigger-width)] p-0 pointer-events-auto" 
                                         align="start"
                                         onWheel={(e) => e.stopPropagation()}
+                                        onPointerDown={(e) => e.stopPropagation()}
                                     >
                                         <div className="p-2 border-b bg-background">
                                             <div className="relative">
@@ -698,7 +700,10 @@ export default function AgendaPage() {
                                                 />
                                             </div>
                                         </div>
-                                        <div className="max-h-80 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-muted-foreground/20">
+                                        <div 
+                                            className="max-h-80 overflow-y-auto overscroll-contain"
+                                            onWheel={(e) => e.stopPropagation()}
+                                        >
                                             <div className="p-2 space-y-4">
                                                 <div>
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Setores</p>
