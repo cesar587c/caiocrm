@@ -682,8 +682,12 @@ export default function AgendaPage() {
                                             </Button>
                                         </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                                        <div className="p-2 border-b">
+                                    <PopoverContent 
+                                        className="w-[var(--radix-popover-trigger-width)] p-0" 
+                                        align="start"
+                                        onWheel={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="p-2 border-b bg-background">
                                             <div className="relative">
                                                 <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
                                                 <Input 
@@ -694,13 +698,14 @@ export default function AgendaPage() {
                                                 />
                                             </div>
                                         </div>
-                                        <ScrollArea className="h-72">
+                                        <div className="max-h-80 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-muted-foreground/20">
                                             <div className="p-2 space-y-4">
                                                 <div>
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Setores</p>
                                                     <div className="space-y-1">
                                                         {filteredSectors.map(sector => (
-                                                            <div key={`sector-${sector.id}`} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={() => {
+                                                            <div key={`sector-${sector.id}`} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={(e) => {
+                                                                e.preventDefault();
                                                                 const current = field.value || [];
                                                                 const val = `sector:${sector.id}`;
                                                                 const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
@@ -717,7 +722,8 @@ export default function AgendaPage() {
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Técnicos</p>
                                                     <div className="space-y-1">
                                                         {filteredUsers.map(user => (
-                                                            <div key={`user-${user.id}`} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={() => {
+                                                            <div key={`user-${user.id}`} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={(e) => {
+                                                                e.preventDefault();
                                                                 const current = field.value || [];
                                                                 const val = `user:${user.id}`;
                                                                 const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
@@ -731,7 +737,7 @@ export default function AgendaPage() {
                                                     </div>
                                                 </div>
                                             </div>
-                                        </ScrollArea>
+                                        </div>
                                     </PopoverContent>
                                 </Popover>
                                 <FormMessage />
