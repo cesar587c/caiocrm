@@ -73,27 +73,11 @@ export function AppSidebar() {
     router.push('/login');
   }, [logout, router]);
 
-  const memoizedMenuItems = useMemo(() => {
-    if (!currentUser) return null;
+  const allowedMenuItems = useMemo(() => {
+    if (!currentUser) return [];
     const allowedPaths = rolePermissions[currentUser.role] || ['/dashboard'];
-
-    return MENU_ITEMS
-        .filter(item => allowedPaths.includes(item.href))
-        .map((item) => (
-            <SidebarMenuItem key={item.href}>
-                <Link href={item.href} prefetch={true}>
-                    <SidebarMenuButton
-                        size={iconSize === 'large' ? 'lg' : 'default'}
-                        isActive={pathname === item.href}
-                        tooltip={item.label}
-                    >
-                        <item.icon />
-                        <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-        ));
-  }, [pathname, iconSize, currentUser, rolePermissions]);
+    return MENU_ITEMS.filter(item => allowedPaths.includes(item.href));
+  }, [currentUser, rolePermissions]);
 
   return (
     <>
@@ -105,7 +89,20 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {memoizedMenuItems}
+          {allowedMenuItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+                <Link href={item.href}>
+                    <SidebarMenuButton
+                        size={iconSize === 'large' ? 'lg' : 'default'}
+                        isActive={pathname === item.href}
+                        tooltip={item.label}
+                    >
+                        <item.icon />
+                        <span className="group-data-[state=collapsed]:hidden">{item.label}</span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+          ))}
         </SidebarMenu>
       </SidebarContent>
       <SidebarSeparator />

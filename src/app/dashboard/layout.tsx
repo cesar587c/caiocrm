@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { AppSidebar } from "@/components/layout/sidebar";
@@ -32,33 +32,29 @@ const ProtectedContent = ({ children }: { children: React.ReactNode }) => {
     }
   }, [isAuthenticated, isLoaded, router, currentUser, pathname, rolePermissions]);
 
-  const content = useMemo(() => {
-    if (!isLoaded || !isAuthenticated) {
-      return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      );
-    }
-
+  if (!isLoaded || !isAuthenticated) {
     return (
-      <SidebarProvider defaultOpen={false}>
-        <Sidebar collapsible="icon">
-          <AppSidebar />
-          <SidebarRail />
-        </Sidebar>
-        <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 md:hidden">
-            <SidebarTrigger />
-          </header>
-          {children}
-          <TaskNotificationPopup />
-        </SidebarInset>
-      </SidebarProvider>
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
-  }, [isLoaded, isAuthenticated, children]);
+  }
 
-  return content;
+  return (
+    <SidebarProvider defaultOpen={false}>
+      <Sidebar collapsible="icon">
+        <AppSidebar />
+        <SidebarRail />
+      </Sidebar>
+      <SidebarInset>
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 md:hidden">
+          <SidebarTrigger />
+        </header>
+        {children}
+        <TaskNotificationPopup />
+      </SidebarInset>
+    </SidebarProvider>
+  );
 };
 
 
