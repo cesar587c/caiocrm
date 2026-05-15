@@ -20,7 +20,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -62,6 +62,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Appointment } from '@/lib/types';
 import { Calendar } from '@/components/ui/calendar';
+import { Separator } from '@/components/ui/separator';
 
 const appointmentSchema = z.object({
   date: z.date({ required_error: 'A data é obrigatória.' }),
@@ -148,12 +149,6 @@ export default function AgendaPage() {
     }
     return assignedToStr;
   };
-
-  const assignedToDisplay = useMemo(() => {
-    if (!appointmentForReminders?.assignedTo || appointmentForReminders.assignedTo.length === 0) return 'Ninguém';
-    if (appointmentForReminders.assignedTo.length === 1) return getAssignedToNameSingle(appointmentForReminders.assignedTo[0]);
-    return `${appointmentForReminders.assignedTo.length} Responsáveis`;
-  }, [appointmentForReminders, users, sectors]);
 
   const getStatusBadge = (status: Appointment['status']) => {
     switch(status) {
@@ -271,12 +266,11 @@ export default function AgendaPage() {
     });
   }
 
-  const handleSendAllReminders = () => {
+  const sendClientReminder = () => {
     if (!appointmentForReminders) return;
-
     const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
-
     const { time, phone, contact } = appointmentForReminders;
+    
     const clientTemplate = companyProfile.whatsappReminderMessage || "Olá, {cliente}! 👋\n\nEste é um lembrete do seu agendamento com a {empresa} no dia {data} às {hora}.\n\nAté breve!";
     const clientMessage = clientTemplate
       .replace('{cliente}', contact)
@@ -289,40 +283,32 @@ export default function AgendaPage() {
         const clientPhoneWithCountryCode = cleanClientPhone.length > 11 ? cleanClientPhone : `55${cleanClientPhone}`;
         const clientUrl = `https://web.whatsapp.com/send?phone=${clientPhoneWithCountryCode}&text=${encodeURIComponent(clientMessage)}`;
         window.open(clientUrl, '_blank');
-        toast({
-            title: "WhatsApp Aberto (Cliente)",
-            description: `A mensagem para ${contact} está pronta para ser enviada.`,
-        });
+        toast({ title: "WhatsApp Aberto", description: `A mensagem para o cliente ${contact} foi preparada.` });
+    } else {
+        toast({ variant: 'destructive', title: 'Telefone Inválido', description: 'O cliente não possui um número válido cadastrado.' });
     }
+  };
 
-    const { clientName, assignedTo, summary } = appointmentForReminders;
+  const sendTechnicianReminder = (userId: string) => {
+    if (!appointmentForReminders) return;
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
+    const { clientName, time, summary } = appointmentForReminders;
     
-    assignedTo.forEach(at => {
-        const [type, id] = at.split(':');
-        if (type === 'user') {
-            const user = users.find(u => u.id === id);
-            if (user) {
-                const targetName = user.name;
-                const targetPhone = user.whatsapp || '';
-                let internalMessage = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
-                if (summary) internalMessage += `\n*Resumo:* ${summary}`;
-                
-                const cleanInternalPhone = targetPhone.replace(/\D/g, '');
-                if (cleanInternalPhone.length >= 10) {
-                    const internalPhoneWithCountryCode = cleanInternalPhone.length > 11 ? cleanInternalPhone : `55${cleanInternalPhone}`;
-                    const internalUrl = `https://web.whatsapp.com/send?phone=${internalPhoneWithCountryCode}&text=${encodeURIComponent(internalMessage)}`;
-                    window.open(internalUrl, '_blank');
-                }
-            }
-        }
-    });
-
-    toast({
-        title: "WhatsApp Aberto (Equipe)",
-        description: `As notificações para os técnicos designados foram preparadas.`,
-    });
-
-    setReminderStep('idle');
+    let internalMessage = `*Lembrete de Agendamento Técnico*\n\nOlá ${user.name}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
+    if (summary) internalMessage += `\n*Resumo:* ${summary}`;
+    
+    const cleanInternalPhone = user.whatsapp?.replace(/\D/g, '') || '';
+    if (cleanInternalPhone.length >= 10) {
+        const internalPhoneWithCountryCode = cleanInternalPhone.length > 11 ? cleanInternalPhone : `55${cleanInternalPhone}`;
+        const internalUrl = `https://web.whatsapp.com/send?phone=${internalPhoneWithCountryCode}&text=${encodeURIComponent(internalMessage)}`;
+        window.open(internalUrl, '_blank');
+        toast({ title: "WhatsApp Aberto", description: `A mensagem para o técnico ${user.name} foi preparada.` });
+    } else {
+        toast({ variant: 'destructive', title: 'Telefone Inválido', description: `O técnico ${user.name} não possui WhatsApp cadastrado.` });
+    }
   };
 
   const handleMarkAsCompleted = () => {
@@ -403,6 +389,28 @@ export default function AgendaPage() {
 
   const filteredSectors = sectors.filter(s => s.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
   const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
+
+  // Helpers para a lista de lembretes
+  const reminderRecipients = useMemo(() => {
+    if (!appointmentForReminders) return [];
+    const list: { id: string; name: string; type: 'client' | 'tech'; userId?: string }[] = [];
+    
+    // Cliente
+    list.push({ id: 'client', name: `Cliente: ${appointmentForReminders.contact}`, type: 'client' });
+    
+    // Técnicos Individuais
+    appointmentForReminders.assignedTo.forEach(at => {
+        const [type, id] = at.split(':');
+        if (type === 'user') {
+            const user = users.find(u => u.id === id);
+            if (user) {
+                list.push({ id: `tech-${user.id}`, name: `Técnico: ${user.name}`, type: 'tech', userId: user.id });
+            }
+        }
+    });
+    
+    return list;
+  }, [appointmentForReminders, users]);
 
   return (
     <>
@@ -529,7 +537,7 @@ export default function AgendaPage() {
                                     {app.status === 'missed' && app.justification && <p className="text-destructive/80 flex items-start gap-2 pt-2 border-t border-destructive/20 mt-2"><Info className="h-4 w-4 mt-0.5 shrink-0"/>{app.justification}</p>}
 
                                     <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={(e) => { e.stopPropagation(); setAppointmentForReminders(app); setReminderStep('confirming'); }} title="Reenviar Lembretes">
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={(e) => { e.stopPropagation(); setAppointmentForReminders(app); setReminderStep('confirming'); }} title="Enviar Lembretes">
                                             <Send className="h-4 w-4" />
                                         </Button>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditClick(app, selectedDate); }} title="Editar">
@@ -783,7 +791,7 @@ export default function AgendaPage() {
                         <>
                             <Button type="button" variant="outline" onClick={() => { setAppointmentForReminders(selectedAppointment); setReminderStep('confirming'); }}>
                                 <Send className="mr-2 h-4 w-4" />
-                                Reenviar Lembretes
+                                Enviar Lembretes
                             </Button>
                             <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>
                                 <Pencil className="mr-2 h-4 w-4" />
@@ -816,20 +824,50 @@ export default function AgendaPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-    <AlertDialog open={reminderStep === 'confirming'} onOpenChange={(isOpen) => !isOpen && setReminderStep('idle')}>
-        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Enviar Lembretes via WhatsApp?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Serão abertas novas abas no seu navegador para enviar mensagens para o cliente <span className="font-medium">{appointmentForReminders?.contact}</span> e para os responsáveis designados: <span className="font-medium">{assignedToDisplay}</span>. Deseja continuar?
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setReminderStep('idle')}>Não, obrigado</AlertDialogCancel>
-                <AlertDialogAction onClick={handleSendAllReminders}>Sim, Enviar</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
+    <Dialog open={reminderStep === 'confirming'} onOpenChange={(isOpen) => !isOpen && setReminderStep('idle')}>
+        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    Enviar Lembretes WhatsApp
+                </DialogTitle>
+                <DialogDescription>
+                    Selecione os participantes abaixo para disparar as mensagens individualmente.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-3">
+                <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 flex items-start gap-2 mb-4">
+                    <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                        <strong>Nota Técnica:</strong> Disparar mensagens individualmente evita que o navegador bloqueie as janelas como pop-up e garante que cada participante receba sua notificação corretamente.
+                    </p>
+                </div>
+                
+                <div className="space-y-2">
+                    {reminderRecipients.map((rec) => (
+                        <div key={rec.id} className="flex items-center justify-between p-3 bg-muted/40 rounded-md border text-sm hover:bg-muted/60 transition-colors">
+                            <div className="flex items-center gap-3">
+                                {rec.type === 'client' ? <UserCheck className="h-4 w-4 text-blue-500" /> : <Users className="h-4 w-4 text-purple-500" />}
+                                <span className="font-medium">{rec.name}</span>
+                            </div>
+                            <Button 
+                                size="sm" 
+                                variant="secondary" 
+                                className="h-8 gap-2 bg-green-600/10 text-green-600 hover:bg-green-600/20 border-green-600/20"
+                                onClick={() => rec.type === 'client' ? sendClientReminder() : sendTechnicianReminder(rec.userId!)}
+                            >
+                                <Send className="h-3 w-3" />
+                                Enviar
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setReminderStep('idle')} className="w-full sm:w-auto">Concluir Disparos</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     
     <Dialog open={isJustificationDialogOpen} onOpenChange={setIsJustificationDialogOpen}>
         <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
