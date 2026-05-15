@@ -32,7 +32,7 @@ export type Appointment = {
   address: string;
   phone?: string;
   contact: string;
-  assignedTo: string;
+  assignedTo: string[];
   summary?: string;
   status: 'scheduled' | 'completed' | 'missed';
   justification?: string;

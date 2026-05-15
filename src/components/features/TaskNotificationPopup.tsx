@@ -65,7 +65,11 @@ export function TaskNotificationPopup() {
       });
       
       const myTodaysAppointments = appointments.filter(app => {
-        if (!app.assignedTo.endsWith(currentUser.id) || app.status !== 'scheduled') {
+        const isAssigned = Array.isArray(app.assignedTo) 
+            ? app.assignedTo.some(at => at.endsWith(currentUser.id))
+            : app.assignedTo.endsWith(currentUser.id);
+
+        if (!isAssigned || app.status !== 'scheduled') {
           return false;
         }
         try {

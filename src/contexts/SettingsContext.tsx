@@ -106,7 +106,15 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           setProducts(initialProducts);
       } else {
           const savedAppointments = localStorage.getItem('appointments');
-          if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
+          if(savedAppointments) {
+              const parsed = JSON.parse(savedAppointments);
+              // Migrate assignedTo from string to string[] if needed
+              const migrated = parsed.map((app: any) => ({
+                  ...app,
+                  assignedTo: Array.isArray(app.assignedTo) ? app.assignedTo : [app.assignedTo]
+              }));
+              setAppointments(migrated);
+          }
 
           const savedServiceOrders = localStorage.getItem('serviceOrders');
           if(savedServiceOrders) setServiceOrders(JSON.parse(savedServiceOrders));

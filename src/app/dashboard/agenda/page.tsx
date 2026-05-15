@@ -20,7 +20,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -56,6 +56,14 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, SelectSeparator } from '@/components/ui/select';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+    DropdownMenuCheckboxItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+  } from "@/components/ui/dropdown-menu";
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import type { Appointment } from '@/lib/types';
@@ -68,7 +76,7 @@ const appointmentSchema = z.object({
   address: z.string().min(1, 'O endereço é obrigatório.'),
   phone: z.string().optional(),
   contact: z.string().min(1, 'O nome do contato na visita é obrigatório.'),
-  assignedTo: z.string().min(1, 'O setor/responsável é obrigatório.'),
+  assignedTo: z.array(z.string()).min(1, 'Pelo menos um setor ou responsável é obrigatório.'),
   summary: z.string().optional(),
 });
 
@@ -112,7 +120,7 @@ export default function AgendaPage() {
       phone: '',
       contact: '',
       time: '',
-      assignedTo: '',
+      assignedTo: [],
       summary: '',
     },
   });
@@ -123,34 +131,25 @@ export default function AgendaPage() {
     }
   }, [reminderStep]);
   
-  const assignedToDisplay = useMemo(() => {
-    if (!appointmentForReminders?.assignedTo) return { type: '', name: ''};
-    const [type, id] = appointmentForReminders.assignedTo.split(':');
-    if (type === 'user') {
-        const user = users.find(u => u.id === id);
-        return { type: 'user', name: user?.name || 'Usuário' };
-    }
-    if (type === 'sector') {
-        const sector = sectors.find(s => s.id === id);
-        return { type: 'sector', name: sector?.name || 'Setor' };
-    }
-    const sector = sectors.find(s => s.name === appointmentForReminders.assignedTo);
-    return { type: 'sector', name: sector?.name || appointmentForReminders.assignedTo };
-  }, [appointmentForReminders, users, sectors]);
-
-  const getAssignedToName = (assignedToStr: string) => {
+  const getAssignedToNameSingle = (assignedToStr: string) => {
     if (!assignedToStr) return 'N/A';
     const [type, id] = assignedToStr.split(':');
     if (type === 'user') {
         const user = users.find(u => u.id === id);
-        return user?.name || 'Usuário não encontrado';
+        return user?.name || 'Usuário';
     }
     if (type === 'sector') {
         const sector = sectors.find(s => s.id === id);
-        return `Setor: ${sector?.name || 'Setor não encontrado'}`;
+        return `Setor: ${sector?.name || 'Setor'}`;
     }
     return assignedToStr;
   };
+
+  const assignedToDisplay = useMemo(() => {
+    if (!appointmentForReminders?.assignedTo || appointmentForReminders.assignedTo.length === 0) return 'Ninguém';
+    if (appointmentForReminders.assignedTo.length === 1) return getAssignedToNameSingle(appointmentForReminders.assignedTo[0]);
+    return `${appointmentForReminders.assignedTo.length} Responsáveis`;
+  }, [appointmentForReminders, users, sectors]);
 
   const getStatusBadge = (status: Appointment['status']) => {
     switch(status) {
@@ -189,7 +188,7 @@ export default function AgendaPage() {
         phone: '',
         contact: '',
         time: '',
-        assignedTo: '',
+        assignedTo: [],
         summary: '',
       });
       setEditingAppointment(null);
@@ -207,13 +206,18 @@ export default function AgendaPage() {
   const handleEditClick = (appointment: Appointment, day: Date) => {
     setEditingAppointment(appointment);
     
-    let assignedToValue = appointment.assignedTo;
-    if (assignedToValue && !assignedToValue.includes(':')) {
-        const sector = sectors.find(s => s.name === assignedToValue);
-        if (sector) {
-            assignedToValue = `sector:${sector.id}`;
+    // Safety convert string to array for old data
+    const assignedToArray = Array.isArray(appointment.assignedTo) 
+        ? appointment.assignedTo 
+        : [appointment.assignedTo];
+
+    const formattedAssignedTo = assignedToArray.map(val => {
+        if (val && !val.includes(':')) {
+            const sector = sectors.find(s => s.name === val);
+            if (sector) return `sector:${sector.id}`;
         }
-    }
+        return val;
+    });
 
     form.reset({
       date: parse(appointment.date, 'yyyy-MM-dd', new Date()),
@@ -222,7 +226,7 @@ export default function AgendaPage() {
       phone: appointment.phone || '',
       contact: appointment.contact,
       time: appointment.time,
-      assignedTo: assignedToValue,
+      assignedTo: formattedAssignedTo,
       summary: appointment.summary || '',
     });
   };
@@ -256,7 +260,7 @@ export default function AgendaPage() {
       phone: '',
       contact: '',
       time: '',
-      assignedTo: '',
+      assignedTo: [],
       summary: '',
     });
   }
@@ -283,57 +287,34 @@ export default function AgendaPage() {
             title: "WhatsApp Aberto (Cliente)",
             description: `A mensagem para ${contact} está pronta para ser enviada.`,
         });
-    } else {
-        toast({
-            title: "Número do Cliente Inválido",
-            description: `O cliente ${contact} não possui um número de telefone válido. A notificação não foi enviada.`,
-            variant: "destructive",
-        });
     }
 
     const { clientName, assignedTo, summary } = appointmentForReminders;
-    const [type, id] = assignedTo.split(':');
-
-    if (type === 'user') {
-        const user = users.find(u => u.id === id);
-        if (user) {
-            const targetName = user.name;
-            const targetPhone = user.whatsapp || '';
-            let internalMessage = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
-            if (summary) {
-                internalMessage += `\n*Resumo:* ${summary}`;
+    
+    assignedTo.forEach(at => {
+        const [type, id] = at.split(':');
+        if (type === 'user') {
+            const user = users.find(u => u.id === id);
+            if (user) {
+                const targetName = user.name;
+                const targetPhone = user.whatsapp || '';
+                let internalMessage = `*Lembrete de Agendamento Individual*\n\nOlá ${targetName}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
+                if (summary) internalMessage += `\n*Resumo:* ${summary}`;
+                
+                const cleanInternalPhone = targetPhone.replace(/\D/g, '');
+                if (cleanInternalPhone.length >= 10) {
+                    const internalPhoneWithCountryCode = cleanInternalPhone.length > 11 ? cleanInternalPhone : `55${cleanInternalPhone}`;
+                    const internalUrl = `https://web.whatsapp.com/send?phone=${internalPhoneWithCountryCode}&text=${encodeURIComponent(internalMessage)}`;
+                    window.open(internalUrl, '_blank');
+                }
             }
-            internalMessage += `\n\nPor favor, verifique a agenda para mais detalhes.`;
-            
-            const cleanInternalPhone = targetPhone.replace(/\D/g, '');
-            if (cleanInternalPhone.length >= 10) {
-                const internalPhoneWithCountryCode = cleanInternalPhone.length > 11 ? cleanInternalPhone : `55${cleanInternalPhone}`;
-                const internalUrl = `https://web.whatsapp.com/send?phone=${internalPhoneWithCountryCode}&text=${encodeURIComponent(internalMessage)}`;
-                window.open(internalUrl, '_blank');
-                toast({
-                    title: "WhatsApp Aberto (Equipe)",
-                    description: `A mensagem para ${targetName} está pronta para ser enviada.`,
-                });
-            } else {
-                 toast({
-                    title: "Número do Usuário Inválido",
-                    description: `O usuário ${targetName} não possui um número de WhatsApp válido. A notificação não foi enviada.`,
-                    variant: 'destructive',
-                });
-            }
-        } else {
-             toast({ title: 'Usuário não encontrado', description: 'Não foi possível encontrar o usuário para notificar.', variant: 'destructive'});
         }
-    } else {
-        const sector = sectors.find(s => s.id === id) || sectors.find(s => s.name === assignedTo);
-        const sectorName = sector?.name || 'Setor desconhecido';
-        toast({
-            title: "Notificação para Setor",
-            description: `O envio de mensagens para setores inteiros ("${sectorName}") não é suportado. A notificação para a equipe foi pulada.`,
-            variant: 'secondary',
-            duration: 7000,
-        });
-    }
+    });
+
+    toast({
+        title: "WhatsApp Aberto (Equipe)",
+        description: `As notificações para os técnicos designados foram preparadas.`,
+    });
 
     setReminderStep('idle');
   };
@@ -522,7 +503,18 @@ export default function AgendaPage() {
                                     <div className="flex items-center gap-2">{getStatusBadge(app.status)}</div>
                                     <p className="text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>{app.address}</p>
                                     <p className="text-muted-foreground flex items-center gap-2"><User className="h-4 w-4"/>{app.contact}</p>
-                                    <p className="text-muted-foreground flex items-center gap-2"><Briefcase className="h-4 w-4"/>{getAssignedToName(app.assignedTo)}</p>
+                                    <div className="flex flex-wrap gap-1 items-start">
+                                        <Briefcase className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0"/>
+                                        <div className="flex flex-wrap gap-1">
+                                            {Array.isArray(app.assignedTo) ? (
+                                                app.assignedTo.map(at => (
+                                                    <Badge key={at} variant="outline" className="text-[10px] py-0">{getAssignedToNameSingle(at)}</Badge>
+                                                ))
+                                            ) : (
+                                                <Badge variant="outline" className="text-[10px] py-0">{getAssignedToNameSingle(app.assignedTo)}</Badge>
+                                            )}
+                                        </div>
+                                    </div>
                                     {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
                                     {app.summary && <p className="text-muted-foreground flex items-start gap-2 pt-2"><ClipboardList className="h-4 w-4 mt-0.5 shrink-0"/>{app.summary}</p>}
                                     {app.status === 'missed' && app.justification && <p className="text-destructive/80 flex items-start gap-2 pt-2 border-t border-destructive/20 mt-2"><Info className="h-4 w-4 mt-0.5 shrink-0"/>{app.justification}</p>}
@@ -672,36 +664,72 @@ export default function AgendaPage() {
                             name="assignedTo"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Setor/Responsável</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecione um setor ou usuário" />
-                                    </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent className="max-h-60">
-                                        <SelectGroup>
-                                            <SelectLabel>Setores</SelectLabel>
-                                            {sectors.map(sector => (
-                                                <SelectItem key={`sector-${sector.id}`} value={`sector:${sector.id}`}>
-                                                    {sector.name} (Equipe Toda)
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                        <SelectSeparator />
-                                        <SelectGroup>
-                                            <SelectLabel>Colaboradores</SelectLabel>
-                                            {users.map(user => (
-                                                <SelectItem key={`user-${user.id}`} value={`user:${user.id}`}>
-                                                    {user.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                        {sectors.length === 0 && users.length === 0 && (
-                                            <p className='p-2 text-xs text-muted-foreground'>Nenhum setor ou usuário cadastrado.</p>
-                                        )}
-                                    </SelectContent>
-                                </Select>
+                                <FormLabel>Setor/Responsável (Múltiplos)</FormLabel>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <FormControl>
+                                            <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10 px-3 py-2">
+                                                {field.value?.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {field.value.map(val => (
+                                                            <Badge key={val} variant="secondary" className='text-[10px]'>
+                                                                {getAssignedToNameSingle(val)}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-sm">Selecione os responsáveis</span>
+                                                )}
+                                            </Button>
+                                        </FormControl>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent className="w-full max-w-[var(--radix-dropdown-menu-trigger-width)]">
+                                        <DropdownMenuLabel>Designar Responsáveis</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <ScrollArea className="max-h-60">
+                                            <div className="p-1">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-1.5">Setores</p>
+                                                {sectors.map(sector => (
+                                                    <DropdownMenuCheckboxItem
+                                                        key={`sector-${sector.id}`}
+                                                        checked={field.value?.includes(`sector:${sector.id}`)}
+                                                        onCheckedChange={(checked) => {
+                                                            const current = field.value || [];
+                                                            const next = checked 
+                                                                ? [...current, `sector:${sector.id}`]
+                                                                : current.filter(v => v !== `sector:${sector.id}`);
+                                                            field.onChange(next);
+                                                        }}
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        {sector.name} (Equipe Toda)
+                                                    </DropdownMenuCheckboxItem>
+                                                ))}
+                                                <DropdownMenuSeparator />
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-1.5">Técnicos</p>
+                                                {users.map(user => (
+                                                    <DropdownMenuCheckboxItem
+                                                        key={`user-${user.id}`}
+                                                        checked={field.value?.includes(`user:${user.id}`)}
+                                                        onCheckedChange={(checked) => {
+                                                            const current = field.value || [];
+                                                            const next = checked 
+                                                                ? [...current, `user:${user.id}`]
+                                                                : current.filter(v => v !== `user:${user.id}`);
+                                                            field.onChange(next);
+                                                        }}
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        {user.name}
+                                                    </DropdownMenuCheckboxItem>
+                                                ))}
+                                                {sectors.length === 0 && users.length === 0 && (
+                                                    <p className='p-2 text-xs text-muted-foreground text-center'>Nenhum cadastro encontrado.</p>
+                                                )}
+                                            </div>
+                                        </ScrollArea>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                                 <FormMessage />
                                 </FormItem>
                             )}
@@ -760,7 +788,7 @@ export default function AgendaPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Enviar Lembretes via WhatsApp?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Serão abertas novas abas no seu navegador para enviar mensagens para o cliente <span className="font-medium">{appointmentForReminders?.contact}</span> e para o responsável <span className="font-medium">{assignedToDisplay.name}</span>. Deseja continuar?
+                    Serão abertas novas abas no seu navegador para enviar mensagens para o cliente <span className="font-medium">{appointmentForReminders?.contact}</span> e para os responsáveis designados: <span className="font-medium">{assignedToDisplay}</span>. Deseja continuar?
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
