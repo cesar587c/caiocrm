@@ -20,7 +20,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -55,14 +55,13 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, SelectSeparator } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Appointment } from '@/lib/types';
 import { Calendar } from '@/components/ui/calendar';
-import { Separator } from '@/components/ui/separator';
+import { sendAppointmentNotifications } from '@/app/actions';
 
 const appointmentSchema = z.object({
   date: z.date({ required_error: 'A data é obrigatória.' }),
@@ -85,8 +84,7 @@ export default function AgendaPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [reminderStep, setReminderStep] = useState<'idle' | 'confirming'>('idle');
-  const [appointmentForReminders, setAppointmentForReminders] = useState<Appointment | null>(null);
+  const [isNotifying, setIsNotifying] = useState(false);
   const [searchTermAssignees, setSearchTermAssignees] = useState('');
 
   const [isJustificationDialogOpen, setIsJustificationDialogOpen] = useState(false);
@@ -96,14 +94,13 @@ export default function AgendaPage() {
   const { toast } = useToast();
   const { companyProfile, sectors, users, appointments, addAppointment, updateAppointment, deleteAppointment } = useSettings();
 
-  // Fix for system "lock" by forcing cleanup of pointer-events and overflow when no dialog is open
   useEffect(() => {
-    const anyDialogOpen = isModalOpen || isDeleteDialogOpen || reminderStep === 'confirming' || isJustificationDialogOpen;
+    const anyDialogOpen = isModalOpen || isDeleteDialogOpen || isNotifying || isJustificationDialogOpen;
     if (!anyDialogOpen) {
       document.body.style.pointerEvents = 'auto';
       document.body.style.overflow = 'auto';
     }
-  }, [isModalOpen, isDeleteDialogOpen, reminderStep, isJustificationDialogOpen]);
+  }, [isModalOpen, isDeleteDialogOpen, isNotifying, isJustificationDialogOpen]);
 
   const appointmentsByDate = useMemo(() => {
     return appointments.reduce((acc, app) => {
@@ -129,12 +126,6 @@ export default function AgendaPage() {
       summary: '',
     },
   });
-
-  useEffect(() => {
-    if (reminderStep === 'idle') {
-      setAppointmentForReminders(null);
-    }
-  }, [reminderStep]);
   
   const getAssignedToNameSingle = (assignedToStr: string) => {
     if (!assignedToStr) return 'N/A';
@@ -166,18 +157,12 @@ export default function AgendaPage() {
   const days = eachDayOfInterval({ start: startDate, end: endDate });
   const weekdays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
-  const handlePrevMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1));
-  };
+  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
     setSearchTermAssignees('');
-    
     if(editingAppointment) {
       form.setValue('date', day);
     } else {
@@ -198,27 +183,13 @@ export default function AgendaPage() {
   };
   
   const handleDayClick = (day: Date) => {
-    if (isSameMonth(day, currentMonth)) {
-        openModalForDay(day);
-    }
+    if (isSameMonth(day, currentMonth)) openModalForDay(day);
   };
 
   const handleEditClick = (appointment: Appointment, day: Date) => {
     setEditingAppointment(appointment);
     setSearchTermAssignees('');
-    
-    const assignedToArray = Array.isArray(appointment.assignedTo) 
-        ? appointment.assignedTo 
-        : [appointment.assignedTo];
-
-    const formattedAssignedTo = assignedToArray.map(val => {
-        if (val && !val.includes(':')) {
-            const sector = sectors.find(s => s.name === val);
-            if (sector) return `sector:${sector.id}`;
-        }
-        return val;
-    });
-
+    const assignedToArray = Array.isArray(appointment.assignedTo) ? appointment.assignedTo : [appointment.assignedTo];
     form.reset({
       date: parse(appointment.date, 'yyyy-MM-dd', new Date()),
       clientName: appointment.clientName,
@@ -226,88 +197,35 @@ export default function AgendaPage() {
       phone: appointment.phone || '',
       contact: appointment.contact,
       time: appointment.time,
-      assignedTo: formattedAssignedTo,
+      assignedTo: assignedToArray,
       summary: appointment.summary || '',
     });
+    setIsModalOpen(true);
   };
 
-  const handleDeleteClick = (appointment: Appointment) => {
-    setAppointmentToDelete(appointment);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (!appointmentToDelete) return;
+  const triggerNotifications = async (appointment: any) => {
+    setIsNotifying(true);
+    const techIds = appointment.assignedTo
+        .filter((at: string) => at.startsWith('user:'))
+        .map((at: string) => at.split(':')[1]);
     
-    deleteAppointment(appointmentToDelete.id);
+    const technicians = users.filter(u => techIds.includes(u.id));
 
-    toast({
-        title: "Agendamento Excluído!",
-        description: `O compromisso com ${appointmentToDelete.clientName} foi removido.`,
-        variant: "destructive"
-    });
-    setIsDeleteDialogOpen(false);
-    setAppointmentToDelete(null);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingAppointment(null);
-    setSelectedAppointment(null);
-    setSearchTermAssignees('');
-    form.reset({
-      date: selectedDate,
-      clientName: '',
-      address: '',
-      phone: '',
-      contact: '',
-      time: '',
-      assignedTo: [],
-      summary: '',
-    });
-  }
-
-  const sendClientReminder = () => {
-    if (!appointmentForReminders) return;
-    const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
-    const { time, phone, contact } = appointmentForReminders;
-    
-    const clientTemplate = companyProfile.whatsappReminderMessage || "Olá, {cliente}! 👋\n\nEste é um lembrete do seu agendamento com a {empresa} no dia {data} às {hora}.\n\nAté breve!";
-    const clientMessage = clientTemplate
-      .replace('{cliente}', contact)
-      .replace('{empresa}', companyProfile.name)
-      .replace('{data}', dateStr)
-      .replace('{hora}', time);
-
-    const cleanClientPhone = phone?.replace(/\D/g, '') || '';
-    if (cleanClientPhone.length >= 10) {
-        const clientPhoneWithCountryCode = cleanClientPhone.length > 11 ? cleanClientPhone : `55${cleanClientPhone}`;
-        const clientUrl = `https://web.whatsapp.com/send?phone=${clientPhoneWithCountryCode}&text=${encodeURIComponent(clientMessage)}`;
-        window.open(clientUrl, '_blank');
-        toast({ title: "WhatsApp Aberto", description: `A mensagem para o cliente ${contact} foi preparada.` });
-    } else {
-        toast({ variant: 'destructive', title: 'Telefone Inválido', description: 'O cliente não possui um número válido cadastrado.' });
-    }
-  };
-
-  const sendTechnicianReminder = (userId: string) => {
-    if (!appointmentForReminders) return;
-    const user = users.find(u => u.id === userId);
-    if (!user) return;
-
-    const dateStr = format(parse(appointmentForReminders.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy', { locale: ptBR });
-    const { clientName, time, summary } = appointmentForReminders;
-    
-    let internalMessage = `*Lembrete de Agendamento Técnico*\n\nOlá ${user.name}, você tem uma visita agendada.\n\n*Cliente:* ${clientName}\n*Data:* ${dateStr}\n*Horário:* ${time}`;
-    if (summary) internalMessage += `\n*Resumo:* ${summary}`;
-    
-    const cleanInternalPhone = user.whatsapp?.replace(/\D/g, '') || '';
-    if (cleanInternalPhone.length >= 10) {
-        const internalPhoneWithCountryCode = cleanInternalPhone.length > 11 ? cleanInternalPhone : `55${cleanInternalPhone}`;
-        const internalUrl = `https://web.whatsapp.com/send?phone=${internalPhoneWithCountryCode}&text=${encodeURIComponent(internalMessage)}`;
-        window.open(internalUrl, '_blank');
-        toast({ title: "WhatsApp Aberto", description: `A mensagem para o técnico ${user.name} foi preparada.` });
-    } else {
-        toast({ variant: 'destructive', title: 'Telefone Inválido', description: `O técnico ${user.name} não possui WhatsApp cadastrado.` });
+    try {
+        await sendAppointmentNotifications({
+            appointment,
+            companyName: companyProfile.name,
+            technicians,
+            customMessageTemplate: companyProfile.whatsappReminderMessage
+        });
+        toast({
+            title: "Notificações Enviadas",
+            description: "O cliente e os técnicos foram avisados via WhatsApp automaticamente.",
+        });
+    } catch (error) {
+        console.error("Erro ao enviar notificações automáticas:", error);
+    } finally {
+        setIsNotifying(false);
     }
   };
 
@@ -318,12 +236,6 @@ export default function AgendaPage() {
     setSelectedAppointment(null);
   }
 
-  const handleOpenJustificationDialog = () => {
-    if (!selectedAppointment) return;
-    setAppointmentToProcess(selectedAppointment);
-    setIsJustificationDialogOpen(true);
-  }
-  
   const handleConfirmMissed = () => {
     if (!appointmentToProcess || !justification.trim()) {
         toast({ variant: 'destructive', title: 'Justificativa é obrigatória.'});
@@ -331,7 +243,6 @@ export default function AgendaPage() {
     }
     updateAppointment({ ...appointmentToProcess, status: 'missed', justification: justification.trim() });
     toast({ variant: 'destructive', title: "Agendamento Não Concluído", description: `O compromisso com ${appointmentToProcess.clientName} foi marcado como não concluído.` });
-    
     setIsJustificationDialogOpen(false);
     setAppointmentToProcess(null);
     setJustification('');
@@ -351,35 +262,24 @@ export default function AgendaPage() {
         summary: values.summary,
     };
     
+    let savedAppointment;
+
     if (editingAppointment) {
-        const updatedAppointment: Appointment = {
-            id: editingAppointment.id,
-            status: editingAppointment.status,
-            ...appointmentData
-        };
-        updateAppointment(updatedAppointment);
-        setAppointmentForReminders(updatedAppointment);
-        toast({
-            title: 'Agendamento Atualizado!',
-            description: `Visita para ${values.clientName} atualizada.`,
-        });
+        savedAppointment = { id: editingAppointment.id, status: editingAppointment.status, ...appointmentData };
+        updateAppointment(savedAppointment as Appointment);
+        toast({ title: 'Agendamento Atualizado!' });
     } else {
-        const newAppointmentData = {
-          ...appointmentData,
-          status: 'scheduled' as const,
-        }
-        addAppointment(newAppointmentData);
-        setAppointmentForReminders({ id: 'temp', ...newAppointmentData});
-        toast({
-            title: 'Agendamento Criado!',
-            description: `Visita para ${values.clientName} agendada para as ${values.time}.`,
-        });
+        savedAppointment = { id: 'temp_' + Date.now(), status: 'scheduled' as const, ...appointmentData };
+        addAppointment(savedAppointment as any);
+        toast({ title: 'Agendamento Criado!' });
     }
 
+    setIsModalOpen(false);
     setEditingAppointment(null);
     setSelectedAppointment(null);
-    setIsModalOpen(false);
-    setReminderStep('confirming');
+    
+    // Disparo automático
+    triggerNotifications(savedAppointment);
   }
 
   const selectedDayAppointments = useMemo(() => {
@@ -389,28 +289,6 @@ export default function AgendaPage() {
 
   const filteredSectors = sectors.filter(s => s.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
   const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
-
-  // Helpers para a lista de lembretes
-  const reminderRecipients = useMemo(() => {
-    if (!appointmentForReminders) return [];
-    const list: { id: string; name: string; type: 'client' | 'tech'; userId?: string }[] = [];
-    
-    // Cliente
-    list.push({ id: 'client', name: `Cliente: ${appointmentForReminders.contact}`, type: 'client' });
-    
-    // Técnicos Individuais
-    appointmentForReminders.assignedTo.forEach(at => {
-        const [type, id] = at.split(':');
-        if (type === 'user') {
-            const user = users.find(u => u.id === id);
-            if (user) {
-                list.push({ id: `tech-${user.id}`, name: `Técnico: ${user.name}`, type: 'tech', userId: user.id });
-            }
-        }
-    });
-    
-    return list;
-  }, [appointmentForReminders, users]);
 
   return (
     <>
@@ -476,19 +354,14 @@ export default function AgendaPage() {
           </div>
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={(isOpen) => {
-          if (!isOpen) {
-              handleCancelEdit();
-          }
-          setIsModalOpen(isOpen);
-      }}>
+      <Dialog open={isModalOpen} onOpenChange={(isOpen) => { if (!isOpen) { setEditingAppointment(null); setSelectedAppointment(null); } setIsModalOpen(isOpen); }}>
         <DialogContent className="sm:max-w-[425px] md:max-w-3xl flex flex-col h-[90vh]" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader className='flex-none'>
             <DialogTitle>
               Agenda para {format(selectedDate, 'dd/MM/yyyy', { locale: ptBR })}
             </DialogTitle>
             <DialogDescription>
-              Visualize, adicione ou edite compromissos para este dia.
+              Visualize, adicione ou edite compromissos. O sistema enviará notificações automáticas ao salvar.
             </DialogDescription>
           </DialogHeader>
           <div className="grid flex-1 grid-cols-1 md:grid-cols-2 gap-6 py-4 overflow-y-auto">
@@ -504,11 +377,7 @@ export default function AgendaPage() {
                                         "relative group p-3 bg-muted/50 rounded-lg text-sm space-y-2 cursor-pointer",
                                         selectedAppointment?.id === app.id && !editingAppointment && "ring-2 ring-primary"
                                     )}
-                                    onClick={() => {
-                                        if (!editingAppointment) {
-                                            setSelectedAppointment(app)
-                                        }
-                                    }}
+                                    onClick={() => !editingAppointment && setSelectedAppointment(app)}
                                 >
                                     <div className="flex justify-between items-start">
                                         <p className="font-semibold text-base pr-16">{app.clientName}</p>
@@ -523,28 +392,19 @@ export default function AgendaPage() {
                                     <div className="flex flex-wrap gap-1 items-start">
                                         <Briefcase className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0"/>
                                         <div className="flex flex-wrap gap-1">
-                                            {Array.isArray(app.assignedTo) ? (
-                                                app.assignedTo.map(at => (
-                                                    <Badge key={at} variant="outline" className="text-[10px] py-0">{getAssignedToNameSingle(at)}</Badge>
-                                                ))
-                                            ) : (
-                                                <Badge variant="outline" className="text-[10px] py-0">{getAssignedToNameSingle(app.assignedTo)}</Badge>
-                                            )}
+                                            {app.assignedTo.map(at => (
+                                                <Badge key={at} variant="outline" className="text-[10px] py-0">{getAssignedToNameSingle(at)}</Badge>
+                                            ))}
                                         </div>
                                     </div>
                                     {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
-                                    {app.summary && <p className="text-muted-foreground flex items-start gap-2 pt-2"><ClipboardList className="h-4 w-4 mt-0.5 shrink-0"/>{app.summary}</p>}
-                                    {app.status === 'missed' && app.justification && <p className="text-destructive/80 flex items-start gap-2 pt-2 border-t border-destructive/20 mt-2"><Info className="h-4 w-4 mt-0.5 shrink-0"/>{app.justification}</p>}
 
                                     <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={(e) => { e.stopPropagation(); setAppointmentForReminders(app); setReminderStep('confirming'); }} title="Enviar Lembretes">
-                                            <Send className="h-4 w-4" />
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={(e) => { e.stopPropagation(); triggerNotifications(app); }} title="Reenviar Notificações Automáticas">
+                                            <BellRing className="h-4 w-4" />
                                         </Button>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditClick(app, selectedDate); }} title="Editar">
                                             <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteClick(app); }} title="Excluir">
-                                            <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 </div>
@@ -553,7 +413,6 @@ export default function AgendaPage() {
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground border-2 border-dashed rounded-lg p-8">
                             <p>Nenhum compromisso para este dia.</p>
-                            <p className="text-xs">Use o formulário para adicionar um.</p>
                         </div>
                     )}
                  </ScrollArea>
@@ -567,119 +426,28 @@ export default function AgendaPage() {
                             name="date"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Data do Agendamento</FormLabel>
+                                    <FormLabel>Data</FormLabel>
                                     <Dialog>
                                         <DialogTrigger asChild>
                                             <FormControl>
-                                                <Button
-                                                    type="button"
-                                                    variant={"outline"}
-                                                    className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                                >
+                                                <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
                                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                                     {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
                                                 </Button>
                                             </FormControl>
                                         </DialogTrigger>
-                                        <DialogContent className="w-auto" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
-                                            <Calendar
-                                                mode="single"
-                                                selected={field.value}
-                                                onSelect={(date) => {
-                                                    if(date) {
-                                                      field.onChange(date);
-                                                      openModalForDay(date);
-                                                    }
-                                                }}
-                                                initialFocus
-                                                locale={ptBR}
-                                            />
-                                        </DialogContent>
+                                        <DialogContent className="w-auto"><Calendar mode="single" selected={field.value} onSelect={(date) => { if(date) { field.onChange(date); openModalForDay(date); } }} locale={ptBR} /></DialogContent>
                                     </Dialog>
-                                    <FormDescription>Clique na data para reagendar.</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
+                        <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Horário</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Nome do Cliente</FormLabel><FormControl><Input placeholder="Ex: Tech Solutions Ltda." {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Ex: Rua das Inovações, 123" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="contact" render={({ field }) => (<FormItem><FormLabel>Contato na Visita</FormLabel><FormControl><Input placeholder="Ex: Sr. Carlos" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField
-                        control={form.control}
-                        name="time"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Horário</FormLabel>
-                            <FormControl>
-                                <Input type="time" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name="clientName"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Nome do Cliente</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Ex: Tech Solutions Ltda." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name="address"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Endereço</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Ex: Rua das Inovações, 123" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name="phone"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Telefone de Contato</FormLabel>
-                            <FormControl>
-                                <Input placeholder="(00) 00000-0000" {...field} value={field.value || ''}/>
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name="contact"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Contato na Visita</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Ex: Sr. Carlos" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="summary"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Resumo da Visita</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder="Ex: Apresentar novo produto, resolver pendência..." {...field} value={field.value || ''} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
                             control={form.control}
                             name="assignedTo"
                             render={({ field }) => (
@@ -703,27 +471,14 @@ export default function AgendaPage() {
                                             </Button>
                                         </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent 
-                                        className="w-[var(--radix-popover-trigger-width)] p-0 pointer-events-auto" 
-                                        align="start"
-                                        onWheel={(e) => e.stopPropagation()}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                    >
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 pointer-events-auto" align="start">
                                         <div className="p-2 border-b bg-background">
                                             <div className="relative">
                                                 <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
-                                                <Input 
-                                                    placeholder="Buscar por nome..." 
-                                                    className="pl-7 h-8 text-xs" 
-                                                    value={searchTermAssignees} 
-                                                    onChange={(e) => setSearchTermAssignees(e.target.value)}
-                                                />
+                                                <Input placeholder="Buscar por nome..." className="pl-7 h-8 text-xs" value={searchTermAssignees} onChange={(e) => setSearchTermAssignees(e.target.value)} />
                                             </div>
                                         </div>
-                                        <div 
-                                            className="max-h-80 overflow-y-auto overscroll-contain"
-                                            onWheel={(e) => e.stopPropagation()}
-                                        >
+                                        <div className="max-h-80 overflow-y-auto overscroll-contain">
                                             <div className="p-2 space-y-4">
                                                 <div>
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Setores</p>
@@ -737,10 +492,9 @@ export default function AgendaPage() {
                                                                 field.onChange(next);
                                                             }}>
                                                                 <Checkbox checked={field.value?.includes(`sector:${sector.id}`)} />
-                                                                <span className="text-sm">{sector.name} (Equipe Toda)</span>
+                                                                <span className="text-sm">{sector.name}</span>
                                                             </div>
                                                         ))}
-                                                        {filteredSectors.length === 0 && <p className="text-[10px] text-center text-muted-foreground py-2">Nenhum setor encontrado.</p>}
                                                     </div>
                                                 </div>
                                                 <div>
@@ -758,7 +512,6 @@ export default function AgendaPage() {
                                                                 <span className="text-sm">{user.name}</span>
                                                             </div>
                                                         ))}
-                                                        {filteredUsers.length === 0 && <p className="text-[10px] text-center text-muted-foreground py-2">Nenhum técnico encontrado.</p>}
                                                     </div>
                                                 </div>
                                             </div>
@@ -776,118 +529,43 @@ export default function AgendaPage() {
           <DialogFooter className="flex-none pt-4 gap-2 border-t">
               {editingAppointment ? (
                 <>
-                    <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancelar</Button>
-                    <Button type="submit" form="appointment-form">Salvar Alterações</Button>
+                    <Button type="button" variant="outline" onClick={() => { setEditingAppointment(null); setSelectedAppointment(null); }}>Cancelar</Button>
+                    <Button type="submit" form="appointment-form">Salvar e Notificar</Button>
                 </>
               ) : (
                 <>
-                    {selectedAppointment && !editingAppointment && selectedAppointment.status === 'scheduled' && (
-                        <>
-                            <Button type="button" variant="outline" className="mr-auto" onClick={handleOpenJustificationDialog}>Marcar Não Concluído</Button>
-                            <Button type="button" variant="secondary" onClick={handleMarkAsCompleted}>Marcar Concluído</Button>
-                        </>
-                    )}
                     {selectedAppointment && !editingAppointment && (
                         <>
-                            <Button type="button" variant="outline" onClick={() => { setAppointmentForReminders(selectedAppointment); setReminderStep('confirming'); }}>
-                                <Send className="mr-2 h-4 w-4" />
-                                Enviar Lembretes
-                            </Button>
-                            <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Editar
-                            </Button>
+                            <Button type="button" variant="secondary" onClick={handleMarkAsCompleted}>Marcar Concluído</Button>
+                            <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>Editar</Button>
                         </>
                     )}
-                    <Button type="submit" form="appointment-form">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Agendar
-                    </Button>
+                    <Button type="submit" form="appointment-form">Agendar e Notificar</Button>
                 </>
               )}
         </DialogFooter>
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
-            <AlertDialogDescription>
-                Essa ação não pode ser desfeita. Isso excluirá permanentemente o compromisso com <span className="font-medium">{appointmentToDelete?.clientName}</span>.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setAppointmentToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Confirmar Exclusão</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-    <Dialog open={reminderStep === 'confirming'} onOpenChange={(isOpen) => !isOpen && setReminderStep('idle')}>
-        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
-            <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    Enviar Lembretes WhatsApp
-                </DialogTitle>
+      <Dialog open={isNotifying} onOpenChange={setIsNotifying}>
+        <DialogContent className="sm:max-w-md text-center p-8">
+            <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <DialogTitle>Enviando Notificações Automáticas</DialogTitle>
                 <DialogDescription>
-                    Selecione os participantes abaixo para disparar as mensagens individualmente.
+                    Aguarde um momento enquanto o sistema avisa o cliente e os técnicos via WhatsApp (Genkit AI).
                 </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-3">
-                <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 flex items-start gap-2 mb-4">
-                    <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                    <p className="text-[11px] text-muted-foreground leading-tight">
-                        <strong>Nota Técnica:</strong> Disparar mensagens individualmente evita que o navegador bloqueie as janelas como pop-up e garante que cada participante receba sua notificação corretamente.
-                    </p>
-                </div>
-                
-                <div className="space-y-2">
-                    {reminderRecipients.map((rec) => (
-                        <div key={rec.id} className="flex items-center justify-between p-3 bg-muted/40 rounded-md border text-sm hover:bg-muted/60 transition-colors">
-                            <div className="flex items-center gap-3">
-                                {rec.type === 'client' ? <UserCheck className="h-4 w-4 text-blue-500" /> : <Users className="h-4 w-4 text-purple-500" />}
-                                <span className="font-medium">{rec.name}</span>
-                            </div>
-                            <Button 
-                                size="sm" 
-                                variant="secondary" 
-                                className="h-8 gap-2 bg-green-600/10 text-green-600 hover:bg-green-600/20 border-green-600/20"
-                                onClick={() => rec.type === 'client' ? sendClientReminder() : sendTechnicianReminder(rec.userId!)}
-                            >
-                                <Send className="h-3 w-3" />
-                                Enviar
-                            </Button>
-                        </div>
-                    ))}
-                </div>
             </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setReminderStep('idle')} className="w-full sm:w-auto">Concluir Disparos</Button>
-            </DialogFooter>
         </DialogContent>
-    </Dialog>
-    
+      </Dialog>
+
     <Dialog open={isJustificationDialogOpen} onOpenChange={setIsJustificationDialogOpen}>
-        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
-            <DialogHeader>
-                <DialogTitle>Justificar Não Conclusão</DialogTitle>
-                <DialogDescription>
-                    Por favor, informe o motivo pelo qual o agendamento com <span className="font-medium">{appointmentToProcess?.clientName}</span> não foi concluído.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-                <Textarea 
-                    placeholder="Ex: Cliente cancelou, imprevisto, etc."
-                    value={justification}
-                    onChange={(e) => setJustification(e.target.value)}
-                    rows={4}
-                />
-            </div>
+        <DialogContent>
+            <DialogHeader><DialogTitle>Justificar Não Conclusão</DialogTitle></DialogHeader>
+            <div className="py-4"><Textarea placeholder="Motivo..." value={justification} onChange={(e) => setJustification(e.target.value)} rows={4}/></div>
             <DialogFooter>
-                <AlertDialogCancel onClick={() => { setJustification(''); setAppointmentToProcess(null); }}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmMissed}>Confirmar Não Concluído</AlertDialogAction>
+                <Button variant="outline" onClick={() => { setJustification(''); setAppointmentToProcess(null); setIsJustificationDialogOpen(false); }}>Cancelar</Button>
+                <Button variant="destructive" onClick={handleConfirmMissed}>Confirmar</Button>
             </DialogFooter>
         </DialogContent>
     </Dialog>
