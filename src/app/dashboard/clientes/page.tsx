@@ -254,13 +254,13 @@ export default function ClientesPage() {
             filtered = filtered.filter(c => c.status === 'inactive' || c.status === 'discarded' || c.status === 'lost');
             break;
         case 'all':
-            filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded' && c.status !== 'lead' && c.status !== 'lost');
+            filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded' && c.status !== 'lead' && c.status !== 'lost' && c.status !== 'opportunity' && c.status !== 'proposal' && c.status !== 'negotiation');
             break;
         case 'active_contract':
-            filtered = filtered.filter(c => c.type === 'active_contract' && c.status !== 'lead' && c.status !== 'inactive' && c.status !== 'lost');
+            filtered = filtered.filter(c => c.type === 'active_contract' && c.status !== 'lead' && c.status !== 'inactive' && c.status !== 'lost' && c.status !== 'opportunity' && c.status !== 'proposal' && c.status !== 'negotiation');
             break;
         case 'one_time':
-            filtered = filtered.filter(c => c.type === 'one_time' && c.status !== 'lead' && c.status !== 'inactive' && c.status !== 'lost');
+            filtered = filtered.filter(c => c.type === 'one_time' && c.status !== 'lead' && c.status !== 'inactive' && c.status !== 'lost' && c.status !== 'opportunity' && c.status !== 'proposal' && c.status !== 'negotiation');
             break;
         case 'leads':
             filtered = filtered.filter(c => (c.status === 'lead' || c.status === 'opportunity' || c.status === 'proposal' || c.status === 'negotiation') && c.status !== 'inactive');
@@ -338,7 +338,7 @@ export default function ClientesPage() {
         nomeFantasia: customer.nomeFantasia || "",
         contactName: customer.contactName || "",
         email: customer.email,
-        isLead: customer.status === "lead" || customer.status === "opportunity" || customer.status === "proposal" || customer.status === "negotiation",
+        isLead: customer.type === "lead" || customer.status === "lead" || customer.status === "opportunity" || customer.status === "proposal" || customer.status === "negotiation",
         tipoCliente: customer.type === "active_contract" ? "active_contract" : "one_time",
         cnpj: customer.cnpj ? formatDocument(customer.cnpj) : '', 
         telefone: customer.telefone ? formatPhoneNumber(customer.telefone) : '',
@@ -357,21 +357,27 @@ export default function ClientesPage() {
   };
   
   const handleCloneClick = (customer: Customer) => {
-    const { id, createdAt, lastContact, interactions, ...rest } = customer;
+    const { id, createdAt, lastContact, interactions, status, ...rest } = customer;
+    
+    // Se o registro original for um Lead (está em algum estágio do funil), preservamos o status para que a cópia continue no funil.
+    // Se for um cliente regular, definimos como 'new'.
+    const isLeadStatus = ['lead', 'opportunity', 'proposal', 'negotiation'].includes(status);
+    const clonedStatus = isLeadStatus ? status : 'new';
+
     const clonedCustomer: Omit<Customer, 'id'> = {
       ...rest,
+      status: clonedStatus,
       name: `${customer.name} (Cópia)`,
       createdAt: new Date().toISOString(),
       lastContact: new Date().toISOString(),
-      status: 'new',
       serviceCategories: customer.serviceCategories ? [...customer.serviceCategories] : [],
       observations: customer.observations || "",
       interactions: [],
     };
     addCustomer(clonedCustomer);
     toast({
-        title: "Cliente Clonado!",
-        description: `O registro de "${customer.name}" foi duplicado.`,
+        title: "Registro Clonado!",
+        description: `O registro de "${customer.name}" foi duplicado com sucesso.`,
     });
   };
 
@@ -577,7 +583,7 @@ export default function ClientesPage() {
             nextStatus = "lead";
           }
       } else {
-          if (editingCustomer.status === "lead" || editingCustomer.status === "new" || editingCustomer.status === "opportunity") {
+          if (editingCustomer.status === "lead" || editingCustomer.status === "new" || editingCustomer.status === "opportunity" || editingCustomer.status === "proposal" || editingCustomer.status === "negotiation") {
               nextStatus = "won";
           }
       }
@@ -1078,7 +1084,7 @@ export default function ClientesPage() {
                                         </div>
                                     ) : null}
                                 </div>
-                                {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && (
+                                {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && customer.status !== 'opportunity' && customer.status !== 'proposal' && customer.status !== 'negotiation' && (
                                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
                                         {customer.type === 'active_contract' ? 'Contrato' : 'Avulso'}
                                     </span>
