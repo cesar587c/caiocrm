@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -20,7 +19,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing, Ban } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing, Ban, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -84,9 +83,15 @@ export default function AgendaPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isNotifying, setIsNotifying] = useState(false);
-  const [searchTermAssignees, setSearchTermAssignees] = useState('');
+  
+  const [notificationState, setNotificationState] = useState<{
+    isOpen: boolean;
+    isLoading: boolean;
+    isSimulated: boolean;
+    details: any[];
+  }>({ isOpen: false, isLoading: false, isSimulated: false, details: [] });
 
+  const [searchTermAssignees, setSearchTermAssignees] = useState('');
   const [isJustificationDialogOpen, setIsJustificationDialogOpen] = useState(false);
   const [appointmentToProcess, setAppointmentToProcess] = useState<Appointment | null>(null);
   const [justification, setJustification] = useState('');
@@ -96,9 +101,8 @@ export default function AgendaPage() {
 
   const isAdmin = currentUser?.role === 'admin';
 
-  // Sistema de destravamento robusto para evitar pointer-events: none preso
   useEffect(() => {
-    const anyDialogOpen = isModalOpen || isDeleteDialogOpen || isNotifying || isJustificationDialogOpen;
+    const anyDialogOpen = isModalOpen || isDeleteDialogOpen || notificationState.isOpen || isJustificationDialogOpen;
     if (!anyDialogOpen) {
       const timer = setTimeout(() => {
         document.body.style.pointerEvents = 'auto';
@@ -106,7 +110,7 @@ export default function AgendaPage() {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isModalOpen, isDeleteDialogOpen, isNotifying, isJustificationDialogOpen]);
+  }, [isModalOpen, isDeleteDialogOpen, notificationState.isOpen, isJustificationDialogOpen]);
 
   const appointmentsByDate = useMemo(() => {
     return appointments.reduce((acc, app) => {
@@ -211,9 +215,9 @@ export default function AgendaPage() {
   };
 
   const triggerNotifications = async (appointment: any) => {
-    // Atraso intencional para permitir que o modal anterior feche e o body destrave
     setTimeout(async () => {
-        setIsNotifying(true);
+        setNotificationState(prev => ({ ...prev, isOpen: true, isLoading: true }));
+        
         const techIds = appointment.assignedTo
             .filter((at: string) => at.startsWith('user:'))
             .map((at: string) => at.split(':')[1]);
@@ -229,24 +233,38 @@ export default function AgendaPage() {
             });
             
             if (response.success) {
-                toast({
-                    title: "Notificações Enviadas",
-                    description: "O cliente e os técnicos foram avisados via WhatsApp (Automático).",
+                setNotificationState({
+                    isOpen: true,
+                    isLoading: false,
+                    isSimulated: !!response.isSimulated,
+                    details: response.details || []
                 });
+
+                if (!response.isSimulated) {
+                    toast({
+                        title: "Notificações Enviadas",
+                        description: "O cliente e os técnicos foram avisados via WhatsApp (Automático).",
+                    });
+                }
             } else {
                 throw new Error("Falha no envio");
             }
         } catch (error) {
-            console.error("Erro ao enviar notificações automáticas:", error);
+            setNotificationState(prev => ({ ...prev, isOpen: false, isLoading: false }));
             toast({
                 variant: "destructive",
                 title: "Erro nas Notificações",
-                description: "Não foi possível enviar os avisos automáticos agora.",
+                description: "Não foi possível enviar os avisos agora.",
             });
-        } finally {
-            setIsNotifying(false);
         }
     }, 300);
+  };
+
+  const sendManualWhatsapp = (detail: any) => {
+    const cleanPhone = detail.phone.replace(/\D/g, '');
+    const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
+    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(detail.message)}`;
+    window.open(url, '_blank');
   };
 
   const handleMarkAsCompleted = () => {
@@ -314,7 +332,6 @@ export default function AgendaPage() {
     setEditingAppointment(null);
     setSelectedAppointment(null);
     
-    // Disparo automático com pequeno delay controlado
     triggerNotifications(savedAppointment);
   }
 
@@ -602,15 +619,53 @@ export default function AgendaPage() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isNotifying} onOpenChange={setIsNotifying}>
-        <DialogContent className="sm:max-w-md text-center p-8" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
-            <div className="flex flex-col items-center gap-4">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <DialogTitle>Enviando Notificações Automáticas</DialogTitle>
+      <Dialog open={notificationState.isOpen} onOpenChange={(open) => setNotificationState(prev => ({ ...prev, isOpen: open }))}>
+        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                    {notificationState.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (notificationState.isSimulated ? <AlertTriangle className="h-5 w-5 text-yellow-500" /> : <CheckCircle2 className="h-5 w-5 text-green-500" />)}
+                    {notificationState.isLoading ? 'Enviando Notificações' : (notificationState.isSimulated ? 'Configuração Pendente' : 'Notificações Enviadas')}
+                </DialogTitle>
                 <DialogDescription>
-                    Aguarde um momento enquanto o sistema avisa o cliente e os técnicos via WhatsApp (Genkit AI).
+                    {notificationState.isLoading 
+                        ? 'Aguarde um momento enquanto o sistema processa os avisos.' 
+                        : (notificationState.isSimulated 
+                            ? 'A API automática não está configurada. Por favor, envie as mensagens manualmente abaixo.' 
+                            : 'O cliente e os técnicos foram notificados com sucesso.')}
                 </DialogDescription>
-            </div>
+            </DialogHeader>
+
+            {notificationState.isLoading ? (
+                <div className="py-8 flex justify-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </div>
+            ) : (
+                <ScrollArea className="max-h-[50vh] pr-4">
+                    <div className="space-y-3 py-2">
+                        {notificationState.details.map((detail, idx) => (
+                            <div key={idx} className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-semibold">{detail.name}</span>
+                                    <Badge variant="outline" className="text-[10px] uppercase">
+                                        {detail.to === 'client' ? 'Cliente' : 'Técnico'}
+                                    </Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground line-clamp-2 italic">"{detail.message}"</div>
+                                <Button size="sm" variant={notificationState.isSimulated ? "default" : "outline"} className="w-full h-8 gap-2" onClick={() => sendManualWhatsapp(detail)}>
+                                    <Send className="h-3.5 w-3.5" />
+                                    {notificationState.isSimulated ? 'Enviar via WhatsApp' : 'Reenviar'}
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            )}
+
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setNotificationState(prev => ({ ...prev, isOpen: false }))}>
+                    Fechar
+                </Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -20,31 +20,26 @@ const SendWhatsappOutputSchema = z.object({
   success: z.boolean(),
   messageId: z.string().optional(),
   error: z.string().optional(),
+  isSimulated: z.boolean().default(false),
 });
 export type SendWhatsappOutput = z.infer<typeof SendWhatsappOutputSchema>;
 
 /**
- * Esta é uma função de placeholder para enviar uma mensagem de WhatsApp.
- * Uma implementação real requer um provedor de API do WhatsApp Business, como Twilio.
+ * Esta é uma função para enviar uma mensagem de WhatsApp.
  * @param input - Os detalhes da mensagem a ser enviada.
  * @returns O resultado da operação de envio.
  */
 async function sendWhatsappApi(input: SendWhatsappInput): Promise<SendWhatsappOutput> {
-  console.log(`Tentando enviar mensagem para ${input.to}: "${input.message}"`);
-
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_WHATSAPP_FROM;
 
-  // Verifica se as credenciais estão configuradas. Se não, simula o envio.
+  // Se não houver credenciais, avisamos que foi simulado
   if (!accountSid || !authToken || !fromNumber) {
-    console.warn("Credenciais do provedor de WhatsApp (Twilio) não configuradas no .env. Simulando o envio...");
-    // Simula um pequeno atraso para parecer mais realista
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { success: true, messageId: `simulated_${Date.now()}` };
+    console.warn("Credenciais de API não encontradas. Simulação ativada.");
+    return { success: true, messageId: `simulated_${Date.now()}`, isSimulated: true };
   }
 
-  // Implementação real usando Twilio
   try {
     const twilio = require('twilio');
     const client = twilio(accountSid, authToken);
@@ -55,16 +50,13 @@ async function sendWhatsappApi(input: SendWhatsappInput): Promise<SendWhatsappOu
       body: input.message,
     });
     
-    console.log("Mensagem enviada via Twilio com SID:", message.sid);
-    return { success: true, messageId: message.sid };
-
+    return { success: true, messageId: message.sid, isSimulated: false };
   } catch (error: any) {
-    console.error("Erro na API do Twilio:", error);
-    return { success: false, error: error.message || 'Erro desconhecido ao contatar a API do WhatsApp.' };
+    console.error("Erro na API de WhatsApp:", error);
+    return { success: false, error: error.message || 'Erro na API.', isSimulated: false };
   }
 }
 
-// Define o fluxo do Genkit
 const sendWhatsappFlow = ai.defineFlow(
   {
     name: 'sendWhatsappFlow',
@@ -76,7 +68,6 @@ const sendWhatsappFlow = ai.defineFlow(
   }
 );
 
-// Função exportada para ser usada nas actions
 export async function sendWhatsapp(input: SendWhatsappInput): Promise<SendWhatsappOutput> {
   return sendWhatsappFlow(input);
 }

@@ -1,4 +1,3 @@
-
 "use server";
 
 import { suggestOpportunities } from "@/ai/flows/intelligent-opportunity-suggestion";
@@ -30,6 +29,7 @@ export async function sendAppointmentNotifications(params: {
 }) {
     const { appointment, companyName, technicians, customMessageTemplate } = params;
     const results = [];
+    let allSimulated = true;
 
     try {
         const dateStr = format(parseISO(appointment.date), 'dd/MM/yyyy', { locale: ptBR });
@@ -47,7 +47,8 @@ export async function sendAppointmentNotifications(params: {
                 to: appointment.phone.replace(/\D/g, ''),
                 message: clientMessage
             });
-            results.push({ to: 'client', ...clientResult });
+            results.push({ to: 'client', name: appointment.contact, phone: appointment.phone, message: clientMessage, ...clientResult });
+            if (!clientResult.isSimulated) allSimulated = false;
         }
 
         // 2. Notificar Técnicos
@@ -60,11 +61,16 @@ export async function sendAppointmentNotifications(params: {
                     to: tech.whatsapp.replace(/\D/g, ''),
                     message: techMessage
                 });
-                results.push({ to: `tech:${tech.name}`, ...techResult });
+                results.push({ to: `tech:${tech.id}`, name: tech.name, phone: tech.whatsapp, message: techMessage, ...techResult });
+                if (!techResult.isSimulated) allSimulated = false;
             }
         }
 
-        return { success: true, details: results };
+        return { 
+            success: true, 
+            isSimulated: allSimulated,
+            details: results 
+        };
     } catch (e) {
         console.error("Erro interno ao enviar notificações:", e);
         return { success: false, error: "Erro interno no servidor de notificações." };
