@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
-import { Phone, User as UserIcon, CheckCircle2, FileText, Users, XCircle } from "lucide-react";
+import { Phone, User as UserIcon, CheckCircle2, FileText, Users, XCircle, DollarSign } from "lucide-react";
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/contexts/SettingsContext';
 import type { Customer, CustomerStatus } from '@/lib/types';
@@ -14,7 +14,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -45,7 +45,14 @@ const KanbanCard = ({ customer }: { customer: Customer }) => {
       className="mb-3 cursor-grab active:cursor-grabbing bg-card hover:bg-accent/10 border-border transition-colors shadow-sm"
     >
       <CardContent className="p-3 space-y-2 text-sm">
-        <div className={cn("h-1.5 w-10 rounded-full", potentialColorClass[customer.potential])} />
+        <div className="flex justify-between items-start">
+            <div className={cn("h-1.5 w-10 rounded-full", potentialColorClass[customer.potential])} />
+            {customer.value ? (
+                <span className="text-[10px] font-bold text-primary leading-none">
+                    {customer.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+            ) : null}
+        </div>
         <p className="font-bold text-foreground leading-tight">{customer.name}</p>
         <div className="text-muted-foreground space-y-1 text-xs">
             <div className="flex items-center gap-1.5">
@@ -99,7 +106,6 @@ export default function FunilVendasPage() {
   };
 
   // Exibe apenas registros que são do tipo LEAD e não estão marcados como ganhos/ativos
-  // (ao virar won/active eles mudam o type e somem daqui)
   const funnelLeads = useMemo(() => {
       return customers.filter(c => c.type === 'lead');
   }, [customers]);
@@ -121,13 +127,14 @@ export default function FunilVendasPage() {
             <h2 className="text-4xl font-bold tracking-tight font-headline text-foreground">
             Funil de Vendas
             </h2>
-            <p className="text-muted-foreground">Gerencie seus leads e prospectos. Clientes ativos são movidos para a gestão de clientes.</p>
+            <p className="text-muted-foreground">Gerencie seus leads e prospectos com valores estimados.</p>
         </div>
       </div>
 
       <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {stages.map((stage) => {
           const stageCustomers = funnelLeads.filter(c => getCustomerStage(c.status) === stage.id);
+          const totalValue = stageCustomers.reduce((acc, curr) => acc + (curr.value || 0), 0);
           
           return (
             <div
@@ -137,12 +144,20 @@ export default function FunilVendasPage() {
               className="flex flex-col rounded-xl bg-card border border-border overflow-hidden min-h-[400px]"
             >
               <div className={cn("px-4 py-3 text-left", stage.color)}>
-                <h3 className="font-bold text-xs uppercase tracking-wider text-white flex justify-between items-center">
-                  {stage.title} 
-                  <Badge variant="secondary" className="bg-white/20 text-white border-none h-5 px-1.5 min-w-[20px] justify-center">
-                    {stageCustomers.length}
-                  </Badge>
-                </h3>
+                <div className="flex justify-between items-center mb-1">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-white">
+                    {stage.title} 
+                    </h3>
+                    <Badge variant="secondary" className="bg-white/20 text-white border-none h-5 px-1.5 min-w-[20px] justify-center text-[10px]">
+                        {stageCustomers.length}
+                    </Badge>
+                </div>
+                {totalValue > 0 && (
+                    <p className="text-white/90 text-xs font-bold flex items-center gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        {totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </p>
+                )}
               </div>
               <div className="p-3 overflow-y-auto flex-1 bg-muted/20">
                 {stageCustomers.length > 0 ? (
@@ -168,10 +183,11 @@ export default function FunilVendasPage() {
                     <CheckCircle2 className="h-5 w-5 text-green-500" />
                     Parabéns pela Venda!
                 </AlertDialogTitle>
-                <p className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground">
                     Você está convertendo <strong>{convertingCustomer?.name}</strong> em cliente. 
-                    Como deseja classificar este novo cliente?
-                </p>
+                    <br />
+                    Valor do Negócio: <span className="font-bold text-primary">{convertingCustomer?.value?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</span>
+                </div>
             </AlertDialogHeader>
             <div className="grid grid-cols-2 gap-4 py-6">
                 <Button 

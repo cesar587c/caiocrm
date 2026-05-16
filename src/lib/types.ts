@@ -90,6 +90,7 @@ export type Customer = {
     type: CustomerType;
     serviceCategories?: string[];
     observations?: string;
+    value?: number;
 };
 
 export type Product = {

@@ -33,7 +33,8 @@ import {
   Check,
   ClipboardList,
   XCircle,
-  Filter
+  Filter,
+  DollarSign
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -143,6 +144,7 @@ const formSchema = z.object({
   tipoCliente: z.enum(["active_contract", "one_time"]).default("one_time"),
   serviceCategories: z.array(z.string()).default([]),
   observations: z.string().optional(),
+  value: z.coerce.number().optional().default(0),
 }).refine((data) => data.isLead || !!data.email || !!data.telefone, {
     message: "Para clientes, é obrigatório informar um e-mail ou telefone.",
     path: ["telefone"],
@@ -162,6 +164,7 @@ const defaultFormValues = {
   tipoCliente: "one_time" as const,
   serviceCategories: [],
   observations: "",
+  value: 0,
 };
 
 export default function ClientesPage() {
@@ -327,6 +330,7 @@ export default function ClientesPage() {
         inscricaoEstadual: '',
         serviceCategories: customer.serviceCategories || [],
         observations: customer.observations || "",
+        value: customer.value || 0,
     });
     setIsFormDialogOpen(true);
   };
@@ -402,6 +406,7 @@ export default function ClientesPage() {
         "Endereço": "Rua das Flores, 123",
         "CEP": "01001-000",
         "Tipo": "Contrato",
+        "Valor Oportunidade": 1500.50,
         "Observações": "Descreva detalhes técnicos aqui..."
       }
     ];
@@ -423,6 +428,7 @@ export default function ClientesPage() {
       "CEP": c.cep || "",
       "Status": statusMap[c.status],
       "Tipo": c.type === 'active_contract' ? 'Contrato Ativo' : (c.type === 'one_time' ? 'Avulso' : 'Lead'),
+      "Valor Estimado": c.value || 0,
       "Categorias": (c.serviceCategories || []).map(catId => SERVICE_CATEGORIES.find(s => s.id === catId)?.label).join(", "),
       "Observações": c.observations || "",
       "Data de Cadastro": format(new Date(c.createdAt), 'dd/MM/yyyy HH:mm'),
@@ -478,6 +484,7 @@ export default function ClientesPage() {
                     type: findValue(['tipo']).toLowerCase().includes('contrato') ? 'active_contract' : 'one_time',
                     serviceCategories: [],
                     observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']),
+                    value: Number(findValue(['valor', 'estimativa'])) || 0,
                 });
             });
             if (importedCustomers.length > 0) {
@@ -518,6 +525,7 @@ export default function ClientesPage() {
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
         serviceCategories: values.serviceCategories,
         observations: values.observations,
+        value: values.value,
       });
       toast({ title: "Dados Atualizados!" });
     } else {
@@ -538,6 +546,7 @@ export default function ClientesPage() {
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
         serviceCategories: values.serviceCategories,
         observations: values.observations,
+        value: values.value,
       };
       addCustomer(newCustomerData);
       toast({ title: "Cliente Salvo!" });
@@ -636,6 +645,24 @@ export default function ClientesPage() {
                                 )}
                             />
                             
+                            <FormField
+                                control={form.control}
+                                name="value"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="flex items-center gap-2">
+                                            <DollarSign className="h-3.5 w-3.5 text-primary" />
+                                            {isLead ? 'Valor da Oportunidade (R$)' : 'Valor Estimado do Cliente (R$)'}
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input type="number" step="0.01" placeholder="0,00" {...field} />
+                                        </FormControl>
+                                        <FormDescription>Valor potencial do negócio.</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
                             {!isLead && (
                                 <>
                                 <Separator className="bg-primary/10" />
@@ -864,7 +891,7 @@ export default function ClientesPage() {
                     <TableHeader>
                     <TableRow>
                         <TableHead>Nome / Contato</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Status / Valor</TableHead>
                         <TableHead className="hidden md:table-cell">Localização</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -898,7 +925,14 @@ export default function ClientesPage() {
                         </TableCell>
                         <TableCell>
                             <div className="flex flex-col gap-1">
-                                <Badge variant={customer.status === 'active' || customer.status === 'won' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
+                                <div className="flex items-center gap-2">
+                                    <Badge variant={customer.status === 'active' || customer.status === 'won' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
+                                    {customer.value ? (
+                                        <span className="text-sm font-bold text-primary">
+                                            {customer.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </span>
+                                    ) : null}
+                                </div>
                                 {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && (
                                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
                                         {customer.type === 'active_contract' ? 'Contrato Ativo' : 'Avulso'}
