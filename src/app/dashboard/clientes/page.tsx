@@ -110,6 +110,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -569,6 +570,7 @@ export default function ClientesPage() {
 
   return (
     <>
+    <TooltipProvider>
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">Gestão de Clientes e Leads</h2>
@@ -867,7 +869,7 @@ export default function ClientesPage() {
             </Dialog>
           </div>
         </div>
-        <TabsContent value={activeTab} forceMount className="mt-4">
+        <TabsContent value="all" forceMount className="mt-4">
             <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row gap-4">
@@ -982,19 +984,55 @@ export default function ClientesPage() {
                             {customer.endereco ? <div className="text-xs truncate"><MapPin className="h-3 w-3 inline mr-1" />{customer.endereco}</div> : <span className="text-xs text-muted-foreground italic">N/A</span>}
                         </TableCell>
                         <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleCloneClick(customer); }} title="Clonar Cliente"><Copy className="h-4 w-4" /></Button>
+                            <div className="flex justify-end gap-1">
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleCloneClick(customer); }}>
+                                            <Copy className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Clonar Registro</TooltipContent>
+                                </Tooltip>
                                 
                                 {customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' ? (
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={(e) => { e.stopPropagation(); handleInactivateClick(customer); }} title="Inativar Cliente"><Archive className="h-4 w-4" /></Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={(e) => { e.stopPropagation(); handleInactivateClick(customer); }}>
+                                                <Archive className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Inativar Cliente</TooltipContent>
+                                    </Tooltip>
                                 ) : (
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={(e) => { e.stopPropagation(); handleReactivateClick(customer); }} title="Reativar Cliente"><RotateCcw className="h-4 w-4" /></Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={(e) => { e.stopPropagation(); handleReactivateClick(customer); }}>
+                                                <RotateCcw className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Reativar Cliente</TooltipContent>
+                                    </Tooltip>
                                 )}
 
                                 {(customer.status === 'lead' || customer.status === 'opportunity' || customer.status === 'proposal' || customer.status === 'negotiation') && (
                                     <>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}><UserCheck className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDiscardClick(customer); }}><UserX className="h-4 w-4" /></Button>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}>
+                                                    <UserCheck className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Converter em Cliente (Venda Ganha)</TooltipContent>
+                                        </Tooltip>
+                                        
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDiscardClick(customer); }}>
+                                                    <UserX className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Descartar Lead (Venda Perdida)</TooltipContent>
+                                        </Tooltip>
                                     </>
                                 )}
                             </div>
@@ -1016,6 +1054,7 @@ export default function ClientesPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </TooltipProvider>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
         <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
