@@ -34,7 +34,9 @@ import {
   ClipboardList,
   XCircle,
   Filter,
-  DollarSign
+  DollarSign,
+  Tag,
+  Repeat
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -144,7 +146,8 @@ const formSchema = z.object({
   tipoCliente: z.enum(["active_contract", "one_time"]).default("one_time"),
   serviceCategories: z.array(z.string()).default([]),
   observations: z.string().optional(),
-  value: z.coerce.number().optional().default(0),
+  oneTimeValue: z.coerce.number().optional().default(0),
+  monthlyValue: z.coerce.number().optional().default(0),
 }).refine((data) => data.isLead || !!data.email || !!data.telefone, {
     message: "Para clientes, é obrigatório informar um e-mail ou telefone.",
     path: ["telefone"],
@@ -164,7 +167,8 @@ const defaultFormValues = {
   tipoCliente: "one_time" as const,
   serviceCategories: [],
   observations: "",
-  value: 0,
+  oneTimeValue: 0,
+  monthlyValue: 0,
 };
 
 export default function ClientesPage() {
@@ -330,7 +334,8 @@ export default function ClientesPage() {
         inscricaoEstadual: '',
         serviceCategories: customer.serviceCategories || [],
         observations: customer.observations || "",
-        value: customer.value || 0,
+        oneTimeValue: customer.oneTimeValue || 0,
+        monthlyValue: customer.monthlyValue || 0,
     });
     setIsFormDialogOpen(true);
   };
@@ -406,7 +411,8 @@ export default function ClientesPage() {
         "Endereço": "Rua das Flores, 123",
         "CEP": "01001-000",
         "Tipo": "Contrato",
-        "Valor Oportunidade": 1500.50,
+        "Valor Venda": 500,
+        "Valor Mensal": 150.50,
         "Observações": "Descreva detalhes técnicos aqui..."
       }
     ];
@@ -428,7 +434,8 @@ export default function ClientesPage() {
       "CEP": c.cep || "",
       "Status": statusMap[c.status],
       "Tipo": c.type === 'active_contract' ? 'Contrato Ativo' : (c.type === 'one_time' ? 'Avulso' : 'Lead'),
-      "Valor Estimado": c.value || 0,
+      "Valor Venda": c.oneTimeValue || 0,
+      "Valor Mensal": c.monthlyValue || 0,
       "Categorias": (c.serviceCategories || []).map(catId => SERVICE_CATEGORIES.find(s => s.id === catId)?.label).join(", "),
       "Observações": c.observations || "",
       "Data de Cadastro": format(new Date(c.createdAt), 'dd/MM/yyyy HH:mm'),
@@ -484,7 +491,8 @@ export default function ClientesPage() {
                     type: findValue(['tipo']).toLowerCase().includes('contrato') ? 'active_contract' : 'one_time',
                     serviceCategories: [],
                     observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']),
-                    value: Number(findValue(['valor', 'estimativa'])) || 0,
+                    oneTimeValue: Number(findValue(['valor venda', 'venda'])) || 0,
+                    monthlyValue: Number(findValue(['valor mensal', 'mensal'])) || 0,
                 });
             });
             if (importedCustomers.length > 0) {
@@ -525,7 +533,8 @@ export default function ClientesPage() {
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
         serviceCategories: values.serviceCategories,
         observations: values.observations,
-        value: values.value,
+        oneTimeValue: values.oneTimeValue,
+        monthlyValue: values.monthlyValue,
       });
       toast({ title: "Dados Atualizados!" });
     } else {
@@ -546,7 +555,8 @@ export default function ClientesPage() {
         type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
         serviceCategories: values.serviceCategories,
         observations: values.observations,
-        value: values.value,
+        oneTimeValue: values.oneTimeValue,
+        monthlyValue: values.monthlyValue,
       };
       addCustomer(newCustomerData);
       toast({ title: "Cliente Salvo!" });
@@ -645,23 +655,42 @@ export default function ClientesPage() {
                                 )}
                             />
                             
-                            <FormField
-                                control={form.control}
-                                name="value"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="flex items-center gap-2">
-                                            <DollarSign className="h-3.5 w-3.5 text-primary" />
-                                            {isLead ? 'Valor da Oportunidade (R$)' : 'Valor Estimado do Cliente (R$)'}
-                                        </FormLabel>
-                                        <FormControl>
-                                            <Input type="number" step="0.01" placeholder="0,00" {...field} />
-                                        </FormControl>
-                                        <FormDescription>Valor potencial do negócio.</FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="oneTimeValue"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="flex items-center gap-2">
+                                                <Tag className="h-3.5 w-3.5 text-primary" />
+                                                Valor de Venda (Única)
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input type="number" step="0.01" placeholder="0,00" {...field} />
+                                            </FormControl>
+                                            <FormDescription>Peças ou serviço avulso.</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="monthlyValue"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="flex items-center gap-2">
+                                                <Repeat className="h-3.5 w-3.5 text-primary" />
+                                                Valor do Contrato (Mensal)
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input type="number" step="0.01" placeholder="0,00" {...field} />
+                                            </FormControl>
+                                            <FormDescription>Recorrência mensal.</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
 
                             {!isLead && (
                                 <>
@@ -891,7 +920,7 @@ export default function ClientesPage() {
                     <TableHeader>
                     <TableRow>
                         <TableHead>Nome / Contato</TableHead>
-                        <TableHead>Status / Valor</TableHead>
+                        <TableHead>Status / Valores</TableHead>
                         <TableHead className="hidden md:table-cell">Localização</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -927,10 +956,19 @@ export default function ClientesPage() {
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
                                     <Badge variant={customer.status === 'active' || customer.status === 'won' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
-                                    {customer.value ? (
-                                        <span className="text-sm font-bold text-primary">
-                                            {customer.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </span>
+                                </div>
+                                <div className="flex flex-col text-[10px] gap-0.5 mt-1">
+                                    {customer.oneTimeValue ? (
+                                        <div className="flex items-center gap-1 text-primary font-bold">
+                                            <Tag className="h-2.5 w-2.5" />
+                                            <span>Venda: {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        </div>
+                                    ) : null}
+                                    {customer.monthlyValue ? (
+                                        <div className="flex items-center gap-1 text-emerald-500 font-bold">
+                                            <Repeat className="h-2.5 w-2.5" />
+                                            <span>Mensal: {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        </div>
                                     ) : null}
                                 </div>
                                 {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && (

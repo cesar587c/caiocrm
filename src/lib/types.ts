@@ -91,6 +91,8 @@ export type Customer = {
     serviceCategories?: string[];
     observations?: string;
     value?: number;
+    oneTimeValue?: number;
+    monthlyValue?: number;
 };
 
 export type Product = {

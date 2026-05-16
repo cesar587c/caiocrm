@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
-import { Phone, User as UserIcon, CheckCircle2, FileText, Users, XCircle, DollarSign } from "lucide-react";
+import { Phone, User as UserIcon, CheckCircle2, FileText, Users, XCircle, DollarSign, Tag, Repeat } from "lucide-react";
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/contexts/SettingsContext';
 import type { Customer, CustomerStatus } from '@/lib/types';
@@ -47,11 +48,20 @@ const KanbanCard = ({ customer }: { customer: Customer }) => {
       <CardContent className="p-3 space-y-2 text-sm">
         <div className="flex justify-between items-start">
             <div className={cn("h-1.5 w-10 rounded-full", potentialColorClass[customer.potential])} />
-            {customer.value ? (
-                <span className="text-[10px] font-bold text-primary leading-none">
-                    {customer.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </span>
-            ) : null}
+            <div className="flex flex-col items-end gap-1">
+                {customer.oneTimeValue ? (
+                    <div className="flex items-center gap-1 text-[9px] font-bold text-primary bg-primary/5 px-1 rounded border border-primary/20">
+                        <Tag className="h-2 w-2" />
+                        <span>V: {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    </div>
+                ) : null}
+                {customer.monthlyValue ? (
+                    <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500 bg-emerald-500/5 px-1 rounded border border-emerald-500/20">
+                        <Repeat className="h-2 w-2" />
+                        <span>M: {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    </div>
+                ) : null}
+            </div>
         </div>
         <p className="font-bold text-foreground leading-tight">{customer.name}</p>
         <div className="text-muted-foreground space-y-1 text-xs">
@@ -127,14 +137,15 @@ export default function FunilVendasPage() {
             <h2 className="text-4xl font-bold tracking-tight font-headline text-foreground">
             Funil de Vendas
             </h2>
-            <p className="text-muted-foreground">Gerencie seus leads e prospectos com valores estimados.</p>
+            <p className="text-muted-foreground">Gerencie seus leads e prospectos com valores estimados de venda e mensalidade.</p>
         </div>
       </div>
 
       <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {stages.map((stage) => {
           const stageCustomers = funnelLeads.filter(c => getCustomerStage(c.status) === stage.id);
-          const totalValue = stageCustomers.reduce((acc, curr) => acc + (curr.value || 0), 0);
+          const totalOneTime = stageCustomers.reduce((acc, curr) => acc + (curr.oneTimeValue || 0), 0);
+          const totalMonthly = stageCustomers.reduce((acc, curr) => acc + (curr.monthlyValue || 0), 0);
           
           return (
             <div
@@ -152,12 +163,20 @@ export default function FunilVendasPage() {
                         {stageCustomers.length}
                     </Badge>
                 </div>
-                {totalValue > 0 && (
-                    <p className="text-white/90 text-xs font-bold flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        {totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </p>
-                )}
+                <div className="flex flex-col gap-0.5 mt-2">
+                    {totalOneTime > 0 && (
+                        <p className="text-white/90 text-[10px] font-bold flex items-center gap-1 bg-black/10 px-1 rounded w-fit">
+                            <Tag className="h-2.5 w-2.5" />
+                            Venda: {totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </p>
+                    )}
+                    {totalMonthly > 0 && (
+                        <p className="text-white/90 text-[10px] font-bold flex items-center gap-1 bg-black/10 px-1 rounded w-fit">
+                            <Repeat className="h-2.5 w-2.5" />
+                            Mensal: {totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </p>
+                    )}
+                </div>
               </div>
               <div className="p-3 overflow-y-auto flex-1 bg-muted/20">
                 {stageCustomers.length > 0 ? (
@@ -183,10 +202,22 @@ export default function FunilVendasPage() {
                     <CheckCircle2 className="h-5 w-5 text-green-500" />
                     Parabéns pela Venda!
                 </AlertDialogTitle>
-                <div className="text-sm text-muted-foreground">
-                    Você está convertendo <strong>{convertingCustomer?.name}</strong> em cliente. 
-                    <br />
-                    Valor do Negócio: <span className="font-bold text-primary">{convertingCustomer?.value?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</span>
+                <div className="text-sm text-muted-foreground space-y-1">
+                    <p>Você está convertendo <strong>{convertingCustomer?.name}</strong> em cliente.</p>
+                    <div className="flex flex-col gap-1 p-2 bg-muted rounded-md mt-2">
+                        {convertingCustomer?.oneTimeValue ? (
+                            <div className="flex justify-between text-xs">
+                                <span>Valor de Venda:</span>
+                                <span className="font-bold text-primary">{convertingCustomer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                        ) : null}
+                        {convertingCustomer?.monthlyValue ? (
+                            <div className="flex justify-between text-xs">
+                                <span>Valor Mensal:</span>
+                                <span className="font-bold text-emerald-500">{convertingCustomer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                        ) : null}
+                    </div>
                 </div>
             </AlertDialogHeader>
             <div className="grid grid-cols-2 gap-4 py-6">
