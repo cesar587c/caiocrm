@@ -654,7 +654,7 @@ export default function ClientesPage() {
                                                 <FormLabel className="flex items-center gap-2">
                                                     <Tag className="h-3.5 w-3.5 text-primary" />
                                                     Valor de Venda (Única)
-                                                </FormLabel>
+                                                </Label>
                                                 <FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} /></FormControl>
                                                 <FormDescription>Peças ou serviço avulso.</FormDescription>
                                                 <FormMessage />
@@ -669,7 +669,7 @@ export default function ClientesPage() {
                                                 <FormLabel className="flex items-center gap-2">
                                                     <Repeat className="h-3.5 w-3.5 text-primary" />
                                                     Valor do Contrato (Mensal)
-                                                </FormLabel>
+                                                </Label>
                                                 <FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} /></FormControl>
                                                 <FormDescription>Recorrência mensal.</FormDescription>
                                                 <FormMessage />
@@ -745,6 +745,18 @@ export default function ClientesPage() {
                         </div>
                         <div className="lg:col-span-2 border-l pl-6 space-y-6">
                             <div className="space-y-4">
+                              <h3 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Observações Técnicas</h3>
+                              <Separator />
+                              <FormField control={form.control} name="observations" render={({ field }) => (
+                                  <FormItem>
+                                    <FormControl><Textarea placeholder="Ex: 5 PCs, 2 Impressoras HP. Manutenção preventiva mensal..." className="min-h-[100px] text-xs" {...field} value={field.value || ''} /></FormControl>
+                                    <FormDescription className="text-[10px]">Especifique equipamentos e particularidades fixas.</FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <div className="space-y-4">
                                 <h3 className="text-sm font-semibold flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" /> Histórico de Contatos (CRM)</h3>
                                 <div className="space-y-3 bg-muted/30 p-3 rounded-lg border border-border/50">
                                     <div className="space-y-2">
@@ -789,18 +801,6 @@ export default function ClientesPage() {
                                         )}
                                     </div>
                                 </ScrollArea>
-                            </div>
-                            <div className="space-y-4">
-                              <h3 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Observações Técnicas</h3>
-                              <Separator />
-                              <FormField control={form.control} name="observations" render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl><Textarea placeholder="Ex: 5 PCs, 2 Impressoras HP. Manutenção preventiva mensal..." className="min-h-[100px] text-xs" {...field} value={field.value || ''} /></FormControl>
-                                    <FormDescription className="text-[10px]">Especifique equipamentos e particularidades fixas.</FormDescription>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
                             </div>
                         </div>
                     </div>
@@ -906,7 +906,7 @@ export default function ClientesPage() {
     </TooltipProvider>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.name}</span>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-    <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Converter Lead</AlertDialogTitle></AlertDialogHeader><div className="grid grid-cols-2 gap-4 py-4"><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('one_time')}><Users className="h-6 w-6" /><span>Avulso</span></Button><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('active_contract')}><File className="h-6 w-6" /><span>Contrato</span></Button></div><AlertDialogFooter><AlertDialogCancel onClick={() => setConvertingCustomer(null)}>Cancelar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Converter Lead</AlertDialogTitle></AlertDialogHeader><div className="grid grid-cols-2 gap-4 py-4"><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('one_time')}><Users className="h-6 w-6" /><span>Avulso</span></Button><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('active_contract')}><File className="h-6 w-6" /><span>Contrato</span></Button></div><AlertDialogFooter><AlertDialogCancel onClick={() => setConvertingCustomer(null)}>Cancelar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent>
 
     <Dialog open={notificationState.isOpen} onOpenChange={(open) => setNotificationState(prev => ({ ...prev, isOpen: open }))}>
         <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
