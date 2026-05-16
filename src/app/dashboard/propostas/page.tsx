@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
@@ -85,7 +85,6 @@ import { Separator } from '@/components/ui/separator';
 import type { Product } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
-
 const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
   quantity: z.coerce.number().min(1, 'A quantidade deve ser no mínimo 1.'),
@@ -101,7 +100,7 @@ const proposalSchema = z.object({
   validityDate: z.date(),
   items: z.array(proposalItemSchema).min(1, 'Adicione pelo menos um item.'),
   paymentMethod: z.string(),
-  installments: z.coerce.number().min(1).max(6),
+  installments: z.coerce.number().min(1).max(12),
   firstAsDownPayment: z.boolean(),
 });
 
@@ -112,7 +111,6 @@ type Proposal = ProposalFormValues & {
     totalMonthly: number;
 };
 
-
 const productFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'O nome do produto é obrigatório.'),
@@ -120,7 +118,6 @@ const productFormSchema = z.object({
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
-
 
 export default function PropostasPage() {
   const { companyProfile, customers, products, addProduct, updateProduct, deleteProduct } = useSettings();
@@ -169,7 +166,12 @@ export default function PropostasPage() {
     name: 'items',
   });
 
-  const watchItems = form.watch('items');
+  // Monitoramento reativo dos itens para cálculo de totais
+  const watchItems = useWatch({
+    control: form.control,
+    name: "items",
+  });
+  
   const watchInstallments = form.watch('installments');
 
   const totals = useMemo(() => {
@@ -599,7 +601,7 @@ ${companyProfile.phone}`;
                             </TableHeader>
                             <TableBody>
                                 {fields.map((item, index) => {
-                                const currentItemName = watchItems[index]?.name;
+                                const currentItemName = watchItems && watchItems[index]?.name;
                                 const currentProduct = products.find(p => p.name.toLowerCase() === currentItemName?.toLowerCase());
                                 return (
                                 <TableRow key={item.id}>
@@ -628,7 +630,7 @@ ${companyProfile.phone}`;
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-medium text-xs">{((Number(watchItems[index]?.quantity) || 0) * (Number(watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                                    <TableCell className="font-medium text-xs">{((Number(watchItems && watchItems[index]?.quantity) || 0) * (Number(watchItems && watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                                     <TableCell className="text-right"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                                 </TableRow>
                                 )})}
@@ -672,7 +674,7 @@ ${companyProfile.phone}`;
                   render={({ field }) => (
                       <Select onValueChange={field.onChange} value={String(field.value)}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>{[...Array(6)].map((_, i) => <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}x de { (totals.oneTime / (i + 1) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</SelectItem>)}</SelectContent>
+                          <SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}x de { (totals.oneTime / (i + 1) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</SelectItem>)}</SelectContent>
                       </Select>
                   )}
                 />
@@ -788,7 +790,7 @@ ${companyProfile.phone}`;
                         <DialogHeader><DialogTitle>Editar Produto</DialogTitle></DialogHeader>
                         <div className="grid gap-4 py-4">
                             <FormField control={productForm.control} name="name" render={({ field }) => (
-                                <FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Nome do Produto</FormLabel><FormControl><Input placeholder="Nome do produto ou serviço" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={productForm.control} name="price" render={({ field }) => (
                                 <FormItem><FormLabel>Preço Base</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
