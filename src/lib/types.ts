@@ -34,7 +34,7 @@ export type Appointment = {
   contact: string;
   assignedTo: string[];
   summary?: string;
-  status: 'scheduled' | 'completed' | 'missed';
+  status: 'scheduled' | 'completed' | 'missed' | 'cancelled';
   justification?: string;
 };
 

@@ -20,7 +20,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -92,7 +92,9 @@ export default function AgendaPage() {
   const [justification, setJustification] = useState('');
 
   const { toast } = useToast();
-  const { companyProfile, sectors, users, appointments, addAppointment, updateAppointment, deleteAppointment } = useSettings();
+  const { companyProfile, sectors, users, appointments, addAppointment, updateAppointment, deleteAppointment, currentUser } = useSettings();
+
+  const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
     const anyDialogOpen = isModalOpen || isDeleteDialogOpen || isNotifying || isJustificationDialogOpen;
@@ -145,6 +147,7 @@ export default function AgendaPage() {
     switch(status) {
         case 'completed': return <Badge variant="secondary" className="bg-green-600/20 text-green-400 border-green-600/30 hover:bg-green-600/30"><CheckCircle2 className="h-3 w-3 mr-1" />Concluído</Badge>;
         case 'missed': return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Não Concluído</Badge>;
+        case 'cancelled': return <Badge variant="destructive" className="bg-gray-600/20 text-gray-400 border-gray-600/30"><Ban className="h-3 w-3 mr-1" />Cancelado</Badge>;
         default: return <Badge variant="outline"><CalendarClock className="h-3 w-3 mr-1" />Agendado</Badge>;
     }
   }
@@ -212,18 +215,28 @@ export default function AgendaPage() {
     const technicians = users.filter(u => techIds.includes(u.id));
 
     try {
-        await sendAppointmentNotifications({
+        const response = await sendAppointmentNotifications({
             appointment,
             companyName: companyProfile.name,
             technicians,
             customMessageTemplate: companyProfile.whatsappReminderMessage
         });
-        toast({
-            title: "Notificações Enviadas",
-            description: "O cliente e os técnicos foram avisados via WhatsApp automaticamente.",
-        });
+        
+        if (response.success) {
+            toast({
+                title: "Notificações Enviadas",
+                description: "O cliente e os técnicos foram avisados via WhatsApp (Simulado).",
+            });
+        } else {
+            throw new Error("Falha no envio");
+        }
     } catch (error) {
         console.error("Erro ao enviar notificações automáticas:", error);
+        toast({
+            variant: "destructive",
+            title: "Erro nas Notificações",
+            description: "Não foi possível enviar os avisos automáticos agora.",
+        });
     } finally {
         setIsNotifying(false);
     }
@@ -233,6 +246,13 @@ export default function AgendaPage() {
     if (!selectedAppointment) return;
     updateAppointment({ ...selectedAppointment, status: 'completed' });
     toast({ title: "Agendamento Concluído!", description: `O compromisso com ${selectedAppointment.clientName} foi marcado como concluído.` });
+    setSelectedAppointment(null);
+  }
+
+  const handleMarkAsCancelled = () => {
+    if (!selectedAppointment || !isAdmin) return;
+    updateAppointment({ ...selectedAppointment, status: 'cancelled' });
+    toast({ variant: 'destructive', title: "Agendamento Cancelado", description: `O compromisso com ${selectedAppointment.clientName} foi cancelado.` });
     setSelectedAppointment(null);
   }
 
@@ -248,6 +268,15 @@ export default function AgendaPage() {
     setJustification('');
     setSelectedAppointment(null);
   }
+
+  const confirmDelete = () => {
+    if (!appointmentToDelete || !isAdmin) return;
+    deleteAppointment(appointmentToDelete.id);
+    toast({ title: "Excluído", description: "Agendamento removido permanentemente.", variant: "destructive" });
+    setIsDeleteDialogOpen(false);
+    setAppointmentToDelete(null);
+    setSelectedAppointment(null);
+  };
 
   function onSubmit(values: AppointmentFormValues) {
     const dateKey = format(values.date, 'yyyy-MM-dd');
@@ -361,7 +390,7 @@ export default function AgendaPage() {
               Agenda para {format(selectedDate, 'dd/MM/yyyy', { locale: ptBR })}
             </DialogTitle>
             <DialogDescription>
-              Visualize, adicione ou edite compromissos. O sistema enviará notificações automáticas ao salvar.
+              {isAdmin ? 'Adicione, edite ou exclua compromissos.' : 'Você pode apenas reagendar (data/hora) compromissos existentes.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid flex-1 grid-cols-1 md:grid-cols-2 gap-6 py-4 overflow-y-auto">
@@ -406,6 +435,11 @@ export default function AgendaPage() {
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditClick(app, selectedDate); }} title="Editar">
                                             <Pencil className="h-4 w-4" />
                                         </Button>
+                                        {isAdmin && (
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); setAppointmentToDelete(app); setIsDeleteDialogOpen(true); }} title="Excluir">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -443,10 +477,10 @@ export default function AgendaPage() {
                             )}
                         />
                         <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Horário</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Nome do Cliente</FormLabel><FormControl><Input placeholder="Ex: Tech Solutions Ltda." {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Ex: Rua das Inovações, 123" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="contact" render={({ field }) => (<FormItem><FormLabel>Contato na Visita</FormLabel><FormControl><Input placeholder="Ex: Sr. Carlos" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Nome do Cliente</FormLabel><FormControl><Input placeholder="Ex: Tech Solutions Ltda." {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Ex: Rua das Inovações, 123" {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="contact" render={({ field }) => (<FormItem><FormLabel>Contato na Visita</FormLabel><FormControl><Input placeholder="Ex: Sr. Carlos" {...field} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />
                         <FormField
                             control={form.control}
                             name="assignedTo"
@@ -454,9 +488,9 @@ export default function AgendaPage() {
                                 <FormItem>
                                 <FormLabel>Setor/Responsável (Múltiplos)</FormLabel>
                                 <Popover modal={false}>
-                                    <PopoverTrigger asChild>
+                                    <PopoverTrigger asChild disabled={!isAdmin && !!editingAppointment}>
                                         <FormControl>
-                                            <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10 px-3 py-2">
+                                            <Button variant="outline" className="w-full justify-start text-left h-auto min-h-10 px-3 py-2" disabled={!isAdmin && !!editingAppointment}>
                                                 {field.value?.length > 0 ? (
                                                     <div className="flex flex-wrap gap-1">
                                                         {field.value.map(val => (
@@ -522,6 +556,7 @@ export default function AgendaPage() {
                                 </FormItem>
                             )}
                         />
+                        <FormField control={form.control} name="summary" render={({ field }) => (<FormItem><FormLabel>Resumo/Notas</FormLabel><FormControl><Textarea placeholder="Observações importantes..." {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
                     </form>
                 </Form>
             </div>
@@ -530,6 +565,9 @@ export default function AgendaPage() {
               {editingAppointment ? (
                 <>
                     <Button type="button" variant="outline" onClick={() => { setEditingAppointment(null); setSelectedAppointment(null); }}>Cancelar</Button>
+                    {isAdmin && selectedAppointment?.status !== 'cancelled' && (
+                        <Button type="button" variant="destructive" onClick={handleMarkAsCancelled}>Cancelar Visita</Button>
+                    )}
                     <Button type="submit" form="appointment-form">Salvar e Notificar</Button>
                 </>
               ) : (
@@ -537,10 +575,15 @@ export default function AgendaPage() {
                     {selectedAppointment && !editingAppointment && (
                         <>
                             <Button type="button" variant="secondary" onClick={handleMarkAsCompleted}>Marcar Concluído</Button>
-                            <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>Editar</Button>
+                            <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>Reagendar</Button>
+                            {isAdmin && (
+                                <Button type="button" variant="destructive" onClick={() => { setAppointmentToDelete(selectedAppointment); setIsDeleteDialogOpen(true); }}>Excluir</Button>
+                            )}
                         </>
                     )}
-                    <Button type="submit" form="appointment-form">Agendar e Notificar</Button>
+                    {(isAdmin || !editingAppointment) && (
+                        <Button type="submit" form="appointment-form">Agendar e Notificar</Button>
+                    )}
                 </>
               )}
         </DialogFooter>
@@ -569,6 +612,21 @@ export default function AgendaPage() {
             </DialogFooter>
         </DialogContent>
     </Dialog>
+
+    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Agendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente e não pode ser desfeita. O compromisso será removido da base de dados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setIsDeleteDialogOpen(false); setAppointmentToDelete(null); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Confirmar Exclusão</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
