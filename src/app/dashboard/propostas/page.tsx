@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import jsPDF from 'jspdf';
+import jsPDF from 'jsPDF';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -171,7 +171,6 @@ export default function PropostasPage() {
   const { watch } = form;
   const watchItems = watch('items');
   const watchInstallments = form.watch('installments');
-  const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
   const totals = useMemo(() => {
     return (watchItems || []).reduce(
@@ -641,291 +640,293 @@ ${companyProfile.phone}`;
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
         <div className="lg:col-span-2 space-y-6">
-            <form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form">
-            <Card>
-                <CardHeader className="flex flex-row items-start justify-between">
-                    <div>
-                        <CardTitle>{editingProposal ? `Editando Proposta ${editingProposal.id}` : 'Nova Proposta Comercial'}</CardTitle>
-                        <CardDescription>{editingProposal ? 'Altere os itens e condições de pagamento.' : 'Preencha os dados para gerar uma nova proposta'}</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="space-y-1 text-right">
-                            <FormLabel htmlFor="proposalDate">Data de Emissão</FormLabel>
-                            <Controller
-                                control={form.control}
-                                name="proposalDate"
-                                render={({ field }) => (
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant={"outline"}
-                                            className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
-                                        </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
-                                        </PopoverContent>
-                                    </Popover>
-                                )}
-                            />
-                        </div>
-                        <div className="space-y-1 text-right">
-                            <FormLabel htmlFor="validityDate">Data de Validade</FormLabel>
-                            <Controller
-                                control={form.control}
-                                name="validityDate"
-                                render={({ field }) => (
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant={"outline"}
-                                            className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
-                                        </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
-                                        </PopoverContent>
-                                    </Popover>
-                                )}
-                            />
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="flex items-center gap-4">
-                    {companyProfile.logoUrl ? (
-                        <img
-                        src={companyProfile.logoUrl}
-                        alt="Logo"
-                        data-ai-hint="logo"
-                        className="h-16 w-24 object-contain"
-                        />
-                    ) : (
-                        <Building className="h-16 w-16 text-muted-foreground" />
-                    )}
-                    <div>
-                        <h3 className="font-bold text-lg">{companyProfile.name}</h3>
-                        <p className="text-sm text-muted-foreground">{companyProfile.email}</p>
-                        <p className="text-sm text-muted-foreground">{companyProfile.phone}</p>
-                        <p className="text-sm text-muted-foreground">{companyProfile.address}</p>
-                    </div>
-                </CardContent>
-            </Card>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form">
+                    <Card>
+                        <CardHeader className="flex flex-row items-start justify-between">
+                            <div>
+                                <CardTitle>{editingProposal ? `Editando Proposta ${editingProposal.id}` : 'Nova Proposta Comercial'}</CardTitle>
+                                <CardDescription>{editingProposal ? 'Altere os itens e condições de pagamento.' : 'Preencha os dados para gerar uma nova proposta'}</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="space-y-1 text-right">
+                                    <FormLabel htmlFor="proposalDate">Data de Emissão</FormLabel>
+                                    <Controller
+                                        control={form.control}
+                                        name="proposalDate"
+                                        render={({ field }) => (
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant={"outline"}
+                                                    className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                                </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0">
+                                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
+                                                </PopoverContent>
+                                            </Popover>
+                                        )}
+                                    />
+                                </div>
+                                <div className="space-y-1 text-right">
+                                    <FormLabel htmlFor="validityDate">Data de Validade</FormLabel>
+                                    <Controller
+                                        control={form.control}
+                                        name="validityDate"
+                                        render={({ field }) => (
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant={"outline"}
+                                                    className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                                </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0">
+                                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
+                                                </PopoverContent>
+                                            </Popover>
+                                        )}
+                                    />
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex items-center gap-4">
+                            {companyProfile.logoUrl ? (
+                                <img
+                                src={companyProfile.logoUrl}
+                                alt="Logo"
+                                data-ai-hint="logo"
+                                className="h-16 w-24 object-contain"
+                                />
+                            ) : (
+                                <Building className="h-16 w-16 text-muted-foreground" />
+                            )}
+                            <div>
+                                <h3 className="font-bold text-lg">{companyProfile.name}</h3>
+                                <p className="text-sm text-muted-foreground">{companyProfile.email}</p>
+                                <p className="text-sm text-muted-foreground">{companyProfile.phone}</p>
+                                <p className="text-sm text-muted-foreground">{companyProfile.address}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados do Cliente</CardTitle>
-                  {editingProposal ? (
-                      <CardDescription>O cliente não pode ser alterado durante a edição.</CardDescription>
-                  ) : (
-                      <CardDescription>Selecione um cliente existente ou cadastre um novo.</CardDescription>
-                  )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                  {editingProposal ? (
-                       <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/50">
-                           <div><span className="font-semibold">Cliente:</span> {editingProposal.clientName}</div>
-                           <div><span className="font-semibold">Telefone:</span> {editingProposal.clientPhone}</div>
-                       </div>
-                  ) : (
-                      <>
-                          <div className="flex gap-2">
-                              <div className="flex-1">
-                                  <FormLabel>Selecionar Cliente</FormLabel>
-                                  <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
-                                  <SelectTrigger>
-                                      <SelectValue placeholder="Selecione um cliente existente..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                      {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                  </SelectContent>
-                                  </Select>
-                              </div>
-                              <Button type="button" variant="outline" className="mt-auto" onClick={handleQuickAddClient}>
-                                  <PlusCircle className="mr-2 h-4 w-4" />
-                                  Cadastro Rápido
-                              </Button>
-                          </div>
-
-                          {isQuickAddingClient && (
-                              <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20">
-                                  <div>
-                                      <FormLabel htmlFor="clientName">Nome do Cliente</FormLabel>
-                                      <Input id="clientName" {...form.register('clientName')} placeholder="Nome completo ou Razão Social" />
-                                      {form.formState.errors.clientName && <p className="text-destructive text-sm mt-1">{form.formState.errors.clientName.message}</p>}
-                                  </div>
-                                  <div>
-                                      <FormLabel htmlFor="clientPhone">Telefone</FormLabel>
-                                      <Input id="clientPhone" {...form.register('clientPhone')} placeholder="(00) 00000-0000" />
-                                  </div>
-                              </div>
-                          )}
-                          
-                          {form.getValues('clientId') && !isQuickAddingClient && (
-                              <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
-                                  <div><span className="font-semibold">Cliente:</span> {form.getValues('clientName')}</div>
-                                  <div><span className="font-semibold">Telefone:</span> {form.getValues('clientPhone')}</div>
-                              </div>
-                          )}
-                      </>
-                  )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Itens da Proposta</CardTitle>
-                <CardDescription>Adicione os produtos ou serviços que fazem parte desta proposta. Defina se o item é cobrança única ou mensal.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[40%]">Descrição</TableHead>
-                      <TableHead>Qtd.</TableHead>
-                      <TableHead>Recorrência</TableHead>
-                      <TableHead>Preço Unit.</TableHead>
-                      <TableHead>Subtotal</TableHead>
-                      <TableHead className="text-right">Ação</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {fields.map((item, index) => {
-                      const currentItemName = watchItems[index]?.name;
-                      const currentProduct = products.find(p => p.name.toLowerCase() === currentItemName?.toLowerCase());
-
-                      return (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <Textarea
-                            placeholder="Descrição do produto ou serviço"
-                            {...form.register(`items.${index}.name`)}
-                            className="min-h-0 h-10"
-                            list="product-datalist"
-                            onBlur={() => handleItemNameBlur(index)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            {...form.register(`items.${index}.quantity`)}
-                            className="w-16"
-                          />
-                        </TableCell>
-                        <TableCell>
-                            <Controller
-                                control={form.control}
-                                name={`items.${index}.isMonthly`}
-                                render={({ field }) => (
-                                    <Select onValueChange={(val) => field.onChange(val === 'monthly')} value={field.value ? 'monthly' : 'onetime'}>
-                                        <SelectTrigger className="w-28 h-10">
-                                            <SelectValue />
+                    <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle>Dados do Cliente</CardTitle>
+                        {editingProposal ? (
+                            <CardDescription>O cliente não pode ser alterado durante a edição.</CardDescription>
+                        ) : (
+                            <CardDescription>Selecione um cliente existente ou cadastre um novo.</CardDescription>
+                        )}
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {editingProposal ? (
+                            <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/50">
+                                <div><span className="font-semibold">Cliente:</span> {editingProposal.clientName}</div>
+                                <div><span className="font-semibold">Telefone:</span> {editingProposal.clientPhone}</div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <Label className="mb-2 block">Selecionar Cliente</Label>
+                                        <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecione um cliente existente..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="onetime" className="flex items-center gap-2">
-                                                Único
-                                            </SelectItem>
-                                            <SelectItem value="monthly" className="flex items-center gap-2">
-                                                Mensal
-                                            </SelectItem>
+                                            {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                                         </SelectContent>
-                                    </Select>
+                                        </Select>
+                                    </div>
+                                    <Button type="button" variant="outline" className="mt-auto" onClick={handleQuickAddClient}>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Cadastro Rápido
+                                    </Button>
+                                </div>
+
+                                {isQuickAddingClient && (
+                                    <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20">
+                                        <div>
+                                            <Label htmlFor="clientName">Nome do Cliente</Label>
+                                            <Input id="clientName" {...form.register('clientName')} placeholder="Nome completo ou Razão Social" />
+                                            {form.formState.errors.clientName && <p className="text-destructive text-sm mt-1">{form.formState.errors.clientName.message}</p>}
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="clientPhone">Telefone</Label>
+                                            <Input id="clientPhone" {...form.register('clientPhone')} placeholder="(00) 00000-0000" />
+                                        </div>
+                                    </div>
                                 )}
-                            />
-                        </TableCell>
-                        <TableCell>
-                          <div className="relative flex items-center">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              {...form.register(`items.${index}.price`)}
-                              className={cn("w-28", currentProduct && 'pr-8')}
-                            />
-                            {currentProduct && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute right-0 h-full w-8 text-muted-foreground hover:bg-transparent"
-                                    aria-label="Ver histórico de preços"
-                                  >
-                                    <History className="h-4 w-4" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto max-w-xs p-2">
-                                  <div className="space-y-1">
-                                    <p className="font-semibold text-sm px-1.5">Histórico de Preços</p>
-                                    <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                                      {currentProduct.priceHistory.length > 0 ? (
-                                        currentProduct.priceHistory.map((price, idx) => (
-                                          <Button
-                                            key={`${price}-${idx}`}
+                                
+                                {form.getValues('clientId') && !isQuickAddingClient && (
+                                    <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
+                                        <div><span className="font-semibold">Cliente:</span> {form.getValues('clientName')}</div>
+                                        <div><span className="font-semibold">Telefone:</span> {form.getValues('clientPhone')}</div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </CardContent>
+                    </Card>
+
+                    <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle>Itens da Proposta</CardTitle>
+                        <CardDescription>Adicione os produtos ou serviços que fazem parte desta proposta. Defina se o item é cobrança única ou mensal.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead className="w-[40%]">Descrição</TableHead>
+                            <TableHead>Qtd.</TableHead>
+                            <TableHead>Recorrência</TableHead>
+                            <TableHead>Preço Unit.</TableHead>
+                            <TableHead>Subtotal</TableHead>
+                            <TableHead className="text-right">Ação</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {fields.map((item, index) => {
+                            const currentItemName = watchItems[index]?.name;
+                            const currentProduct = products.find(p => p.name.toLowerCase() === currentItemName?.toLowerCase());
+
+                            return (
+                            <TableRow key={item.id}>
+                                <TableCell>
+                                <Textarea
+                                    placeholder="Descrição do produto ou serviço"
+                                    {...form.register(`items.${index}.name`)}
+                                    className="min-h-0 h-10"
+                                    list="product-datalist"
+                                    onBlur={() => handleItemNameBlur(index)}
+                                />
+                                </TableCell>
+                                <TableCell>
+                                <Input
+                                    type="number"
+                                    {...form.register(`items.${index}.quantity`)}
+                                    className="w-16"
+                                />
+                                </TableCell>
+                                <TableCell>
+                                    <Controller
+                                        control={form.control}
+                                        name={`items.${index}.isMonthly`}
+                                        render={({ field }) => (
+                                            <Select onValueChange={(val) => field.onChange(val === 'monthly')} value={field.value ? 'monthly' : 'onetime'}>
+                                                <SelectTrigger className="w-28 h-10">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="onetime" className="flex items-center gap-2">
+                                                        Único
+                                                    </SelectItem>
+                                                    <SelectItem value="monthly" className="flex items-center gap-2">
+                                                        Mensal
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                <div className="relative flex items-center">
+                                    <Input
+                                    type="number"
+                                    step="0.01"
+                                    {...form.register(`items.${index}.price`)}
+                                    className={cn("w-28", currentProduct && 'pr-8')}
+                                    />
+                                    {currentProduct && (
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <Button
                                             type="button"
                                             variant="ghost"
-                                            className="h-auto justify-between p-1.5 text-xs font-normal gap-2"
-                                            onClick={() => {
-                                              form.setValue(`items.${index}.price`, price, { shouldDirty: true });
-                                              form.trigger(`items.${index}.price`);
-                                            }}
-                                          >
-                                            <span>{price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                            {price === currentProduct.price && <Badge variant="secondary">Recente</Badge>}
-                                          </Button>
-                                        ))
-                                      ) : (
-                                        <p className="text-xs text-muted-foreground p-1.5">Nenhum histórico.</p>
-                                      )}
-                                    </div>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {((Number(watchItems[index]?.quantity) || 0) * (Number(watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )})}
-                  </TableBody>
-                </Table>
-                {form.formState.errors.items && (
-                    <p className="text-destructive text-sm mt-2">{form.formState.errors.items.message || form.formState.errors.items.root?.message}</p>
-                )}
-              </CardContent>
-              <CardFooter className="justify-between items-start pt-6 border-t">
-                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
-                </Button>
-                <div className="text-right space-y-2">
-                    <div className="flex items-center justify-end gap-2 text-primary">
-                        <Tag className="h-4 w-4" />
-                        <span className="text-sm font-medium">Total de Investimento (Único):</span>
-                        <span className="text-xl font-bold">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                            size="icon"
+                                            className="absolute right-0 h-full w-8 text-muted-foreground hover:bg-transparent"
+                                            aria-label="Ver histórico de preços"
+                                        >
+                                            <History className="h-4 w-4" />
+                                        </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto max-w-xs p-2">
+                                        <div className="space-y-1">
+                                            <p className="font-semibold text-sm px-1.5">Histórico de Preços</p>
+                                            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                                            {currentProduct.priceHistory.length > 0 ? (
+                                                currentProduct.priceHistory.map((price, idx) => (
+                                                <Button
+                                                    key={`${price}-${idx}`}
+                                                    type="button"
+                                                    variant="ghost"
+                                                    className="h-auto justify-between p-1.5 text-xs font-normal gap-2"
+                                                    onClick={() => {
+                                                    form.setValue(`items.${index}.price`, price, { shouldDirty: true });
+                                                    form.trigger(`items.${index}.price`);
+                                                    }}
+                                                >
+                                                    <span>{price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                    {price === currentProduct.price && <Badge variant="secondary">Recente</Badge>}
+                                                </Button>
+                                                ))
+                                            ) : (
+                                                <p className="text-xs text-muted-foreground p-1.5">Nenhum histórico.</p>
+                                            )}
+                                            </div>
+                                        </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                    )}
+                                </div>
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                {((Number(watchItems[index]?.quantity) || 0) * (Number(watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                                </TableCell>
+                            </TableRow>
+                            )})}
+                        </TableBody>
+                        </Table>
+                        {form.formState.errors.items && (
+                            <p className="text-destructive text-sm mt-2">{form.formState.errors.items.message || form.formState.errors.items.root?.message}</p>
+                        )}
+                    </CardContent>
+                    <CardFooter className="justify-between items-start pt-6 border-t">
+                        <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
+                        </Button>
+                        <div className="text-right space-y-2">
+                            <div className="flex items-center justify-end gap-2 text-primary">
+                                <Tag className="h-4 w-4" />
+                                <span className="text-sm font-medium">Total de Investimento (Único):</span>
+                                <span className="text-xl font-bold">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                            <div className="flex items-center justify-end gap-2 text-emerald-500">
+                                <Repeat className="h-4 w-4" />
+                                <span className="text-sm font-medium">Total Recorrente (Mensal):</span>
+                                <span className="text-xl font-bold">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
                     </div>
-                    <div className="flex items-center justify-end gap-2 text-emerald-500">
-                        <Repeat className="h-4 w-4" />
-                        <span className="text-sm font-medium">Total Recorrente (Mensal):</span>
-                        <span className="text-xl font-bold">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                    </div>
-                </div>
-              </CardFooter>
-            </Card>
-            </form>
+                    </CardFooter>
+                    </Card>
+                </form>
+            </Form>
         </div>
 
         <div className="lg:col-span-1 space-y-6">
@@ -936,7 +937,7 @@ ${companyProfile.phone}`;
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <FormLabel>Forma de Pagamento</FormLabel>
+                <Label className="mb-2 block">Forma de Pagamento</Label>
                 <Controller
                   control={form.control}
                   name="paymentMethod"
@@ -953,7 +954,7 @@ ${companyProfile.phone}`;
                 />
               </div>
               <div>
-                <FormLabel>Parcelamento</FormLabel>
+                <Label className="mb-2 block">Parcelamento</Label>
                  <Controller
                   control={form.control}
                   name="installments"
@@ -977,7 +978,7 @@ ${companyProfile.phone}`;
                   render={({ field }) => (
                       <div className="flex items-center space-x-2">
                           <Switch id="firstAsDownPayment" checked={field.value} onCheckedChange={field.onChange} />
-                          <FormLabel htmlFor="firstAsDownPayment">Considerar 1ª parcela como entrada?</FormLabel>
+                          <Label htmlFor="firstAsDownPayment">Considerar 1ª parcela como entrada?</Label>
                       </div>
                   )}
               />
