@@ -53,6 +53,8 @@ import {
   Loader2,
   Search,
   Pencil,
+  Repeat,
+  Tag,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -87,6 +89,7 @@ const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
   quantity: z.coerce.number().min(1, 'A quantidade deve ser no mínimo 1.'),
   price: z.coerce.number().min(0, 'O preço não pode ser negativo.'),
+  isMonthly: z.boolean().default(false),
 });
 
 const proposalSchema = z.object({
@@ -102,7 +105,11 @@ const proposalSchema = z.object({
 });
 
 type ProposalFormValues = z.infer<typeof proposalSchema>;
-type Proposal = ProposalFormValues & { id: string; total: number };
+type Proposal = ProposalFormValues & { 
+    id: string; 
+    totalOneTime: number;
+    totalMonthly: number;
+};
 
 
 const productFormSchema = z.object({
@@ -141,7 +148,7 @@ export default function PropostasPage() {
       clientPhone: '',
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
-      items: [{ name: '', quantity: 1, price: 0 }],
+      items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
       paymentMethod: 'boleto',
       installments: 1,
       firstAsDownPayment: false,
@@ -166,11 +173,20 @@ export default function PropostasPage() {
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
-  const total = (watchItems || []).reduce(
-    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-    0
-  );
-
+  const totals = useMemo(() => {
+    return (watchItems || []).reduce(
+        (acc, item) => {
+            const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
+            if (item.isMonthly) {
+                acc.monthly += subtotal;
+            } else {
+                acc.oneTime += subtotal;
+            }
+            return acc;
+        },
+        { oneTime: 0, monthly: 0 }
+    );
+  }, [watchItems]);
 
   const filteredProducts = useMemo(() => {
     if (!productSearch) {
@@ -180,11 +196,6 @@ export default function PropostasPage() {
       p.name.toLowerCase().includes(productSearch.toLowerCase())
     );
   }, [products, productSearch]);
-
-  const selectedProposalInstallmentValue = useMemo(() => {
-    if (!selectedProposal || !selectedProposal.installments || selectedProposal.total === 0) return 0;
-    return selectedProposal.total / selectedProposal.installments;
-  }, [selectedProposal]);
 
   const handleClientSelect = (clientId: string) => {
     const client = customers.find(c => c.id === clientId);
@@ -245,7 +256,7 @@ export default function PropostasPage() {
     const itemsText = proposal.items
       .map(
         (item) =>
-          `- ${item.name} (Qtd: ${item.quantity}, Valor Unit.: ${item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`
+          `- ${item.name} ${item.isMonthly ? '(mensal)' : ''} (Qtd: ${item.quantity}, Valor Unit.: ${item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`
       )
       .join('\n');
 
@@ -268,14 +279,16 @@ ITENS
 ${itemsText}
 
 -----------------------------------
-TOTAL: ${proposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+TOTAIS
 -----------------------------------
+Total Único (Investimento): ${proposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+Total Mensal (Recorrente): ${proposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
 
 -----------------------------------
-CONDIÇÕES DE PAGAMENTO
+CONDIÇÕES DE PAGAMENTO (VALOR ÚNICO)
 -----------------------------------
 - Forma: ${proposal.paymentMethod.replace('cartao', 'Cartão de Crédito').replace('boleto', 'Boleto Bancário').replace('pix', 'PIX')}
-- Parcelas: ${proposal.installments}x de ${(proposal.total / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+- Parcelas: ${proposal.installments}x de ${(proposal.totalOneTime / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
 
 Agradecemos a oportunidade e ficamos à disposição para quaisquer esclarecimentos.
 
@@ -302,7 +315,7 @@ ${companyProfile.email}
     const itemsText = proposal.items
       .map(
         (item) =>
-          `- ${item.name} (Qtd: ${item.quantity}, Valor Unit.: ${item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`
+          `- ${item.name} ${item.isMonthly ? '*(mensal)*' : ''} (Qtd: ${item.quantity}, Valor Unit.: ${item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`
       )
       .join('\n');
 
@@ -315,11 +328,12 @@ Segue a sua proposta comercial da ${companyProfile.name}.
 *Itens:*
 ${itemsText}
 
-*Total:* *${proposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*
+*Total Único:* *${proposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*
+*Total Mensal:* *${proposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*
 
-*Condições de Pagamento:*
+*Condições de Pagamento (Valor Único):*
 - *Forma:* ${proposal.paymentMethod.replace('cartao', 'Cartão de Crédito').replace('boleto', 'Boleto Bancário').replace('pix', 'PIX')}
-- *Parcelas:* ${proposal.installments}x de ${(proposal.total / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+- *Parcelas:* ${proposal.installments}x de ${(proposal.totalOneTime / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
 
 Agradecemos a oportunidade e ficamos à disposição!
 
@@ -336,7 +350,6 @@ ${companyProfile.phone}`;
         return;
     }
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-    // wa.me é mais rápido e garante melhor reaproveitamento da aba se o alvo for o mesmo
     const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
     window.open(url, 'vendaspro_whatsapp');
 
@@ -430,7 +443,7 @@ ${companyProfile.phone}`;
   };
 
   const handleAddProductFromList = (product: Product) => {
-    append({ name: product.name, quantity: 1, price: product.price });
+    append({ name: product.name, quantity: 1, price: product.price, isMonthly: false });
     toast({
       title: "Item Adicionado!",
       description: `"${product.name}" foi adicionado à proposta.`,
@@ -466,7 +479,7 @@ ${companyProfile.phone}`;
       clientPhone: '',
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
-      items: [{ name: '', quantity: 1, price: 0 }],
+      items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
       paymentMethod: 'boleto',
       installments: 1,
       firstAsDownPayment: false,
@@ -478,9 +491,17 @@ ${companyProfile.phone}`;
   };
 
   const onSubmit = (data: ProposalFormValues) => {
-    const currentTotal = data.items.reduce(
-        (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0),
-        0
+    const currentTotals = data.items.reduce(
+        (acc, item) => {
+            const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
+            if (item.isMonthly) {
+                acc.monthly += subtotal;
+            } else {
+                acc.oneTime += subtotal;
+            }
+            return acc;
+        },
+        { oneTime: 0, monthly: 0 }
     );
     
     data.items.forEach(item => {
@@ -510,7 +531,8 @@ ${companyProfile.phone}`;
         paymentMethod: data.paymentMethod,
         installments: data.installments,
         firstAsDownPayment: data.firstAsDownPayment,
-        total: currentTotal,
+        totalOneTime: currentTotals.oneTime,
+        totalMonthly: currentTotals.monthly,
       };
 
       setSavedProposals(prev => prev.map(p => p.id === editingProposal.id ? updatedProposal : p));
@@ -527,7 +549,8 @@ ${companyProfile.phone}`;
       const newProposalData: Proposal = {
         ...data,
         id: String(newId),
-        total: currentTotal,
+        totalOneTime: currentTotals.oneTime,
+        totalMonthly: currentTotals.monthly,
       };
       setSavedProposals(prev => [newProposalData, ...prev]);
 
@@ -543,7 +566,7 @@ ${companyProfile.phone}`;
       clientPhone: '',
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
-      items: [{ name: '', quantity: 1, price: 0 }],
+      items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
       paymentMethod: 'boleto',
       installments: 1,
       firstAsDownPayment: false,
@@ -627,7 +650,7 @@ ${companyProfile.phone}`;
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="space-y-1 text-right">
-                            <Label htmlFor="proposalDate">Data de Emissão</Label>
+                            <FormLabel htmlFor="proposalDate">Data de Emissão</FormLabel>
                             <Controller
                                 control={form.control}
                                 name="proposalDate"
@@ -651,7 +674,7 @@ ${companyProfile.phone}`;
                             />
                         </div>
                         <div className="space-y-1 text-right">
-                            <Label htmlFor="validityDate">Data de Validade</Label>
+                            <FormLabel htmlFor="validityDate">Data de Validade</FormLabel>
                             <Controller
                                 control={form.control}
                                 name="validityDate"
@@ -715,7 +738,7 @@ ${companyProfile.phone}`;
                       <>
                           <div className="flex gap-2">
                               <div className="flex-1">
-                                  <Label>Selecionar Cliente</Label>
+                                  <FormLabel>Selecionar Cliente</FormLabel>
                                   <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
                                   <SelectTrigger>
                                       <SelectValue placeholder="Selecione um cliente existente..." />
@@ -734,12 +757,12 @@ ${companyProfile.phone}`;
                           {isQuickAddingClient && (
                               <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20">
                                   <div>
-                                      <Label htmlFor="clientName">Nome do Cliente</Label>
+                                      <FormLabel htmlFor="clientName">Nome do Cliente</FormLabel>
                                       <Input id="clientName" {...form.register('clientName')} placeholder="Nome completo ou Razão Social" />
                                       {form.formState.errors.clientName && <p className="text-destructive text-sm mt-1">{form.formState.errors.clientName.message}</p>}
                                   </div>
                                   <div>
-                                      <Label htmlFor="clientPhone">Telefone</Label>
+                                      <FormLabel htmlFor="clientPhone">Telefone</FormLabel>
                                       <Input id="clientPhone" {...form.register('clientPhone')} placeholder="(00) 00000-0000" />
                                   </div>
                               </div>
@@ -759,14 +782,15 @@ ${companyProfile.phone}`;
             <Card>
               <CardHeader>
                 <CardTitle>Itens da Proposta</CardTitle>
-                <CardDescription>Adicione os produtos ou serviços que fazem parte desta proposta.</CardDescription>
+                <CardDescription>Adicione os produtos ou serviços que fazem parte desta proposta. Defina se o item é cobrança única ou mensal.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[50%]">Descrição</TableHead>
+                      <TableHead className="w-[40%]">Descrição</TableHead>
                       <TableHead>Qtd.</TableHead>
+                      <TableHead>Recorrência</TableHead>
                       <TableHead>Preço Unit.</TableHead>
                       <TableHead>Subtotal</TableHead>
                       <TableHead className="text-right">Ação</TableHead>
@@ -792,8 +816,29 @@ ${companyProfile.phone}`;
                           <Input
                             type="number"
                             {...form.register(`items.${index}.quantity`)}
-                            className="w-20"
+                            className="w-16"
                           />
+                        </TableCell>
+                        <TableCell>
+                            <Controller
+                                control={form.control}
+                                name={`items.${index}.isMonthly`}
+                                render={({ field }) => (
+                                    <Select onValueChange={(val) => field.onChange(val === 'monthly')} value={field.value ? 'monthly' : 'onetime'}>
+                                        <SelectTrigger className="w-28 h-10">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="onetime" className="flex items-center gap-2">
+                                                Único
+                                            </SelectItem>
+                                            <SelectItem value="monthly" className="flex items-center gap-2">
+                                                Mensal
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            />
                         </TableCell>
                         <TableCell>
                           <div className="relative flex items-center">
@@ -801,7 +846,7 @@ ${companyProfile.phone}`;
                               type="number"
                               step="0.01"
                               {...form.register(`items.${index}.price`)}
-                              className={cn("w-32", currentProduct && 'pr-8')}
+                              className={cn("w-28", currentProduct && 'pr-8')}
                             />
                             {currentProduct && (
                               <Popover>
@@ -862,13 +907,21 @@ ${companyProfile.phone}`;
                     <p className="text-destructive text-sm mt-2">{form.formState.errors.items.message || form.formState.errors.items.root?.message}</p>
                 )}
               </CardContent>
-              <CardFooter className="justify-between">
-                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, price: 0 })}>
+              <CardFooter className="justify-between items-start pt-6 border-t">
+                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
                 </Button>
-                <div className="text-right">
-                    <p className="text-muted-foreground">Total da Proposta</p>
-                    <p className="text-2xl font-bold">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                <div className="text-right space-y-2">
+                    <div className="flex items-center justify-end gap-2 text-primary">
+                        <Tag className="h-4 w-4" />
+                        <span className="text-sm font-medium">Total de Investimento (Único):</span>
+                        <span className="text-xl font-bold">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 text-emerald-500">
+                        <Repeat className="h-4 w-4" />
+                        <span className="text-sm font-medium">Total Recorrente (Mensal):</span>
+                        <span className="text-xl font-bold">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    </div>
                 </div>
               </CardFooter>
             </Card>
@@ -879,10 +932,11 @@ ${companyProfile.phone}`;
           <Card>
             <CardHeader>
               <CardTitle>Condições de Pagamento</CardTitle>
+              <CardDescription>O parcelamento se aplica ao Valor Único (Investimento).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>Forma de Pagamento</Label>
+                <FormLabel>Forma de Pagamento</FormLabel>
                 <Controller
                   control={form.control}
                   name="paymentMethod"
@@ -899,7 +953,7 @@ ${companyProfile.phone}`;
                 />
               </div>
               <div>
-                <Label>Parcelamento</Label>
+                <FormLabel>Parcelamento</FormLabel>
                  <Controller
                   control={form.control}
                   name="installments"
@@ -909,7 +963,7 @@ ${companyProfile.phone}`;
                           <SelectContent>
                           {[...Array(6)].map((_, i) => (
                               <SelectItem key={i + 1} value={String(i + 1)}>
-                              {i + 1}x de { (total / (i + 1) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
+                              {i + 1}x de { (totals.oneTime / (i + 1) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
                               </SelectItem>
                           ))}
                           </SelectContent>
@@ -923,17 +977,18 @@ ${companyProfile.phone}`;
                   render={({ field }) => (
                       <div className="flex items-center space-x-2">
                           <Switch id="firstAsDownPayment" checked={field.value} onCheckedChange={field.onChange} />
-                          <Label htmlFor="firstAsDownPayment">Considerar 1ª parcela como entrada?</Label>
+                          <FormLabel htmlFor="firstAsDownPayment">Considerar 1ª parcela como entrada?</FormLabel>
                       </div>
                   )}
               />
             </CardContent>
             <CardFooter className="flex-col items-start space-y-2">
-              <p className="font-bold text-lg">Resumo</p>
+              <p className="font-bold text-lg">Resumo Final</p>
               <div className="w-full text-sm space-y-1">
-                  <div className="flex justify-between"><span>Valor Total:</span> <span className="font-medium">{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                  <div className="flex justify-between"><span>Parcelas:</span> <span className="font-medium">{watchInstallments}x de { (total / watchInstallments || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</span></div>
-                  <div className="flex justify-between"><span>Entrada:</span> <span className="font-medium">{watchFirstAsDownPayment ? 'Sim' : 'Não'}</span></div>
+                  <div className="flex justify-between"><span>Venda Única:</span> <span className="font-medium text-primary">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                  <div className="flex justify-between"><span>Mensalidade:</span> <span className="font-medium text-emerald-500">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                  <Separator className="my-1" />
+                  <div className="flex justify-between"><span>Parcelas Venda:</span> <span className="font-medium">{watchInstallments}x de { (totals.oneTime / watchInstallments || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</span></div>
               </div>
             </CardFooter>
           </Card>
@@ -1022,14 +1077,15 @@ ${companyProfile.phone}`;
                         <TableHead>Proposta</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Data</TableHead>
-                        <TableHead>Valor</TableHead>
+                        <TableHead>Investimento</TableHead>
+                        <TableHead>Mensalidade</TableHead>
                         <TableHead className="text-right w-[180px]">Ações</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {savedProposals.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                            <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                                 Nenhuma proposta salva ainda.
                             </TableCell>
                         </TableRow>
@@ -1039,7 +1095,8 @@ ${companyProfile.phone}`;
                                 <TableCell className="font-medium">{proposal.id}</TableCell>
                                 <TableCell>{proposal.clientName}</TableCell>
                                 <TableCell>{isClient ? format(proposal.proposalDate, 'dd/MM/yyyy') : ''}</TableCell>
-                                <TableCell>{proposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                                <TableCell>{proposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                                <TableCell>{proposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
                                         <Button type="button" variant="outline" size="icon" onClick={() => handleEditProposalClick(proposal)}>
@@ -1119,7 +1176,7 @@ ${companyProfile.phone}`;
                         <tbody>
                             {selectedProposal.items.map((item, index) => (
                             <tr key={index} className="border-b border-gray-200">
-                                <td className="p-2">{item.name}</td>
+                                <td className="p-2">{item.name} {item.isMonthly && <span className="text-[10px] font-bold text-emerald-600">(mensal)</span>}</td>
                                 <td className="p-2 text-center">{item.quantity}</td>
                                 <td className="p-2 text-right">{(Number(item.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                                 <td className="p-2 text-right">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
@@ -1129,18 +1186,22 @@ ${companyProfile.phone}`;
                         </table>
                         
                         <div className="flex justify-end mb-8">
-                        <div className="w-1/2">
-                            <div className="flex justify-between text-lg">
-                            <span className="font-bold">Total:</span>
-                            <span className="font-bold">{selectedProposal.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            <div className="w-2/3 space-y-1">
+                                <div className="flex justify-between text-base">
+                                    <span className="font-semibold text-gray-600">Total Investimento (Único):</span>
+                                    <span className="font-bold">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                </div>
+                                <div className="flex justify-between text-base border-t pt-1">
+                                    <span className="font-semibold text-emerald-700">Total Recorrente (Mensal):</span>
+                                    <span className="font-bold text-emerald-700">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                </div>
                             </div>
-                        </div>
                         </div>
 
                         <div className="bg-gray-50 p-4 rounded-md text-sm">
-                        <h3 className="font-bold mb-2">Condições de Pagamento</h3>
+                        <h3 className="font-bold mb-2">Condições de Pagamento (Valor Único)</h3>
                         <p className="capitalize"><span className="font-semibold">Forma:</span> {selectedProposal.paymentMethod.replace('cartao', 'Cartão de Crédito')}</p>
-                        <p><span className="font-semibold">Parcelamento:</span> {selectedProposal.installments}x de {selectedProposalInstallmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <p><span className="font-semibold">Parcelamento:</span> {selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                         {selectedProposal.firstAsDownPayment && <p>A primeira parcela deverá ser paga como entrada.</p>}
                         </div>
 
