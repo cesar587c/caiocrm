@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import jsPDF from 'jspdf';
+import jspdf from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -355,7 +355,7 @@ ${companyProfile.phone}`;
     try {
         const canvas = await html2canvas(proposalElement, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const canvasWidth = canvas.width;
@@ -751,6 +751,13 @@ ${companyProfile.phone}`;
                             <div className="text-right text-xs"><p>{companyProfile.address}</p><p>{companyProfile.email}</p><p>{companyProfile.phone}</p></div>
                         </div>
                         <hr className="my-8" />
+                        
+                        <div className="space-y-4 text-sm mb-8 leading-relaxed">
+                            <p>Com mais de 18 anos de experiência, somos a junção de Soluções especializada em tecnologia.</p>
+                            <p>Na área de Consultoria da Tecnologia dispomos das mais modernas ferramentas e profissionais altamente qualificados.</p>
+                            <p>A Active Representações conta hoje com a parceria de grandes empresas para atender seus clientes de forma ágil e com grande qualidade profissional no mínimo de tempo e passa por rigor de análise em vários critérios, a começar pelo atendimento ao cliente.</p>
+                        </div>
+
                         <h2 className="text-xl font-bold mb-4">Proposta Comercial #{selectedProposal.id}</h2>
                         <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
                             <div><p className="font-bold text-gray-500 uppercase text-xs">Para:</p><p className="font-bold">{selectedProposal.clientName}</p><p>{selectedProposal.clientPhone}</p></div>
