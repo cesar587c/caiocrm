@@ -327,7 +327,7 @@ ${companyProfile.name}
 ${companyProfile.phone}`;
 
     const cleanPhone = proposal.clientPhone?.replace(/\D/g, '') || '';
-    if (cleanPhone.length < 10) { // Basic validation for DDD + number
+    if (cleanPhone.length < 10) {
          toast({
             title: "Número de Cliente Inválido",
             description: `O cliente ${proposal.clientName} não possui um número de telefone válido.`,
@@ -336,9 +336,8 @@ ${companyProfile.phone}`;
         return;
     }
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-    
-    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
-    // Reutiliza a aba fixa vendaspro_whatsapp para maior fluidez no envio manual
+    // wa.me é mais rápido e garante melhor reaproveitamento da aba se o alvo for o mesmo
+    const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
     window.open(url, 'vendaspro_whatsapp');
 
     toast({
@@ -364,7 +363,7 @@ ${companyProfile.phone}`;
 
     try {
         const canvas = await html2canvas(proposalElement, {
-            scale: 2, // Aumenta a resolução para melhor qualidade
+            scale: 2,
             useCORS: true,
             backgroundColor: null,
             windowWidth: proposalElement.scrollWidth,
@@ -373,7 +372,6 @@ ${companyProfile.phone}`;
         
         const imgData = canvas.toDataURL('image/png');
         
-        // A4 page dimensions in mm: 210 x 297
         const pdf = new jsPDF({
             orientation: 'p',
             unit: 'mm',
@@ -389,13 +387,11 @@ ${companyProfile.phone}`;
         let finalPdfWidth = pdfWidth;
         let finalPdfHeight = pdfWidth / canvasAspectRatio;
 
-        // Se a altura calculada for maior que a página, ajustamos pela altura
         if (finalPdfHeight > pdfHeight) {
             finalPdfHeight = pdfHeight;
             finalPdfWidth = pdfHeight * canvasAspectRatio;
         }
 
-        // Centraliza a imagem
         const xOffset = (pdfWidth - finalPdfWidth) / 2;
         const yOffset = (pdfHeight - finalPdfHeight) / 2;
         
@@ -487,7 +483,6 @@ ${companyProfile.phone}`;
         0
     );
     
-    // Shared logic for product price updates
     data.items.forEach(item => {
         const lowerCaseName = item.name.toLowerCase().trim();
         const newPrice = Number(item.price);
@@ -505,19 +500,16 @@ ${companyProfile.phone}`;
 
     if (editingProposal) {
       const updatedProposal: Proposal = {
-        // Preserve from editingProposal
         id: editingProposal.id,
         clientId: editingProposal.clientId,
         clientName: editingProposal.clientName,
         clientPhone: editingProposal.clientPhone,
-        // Update from form data
         proposalDate: data.proposalDate,
         validityDate: data.validityDate,
         items: data.items,
         paymentMethod: data.paymentMethod,
         installments: data.installments,
         firstAsDownPayment: data.firstAsDownPayment,
-        // Recalculate
         total: currentTotal,
       };
 
@@ -528,7 +520,6 @@ ${companyProfile.phone}`;
       });
 
     } else {
-      // Create new proposal
       const newId = savedProposals.length > 0
         ? Math.max(0, ...savedProposals.map(p => Number(p.id))) + 1
         : 1;
@@ -546,7 +537,6 @@ ${companyProfile.phone}`;
       });
     }
 
-    // Reset form and state for both cases
     form.reset({
       clientId: undefined,
       clientName: '',
@@ -627,7 +617,6 @@ ${companyProfile.phone}`;
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-        {/* Coluna Principal (Esquerda) */}
         <div className="lg:col-span-2 space-y-6">
             <form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form">
             <Card>
@@ -886,7 +875,6 @@ ${companyProfile.phone}`;
             </form>
         </div>
 
-        {/* Coluna Lateral (Direita) */}
         <div className="lg:col-span-1 space-y-6">
           <Card>
             <CardHeader>

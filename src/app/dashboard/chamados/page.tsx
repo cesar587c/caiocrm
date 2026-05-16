@@ -122,7 +122,7 @@ export default function ChamadosPage() {
   const [reassignmentState, setReassignmentState] = useState<{ isOpen: boolean; values: ServiceOrderFormValues | null; oldTechnicianName: string; newTechnicianName: string; }>({ isOpen: false, values: null, oldTechnicianName: '', newTechnicianName: '' });
   const [reassignmentJustification, setReassignmentJustification] = useState('');
 
-  // MECANISMO DE DESBLOQUEIO FORÇADO: Garante que o sistema nunca trave após fechar modais
+  // MECANISMO DE DESBLOQUEIO FORÇADO
   useEffect(() => {
     const isAnyBlockingElementOpen = isPreviewOpen || !!deletingOrder || finalizationState.isOpen || reassignmentState.isOpen;
     
@@ -402,8 +402,8 @@ export default function ChamadosPage() {
     const message = `*Ordem de Serviço #${selectedOrderForPreview.number}*\n\n*Empresa:* ${companyProfile.name}\n*Cliente:* ${customer.name}\n*Técnico:* ${technician?.name || 'N/A'}\n*Data de Abertura:* ${safeFormat(selectedOrderForPreview.openingDate, 'dd/MM/yyyy')}\n*Status:* ${selectedOrderForPreview.status}\n\n*Problema Relatado:*\n${selectedOrderForPreview.problemDescription}\n\n*Diagnóstico Técnico:*\n${selectedOrderForPreview.technicalDiagnosis || 'Aguardando diagnóstico.'}`;
     const cleanPhone = customer.telefone.replace(/\D/g, '');
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
-    // Reutiliza a aba fixa vendaspro_whatsapp para maior fluidez
+    // wa.me é mais rápido e garante melhor reaproveitamento da aba se o alvo for o mesmo
+    const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
     window.open(url, 'vendaspro_whatsapp');
   };
 

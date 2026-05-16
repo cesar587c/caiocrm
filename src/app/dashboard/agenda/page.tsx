@@ -20,7 +20,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing, Ban, ExternalLink, AlertTriangle, UserPlus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing, Ban, ExternalLink, AlertTriangle, UserPlus, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -98,13 +98,13 @@ export default function AgendaPage() {
   const [appointmentToProcess, setAppointmentToProcess] = useState<Appointment | null>(null);
   const [justification, setJustification] = useState('');
   const [isCustomerSearchOpen, setIsCustomerSearchOpen] = useState(false);
+  const [sentMessageIndexes, setSentMessages] = useState<number[]>([]);
 
   const { toast } = useToast();
   const { companyProfile, sectors, users, appointments, customers, addAppointment, updateAppointment, deleteAppointment, currentUser } = useSettings();
 
   const isAdmin = currentUser?.role === 'admin';
 
-  // MECANISMO DE DESBLOQUEIO FORÇADO
   useEffect(() => {
     const isAnyBlockingElementOpen = isModalOpen || isDeleteDialogOpen || notificationState.isOpen || isJustificationDialogOpen;
     
@@ -238,6 +238,7 @@ export default function AgendaPage() {
   const triggerNotifications = async (appointment: any) => {
     setTimeout(async () => {
         setNotificationState(prev => ({ ...prev, isOpen: true, isLoading: true }));
+        setSentMessages([]);
         
         const techIds = appointment.assignedTo
             .filter((at: string) => at.startsWith('user:'))
@@ -281,11 +282,15 @@ export default function AgendaPage() {
     }, 400);
   };
 
-  const sendManualWhatsApp = (detail: any) => {
+  const sendManualWhatsApp = (detail: any, index: number) => {
     const cleanPhone = detail.phone.replace(/\D/g, '');
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-    const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(detail.message)}`;
+    // wa.me é mais rápido e garante melhor reaproveitamento da aba se o alvo for o mesmo
+    const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(detail.message)}`;
     window.open(url, 'vendaspro_whatsapp');
+    
+    // Marca como enviado visualmente
+    setSentMessages(prev => prev.includes(index) ? prev : [...prev, index]);
   };
 
   const handleMarkAsCompleted = () => {
@@ -713,21 +718,29 @@ export default function AgendaPage() {
             ) : (
                 <ScrollArea className="max-h-[50vh] pr-4">
                     <div className="space-y-3 py-2">
-                        {notificationState.details.map((detail, idx) => (
-                            <div key={idx} className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm font-semibold">{detail.name}</span>
-                                    <Badge variant="outline" className="text-[10px] uppercase">
-                                        {detail.to === 'client' ? 'Cliente' : 'Técnico'}
-                                    </Badge>
+                        {notificationState.details.map((detail, idx) => {
+                            const isSent = sentMessageIndexes.includes(idx);
+                            return (
+                                <div key={idx} className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-semibold">{detail.name}</span>
+                                        <Badge variant="outline" className="text-[10px] uppercase">
+                                            {detail.to === 'client' ? 'Cliente' : 'Técnico'}
+                                        </Badge>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground line-clamp-2 italic">"{detail.message}"</div>
+                                    <Button 
+                                        size="sm" 
+                                        variant={isSent ? "outline" : (notificationState.isSimulated ? "default" : "outline")} 
+                                        className={cn("w-full h-8 gap-2", isSent && "text-green-500 border-green-500/30 bg-green-500/5 hover:bg-green-500/10")} 
+                                        onClick={() => sendManualWhatsApp(detail, idx)}
+                                    >
+                                        {isSent ? <Check className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+                                        {isSent ? 'Mensagem Enviada' : (notificationState.isSimulated ? 'Enviar via WhatsApp' : 'Reenviar')}
+                                    </Button>
                                 </div>
-                                <div className="text-xs text-muted-foreground line-clamp-2 italic">"{detail.message}"</div>
-                                <Button size="sm" variant={notificationState.isSimulated ? "default" : "outline"} className="w-full h-8 gap-2" onClick={() => sendManualWhatsApp(detail)}>
-                                    <Send className="h-3.5 w-3.5" />
-                                    {notificationState.isSimulated ? 'Enviar via WhatsApp' : 'Reenviar'}
-                                </Button>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </ScrollArea>
             )}
