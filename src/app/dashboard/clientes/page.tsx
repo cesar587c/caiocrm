@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@radix-ui/resolvers/zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as XLSX from 'xlsx';
 import {
