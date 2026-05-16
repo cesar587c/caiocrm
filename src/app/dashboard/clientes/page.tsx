@@ -35,9 +35,13 @@ import {
   Filter,
   DollarSign,
   Tag,
-  Repeat
+  Repeat,
+  MessageSquare,
+  History,
+  Clock,
+  CalendarPlus
 } from "lucide-react";
-import { format, startOfDay, endOfDay } from "date-fns";
+import { format, startOfDay, endOfDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
@@ -102,7 +106,7 @@ import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
-import type { Customer, CustomerStatus, CustomerType } from "@/lib/types";
+import type { Customer, CustomerStatus, CustomerType, Interaction } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
@@ -110,6 +114,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -172,7 +177,7 @@ const defaultFormValues = {
 };
 
 export default function ClientesPage() {
-  const { customers, addCustomer, addCustomers, updateCustomer, deleteCustomer, currentUser } = useSettings();
+  const { customers, addCustomer, addCustomers, updateCustomer, deleteCustomer, addAppointment, currentUser } = useSettings();
   const [isCnpjLoading, setIsCnpjLoading] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -184,6 +189,11 @@ export default function ClientesPage() {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // States para nova interação
+  const [interactionSummary, setInteractionSummary] = useState("");
+  const [interactionNextDate, setInteractionNextDate] = useState<string>("");
+  const [interactionNextTime, setInteractionNextTime] = useState<string>("");
 
   const { toast } = useToast();
 
@@ -315,6 +325,9 @@ export default function ClientesPage() {
   const handleAddNewClick = () => {
     setEditingCustomer(null);
     form.reset(defaultFormValues);
+    setInteractionSummary("");
+    setInteractionNextDate("");
+    setInteractionNextTime("");
     setIsFormDialogOpen(true);
   };
 
@@ -337,11 +350,14 @@ export default function ClientesPage() {
         oneTimeValue: customer.oneTimeValue || 0,
         monthlyValue: customer.monthlyValue || 0,
     });
+    setInteractionSummary("");
+    setInteractionNextDate("");
+    setInteractionNextTime("");
     setIsFormDialogOpen(true);
   };
   
   const handleCloneClick = (customer: Customer) => {
-    const { id, createdAt, lastContact, ...rest } = customer;
+    const { id, createdAt, lastContact, interactions, ...rest } = customer;
     const clonedCustomer: Omit<Customer, 'id'> = {
       ...rest,
       name: `${customer.name} (Cópia)`,
@@ -350,6 +366,7 @@ export default function ClientesPage() {
       status: 'new',
       serviceCategories: customer.serviceCategories ? [...customer.serviceCategories] : [],
       observations: customer.observations || "",
+      interactions: [],
     };
     addCustomer(clonedCustomer);
     toast({
@@ -397,6 +414,50 @@ export default function ClientesPage() {
     toast({ title: "Cliente Excluído", description: `${deletingCustomer.name} foi removido.` });
     setDeletingCustomer(null);
     setEditingCustomer(null);
+  };
+
+  const handleAddInteraction = () => {
+    if (!interactionSummary.trim() || !editingCustomer || !currentUser) return;
+
+    const newInteraction: Interaction = {
+        id: `int_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        summary: interactionSummary,
+        nextContactDate: interactionNextDate || undefined,
+        nextContactTime: interactionNextTime || undefined,
+        userId: currentUser.id,
+        userName: currentUser.name,
+    };
+
+    const updatedInteractions = [...(editingCustomer.interactions || []), newInteraction];
+    
+    updateCustomer({
+        ...editingCustomer,
+        interactions: updatedInteractions,
+        lastContact: new Date().toISOString(),
+    });
+
+    // Se houver data de próximo contato, cria agendamento automático
+    if (interactionNextDate && interactionNextTime) {
+        addAppointment({
+            date: interactionNextDate,
+            time: interactionNextTime,
+            clientName: editingCustomer.name,
+            address: editingCustomer.endereco || "N/A",
+            phone: editingCustomer.telefone,
+            contact: editingCustomer.contactName || editingCustomer.name,
+            assignedTo: [`user:${currentUser.id}`],
+            summary: `Retorno CRM: ${interactionSummary.substring(0, 50)}...`,
+            status: 'scheduled',
+        });
+        toast({ title: "Agendamento Criado", description: "O próximo contato foi adicionado à sua agenda." });
+    }
+
+    setInteractionSummary("");
+    setInteractionNextDate("");
+    setInteractionNextTime("");
+    
+    toast({ title: "Interação Registrada", description: "O histórico do cliente foi atualizado." });
   };
 
   const handleDownloadTemplate = () => {
@@ -493,6 +554,7 @@ export default function ClientesPage() {
                     observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']),
                     oneTimeValue: Number(findValue(['valor venda', 'venda'])) || 0,
                     monthlyValue: Number(findValue(['valor mensal', 'mensal'])) || 0,
+                    interactions: [],
                 });
             });
             if (importedCustomers.length > 0) {
@@ -557,6 +619,7 @@ export default function ClientesPage() {
         observations: values.observations,
         oneTimeValue: values.oneTimeValue,
         monthlyValue: values.monthlyValue,
+        interactions: [],
       };
       addCustomer(newCustomerData);
       toast({ title: "Cliente Salvo!" });
@@ -625,7 +688,7 @@ export default function ClientesPage() {
             }}>
               <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}><PlusCircle className="h-3.5 w-3.5" /><span>Novo</span></Button>
               <DialogContent 
-                className="sm:max-w-[700px]" 
+                className="sm:max-w-[900px]" 
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 onCloseAutoFocus={(e) => e.preventDefault()}
               >
@@ -639,234 +702,261 @@ export default function ClientesPage() {
                         </Button>
                       </div>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto px-1">
-                        <div className="space-y-4 bg-primary/5 p-4 rounded-lg">
-                            <FormField
-                                control={form.control}
-                                name="isLead"
-                                render={({ field }) => (
-                                <FormItem className="flex items-center justify-between">
-                                    <div className="space-y-0.5"><FormLabel>Tipo de Registro</FormLabel></div>
-                                    <div className="flex items-center space-x-2">
-                                        <span className={cn("text-xs", !field.value && "text-primary font-bold")}>Cliente</span>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                        <span className={cn("text-xs", field.value && "text-primary font-bold")}>Lead</span>
-                                    </div>
-                                </FormItem>
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-4 max-h-[75vh] overflow-y-auto px-1">
+                        <div className="lg:col-span-3 space-y-4">
+                            <div className="space-y-4 bg-primary/5 p-4 rounded-lg">
+                                <FormField
+                                    control={form.control}
+                                    name="isLead"
+                                    render={({ field }) => (
+                                    <FormItem className="flex items-center justify-between">
+                                        <div className="space-y-0.5"><FormLabel>Tipo de Registro</FormLabel></div>
+                                        <div className="flex items-center space-x-2">
+                                            <span className={cn("text-xs", !field.value && "text-primary font-bold")}>Cliente</span>
+                                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                            <span className={cn("text-xs", field.value && "text-primary font-bold")}>Lead</span>
+                                        </div>
+                                    </FormItem>
+                                    )}
+                                />
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="oneTimeValue"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="flex items-center gap-2">
+                                                    <Tag className="h-3.5 w-3.5 text-primary" />
+                                                    Valor de Venda (Única)
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" step="0.01" placeholder="0,00" {...field} />
+                                                </FormControl>
+                                                <FormDescription>Peças ou serviço avulso.</FormDescription>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="monthlyValue"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="flex items-center gap-2">
+                                                    <Repeat className="h-3.5 w-3.5 text-primary" />
+                                                    Valor do Contrato (Mensal)
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" step="0.01" placeholder="0,00" {...field} />
+                                                </FormControl>
+                                                <FormDescription>Recorrência mensal.</FormDescription>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
+                                {!isLead && (
+                                    <>
+                                    <Separator className="bg-primary/10" />
+                                    <FormField
+                                        control={form.control}
+                                        name="tipoCliente"
+                                        render={({ field }) => (
+                                            <FormItem className="space-y-3">
+                                                <FormLabel>Classificação do Cliente</FormLabel>
+                                                <FormControl>
+                                                    <RadioGroup
+                                                        onValueChange={field.onChange}
+                                                        defaultValue={field.value}
+                                                        className="flex flex-row space-x-4"
+                                                    >
+                                                        <FormItem className="flex items-center space-x-2 space-y-0">
+                                                            <FormControl>
+                                                                <RadioGroupItem value="one_time" />
+                                                            </FormControl>
+                                                            <FormLabel className="font-normal cursor-pointer">
+                                                                Avulso
+                                                            </FormLabel>
+                                                        </FormItem>
+                                                        <FormItem className="flex items-center space-x-2 space-y-0">
+                                                            <FormControl>
+                                                                <RadioGroupItem value="active_contract" />
+                                                            </FormControl>
+                                                            <FormLabel className="font-normal cursor-pointer">
+                                                                Contrato
+                                                            </FormLabel>
+                                                        </FormItem>
+                                                    </RadioGroup>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    </>
                                 )}
-                            />
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="oneTimeValue"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="flex items-center gap-2">
-                                                <Tag className="h-3.5 w-3.5 text-primary" />
-                                                Valor de Venda (Única)
-                                            </FormLabel>
-                                            <FormControl>
-                                                <Input type="number" step="0.01" placeholder="0,00" {...field} />
-                                            </FormControl>
-                                            <FormDescription>Peças ou serviço avulso.</FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="monthlyValue"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="flex items-center gap-2">
-                                                <Repeat className="h-3.5 w-3.5 text-primary" />
-                                                Valor do Contrato (Mensal)
-                                            </FormLabel>
-                                            <FormControl>
-                                                <Input type="number" step="0.01" placeholder="0,00" {...field} />
-                                            </FormControl>
-                                            <FormDescription>Recorrência mensal.</FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
                             </div>
 
-                            {!isLead && (
-                                <>
-                                <Separator className="bg-primary/10" />
-                                <FormField
+                            <div className="space-y-4 mt-2">
+                              <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados {isLead ? 'do Lead' : 'Gerais'}</h3>
+                              <Separator />
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {!isLead && (
+                                  <FormField
                                     control={form.control}
-                                    name="tipoCliente"
+                                    name="cnpj"
                                     render={({ field }) => (
-                                        <FormItem className="space-y-3">
-                                            <FormLabel>Classificação do Cliente</FormLabel>
-                                            <FormControl>
-                                                <RadioGroup
-                                                    onValueChange={field.onChange}
-                                                    defaultValue={field.value}
-                                                    className="flex flex-row space-x-4"
-                                                >
-                                                    <FormItem className="flex items-center space-x-2 space-y-0">
-                                                        <FormControl>
-                                                            <RadioGroupItem value="one_time" />
-                                                        </FormControl>
-                                                        <FormLabel className="font-normal cursor-pointer">
-                                                            Avulso
-                                                        </FormLabel>
-                                                    </FormItem>
-                                                    <FormItem className="flex items-center space-x-2 space-y-0">
-                                                        <FormControl>
-                                                            <RadioGroupItem value="active_contract" />
-                                                        </FormControl>
-                                                        <FormLabel className="font-normal cursor-pointer">
-                                                            Contrato
-                                                        </FormLabel>
-                                                    </FormItem>
-                                                </RadioGroup>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
+                                      <FormItem>
+                                        <FormLabel>CNPJ/CPF</FormLabel>
+                                        <div className="flex items-center gap-2">
+                                          <FormControl><Input placeholder="00.000.000/0000-00" {...field} onChange={(e) => field.onChange(formatDocument(e.target.value))} /></FormControl>
+                                          <Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
+                                            {isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                          </Button>
+                                        </div>
+                                        <FormMessage />
+                                      </FormItem>
                                     )}
-                                />
-                                </>
-                            )}
-                        </div>
-
-                        <div className="space-y-4 mt-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Observações de Serviço</h3>
-                          <Separator />
-                          <FormField
-                            control={form.control}
-                            name="observations"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Detalhes Técnicos / Notas Internas</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    placeholder="Ex: 5 PCs, 2 Impressoras HP, todos com Win 11. Manutenção preventiva mensal..." 
-                                    className="min-h-[100px]"
-                                    {...field} 
-                                    value={field.value || ''}
                                   />
-                                </FormControl>
-                                <FormDescription>Especifique os equipamentos e particularidades do serviço.</FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                                )}
+                                <FormField 
+                                  control={form.control} 
+                                  name="razaoSocial" 
+                                  render={({ field }) => (
+                                    <FormItem className={cn(isLead && "md:col-span-2")}>
+                                      <FormLabel>{isLead ? 'Nome do Lead / Empresa' : 'Razão Social'}</FormLabel>
+                                      <FormControl><Input placeholder={isLead ? 'Ex: Tech Solutions' : ''} {...field} /></FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )} 
+                                />
+                                {!isLead && (
+                                  <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl></FormItem>)} />
+                                )}
+                                <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>Nome do Contato</FormLabel><FormControl><Input placeholder="Pessoa principal de contato" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                              </div>
+                            </div>
+
+                            <div className="space-y-4 mt-2">
+                              <h3 className="text-sm font-semibold flex items-center gap-2"><Phone className="h-4 w-4" /> Comunicação</h3>
+                              <Separator />
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" placeholder="contato@empresa.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="telefone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                              </div>
+                            </div>
+                            <div className="space-y-4 mt-2">
+                              <h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Localização {isLead && '(Se houver)'}</h3>
+                              <Separator />
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="endereco" render={({ field }) => (<FormItem className="md:col-span-3"><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Logradouro, número, bairro..." {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                              </div>
+                            </div>
                         </div>
 
-                        {!isLead && (
-                          <div className="space-y-4 mt-2">
-                            <h3 className="text-sm font-semibold flex items-center gap-2"><Tags className="h-4 w-4" /> Serviços Contratados</h3>
-                            <Separator />
-                            <FormField
-                              control={form.control}
-                              name="serviceCategories"
-                              render={() => (
-                                <FormItem>
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    {SERVICE_CATEGORIES.map((category) => (
-                                      <FormField
-                                        key={category.id}
-                                        control={form.control}
-                                        name="serviceCategories"
-                                        render={({ field }) => {
-                                          return (
-                                            <FormItem
-                                              key={category.id}
-                                              className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-muted/20"
-                                            >
-                                              <FormControl>
-                                                <Checkbox
-                                                  checked={field.value?.includes(category.id)}
-                                                  onCheckedChange={(checked) => {
-                                                    return checked
-                                                      ? field.onChange([...field.value, category.id])
-                                                      : field.onChange(
-                                                          field.value?.filter(
-                                                            (value) => value !== category.id
-                                                          )
-                                                        )
-                                                  }}
-                                                />
-                                              </FormControl>
-                                              <FormLabel className="font-normal cursor-pointer">
-                                                {category.label}
-                                              </FormLabel>
-                                            </FormItem>
-                                          )
-                                        }}
-                                      />
-                                    ))}
-                                  </div>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        )}
+                        <div className="lg:col-span-2 border-l pl-6 space-y-6">
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-semibold flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" /> Histórico de Contatos (CRM)</h3>
+                                <div className="space-y-3 bg-muted/30 p-3 rounded-lg border border-border/50">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs uppercase text-muted-foreground font-bold">Resumo do Contato</Label>
+                                        <Textarea 
+                                            placeholder="O que foi conversado hoje?" 
+                                            className="text-xs h-20 bg-background"
+                                            value={interactionSummary}
+                                            onChange={(e) => setInteractionSummary(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] uppercase text-muted-foreground font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Próximo Contato</Label>
+                                            <Input 
+                                                type="date" 
+                                                className="text-xs h-8 bg-background" 
+                                                value={interactionNextDate}
+                                                onChange={(e) => setInteractionNextDate(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] uppercase text-muted-foreground font-bold">Horário</Label>
+                                            <Input 
+                                                type="time" 
+                                                className="text-xs h-8 bg-background" 
+                                                value={interactionNextTime}
+                                                onChange={(e) => setInteractionNextTime(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        type="button" 
+                                        size="sm" 
+                                        className="w-full h-8 text-xs gap-2" 
+                                        disabled={!interactionSummary.trim() || !editingCustomer}
+                                        onClick={handleAddInteraction}
+                                    >
+                                        <Check className="h-3 w-3" /> Registrar Interação
+                                    </Button>
+                                    {!editingCustomer && <p className="text-[10px] text-center text-destructive">Salve o cadastro primeiro para registrar interações.</p>}
+                                </div>
 
-                        <div className="space-y-4 mt-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados {isLead ? 'do Lead' : 'Gerais'}</h3>
-                          <Separator />
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {!isLead && (
+                                <ScrollArea className="h-[300px] pr-3">
+                                    <div className="space-y-4 mt-4">
+                                        {editingCustomer?.interactions && editingCustomer.interactions.length > 0 ? (
+                                            editingCustomer.interactions.slice().reverse().map((int) => (
+                                                <div key={int.id} className="relative pl-4 border-l-2 border-primary/20 pb-4">
+                                                    <div className="absolute -left-[7px] top-0 h-3 w-3 rounded-full bg-primary" />
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-[10px] font-bold text-primary uppercase">{int.userName}</span>
+                                                            <span className="text-[10px] text-muted-foreground">{format(parseISO(int.timestamp), 'dd/MM/yyyy HH:mm')}</span>
+                                                        </div>
+                                                        <p className="text-xs text-foreground/90 bg-muted/50 p-2 rounded leading-relaxed">{int.summary}</p>
+                                                        {int.nextContactDate && (
+                                                            <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold mt-1">
+                                                                <CalendarPlus className="h-3 w-3" />
+                                                                <span>Retorno agendado: {format(parseISO(int.nextContactDate), 'dd/MM/yyyy')} às {int.nextContactTime}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                                                <History className="h-8 w-8 mb-2 opacity-20" />
+                                                <p className="text-xs italic">Nenhuma interação registrada.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </ScrollArea>
+                            </div>
+
+                            <div className="space-y-4">
+                              <h3 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Observações Técnicas</h3>
+                              <Separator />
                               <FormField
                                 control={form.control}
-                                name="cnpj"
+                                name="observations"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>CNPJ/CPF</FormLabel>
-                                    <div className="flex items-center gap-2">
-                                      <FormControl><Input placeholder="00.000.000/0000-00" {...field} onChange={(e) => field.onChange(formatDocument(e.target.value))} /></FormControl>
-                                      <Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
-                                        {isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                                      </Button>
-                                    </div>
+                                    <FormControl>
+                                      <Textarea 
+                                        placeholder="Ex: 5 PCs, 2 Impressoras HP. Manutenção preventiva mensal..." 
+                                        className="min-h-[100px] text-xs"
+                                        {...field} 
+                                        value={field.value || ''}
+                                      />
+                                    </FormControl>
+                                    <FormDescription className="text-[10px]">Especifique equipamentos e particularidades fixas.</FormDescription>
                                     <FormMessage />
                                   </FormItem>
                                 )}
                               />
-                            )}
-                            <FormField 
-                              control={form.control} 
-                              name="razaoSocial" 
-                              render={({ field }) => (
-                                <FormItem className={cn(isLead && "md:col-span-2")}>
-                                  <FormLabel>{isLead ? 'Nome do Lead / Empresa' : 'Razão Social'}</FormLabel>
-                                  <FormControl><Input placeholder={isLead ? 'Ex: Tech Solutions' : ''} {...field} /></FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )} 
-                            />
-                            {!isLead && (
-                              <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl></FormItem>)} />
-                            )}
-                            <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>Nome do Contato</FormLabel><FormControl><Input placeholder="Pessoa principal de contato" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                          </div>
-                        </div>
-
-                        <div className="space-y-4 mt-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><Phone className="h-4 w-4" /> Comunicação</h3>
-                          <Separator />
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" placeholder="contato@empresa.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="telefone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                          </div>
-                        </div>
-                        <div className="space-y-4 mt-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Localização {isLead && '(Se houver)'}</h3>
-                          <Separator />
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                            <FormField control={form.control} name="endereco" render={({ field }) => (<FormItem className="md:col-span-3"><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Logradouro, número, bairro..." {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                          </div>
+                            </div>
                         </div>
                     </div>
-                    <DialogFooter className="gap-2">
+                    <DialogFooter className="gap-2 mt-4">
                       {editingCustomer && (
                         <>
                           <Button type="button" variant="destructive" className="mr-auto" onClick={() => handleDeleteClick(editingCustomer)}>Excluir</Button>
@@ -876,7 +966,7 @@ export default function ClientesPage() {
                         </>
                       )}
                       <Button variant="ghost" type="button" onClick={() => setIsFormDialogOpen(false)}>Cancelar</Button>
-                      <Button type="submit">{editingCustomer ? 'Salvar' : 'Cadastrar'}</Button>
+                      <Button type="submit">{editingCustomer ? 'Salvar Alterações' : 'Cadastrar'}</Button>
                     </DialogFooter>
                   </form>
                 </Form>
@@ -938,7 +1028,7 @@ export default function ClientesPage() {
                     <TableRow>
                         <TableHead>Nome / Contato</TableHead>
                         <TableHead>Status / Valores</TableHead>
-                        <TableHead className="hidden md:table-cell">Localização</TableHead>
+                        <TableHead className="hidden md:table-cell">Último Contato</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                     </TableHeader>
@@ -995,8 +1085,11 @@ export default function ClientesPage() {
                                 )}
                             </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell max-w-[200px]">
-                            {customer.endereco ? <div className="text-xs truncate"><MapPin className="h-3 w-3 inline mr-1" />{customer.endereco}</div> : <span className="text-xs text-muted-foreground italic">N/A</span>}
+                        <TableCell className="hidden md:table-cell">
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-xs font-medium">{format(parseISO(customer.lastContact), 'dd/MM/yyyy')}</span>
+                                <span className="text-[10px] text-muted-foreground">{format(parseISO(customer.lastContact), 'HH:mm')}</span>
+                            </div>
                         </TableCell>
                         <TableCell className="text-right">
                             <div className="flex justify-end gap-1">

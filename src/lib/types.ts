@@ -69,6 +69,16 @@ export type ServiceOrder = {
     history?: ServiceOrderHistoryEntry[];
 };
 
+export type Interaction = {
+  id: string;
+  timestamp: string;
+  summary: string;
+  nextContactDate?: string;
+  nextContactTime?: string;
+  userName: string;
+  userId: string;
+};
+
 export type CustomerStatus = "lead" | "opportunity" | "proposal" | "negotiation" | "won" | "lost" | "active" | "inactive" | "new" | "discarded";
 export type CustomerType = "active_contract" | "one_time" | "lead";
 
@@ -93,6 +103,7 @@ export type Customer = {
     value?: number;
     oneTimeValue?: number;
     monthlyValue?: number;
+    interactions?: Interaction[];
 };
 
 export type Product = {
