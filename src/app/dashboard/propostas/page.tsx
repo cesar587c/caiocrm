@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import jsPDF from 'jsPDF';
+import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -54,6 +54,7 @@ import {
   Pencil,
   Repeat,
   Tag,
+  XCircle,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -168,8 +169,7 @@ export default function PropostasPage() {
     name: 'items',
   });
 
-  const { watch } = form;
-  const watchItems = watch('items');
+  const watchItems = form.watch('items');
   const watchInstallments = form.watch('installments');
 
   const totals = useMemo(() => {
@@ -299,15 +299,9 @@ ${companyProfile.email}
 
     const encodedSubject = encodeURIComponent(subject);
     const encodedBody = encodeURIComponent(body);
-
     const mailtoUrl = `mailto:?subject=${encodedSubject}&body=${encodedBody}`;
-
     window.location.href = mailtoUrl;
-
-    toast({
-      title: "E-mail Pronto para Envio",
-      description: "Seu cliente de e-mail foi aberto com a proposta.",
-    });
+    toast({ title: "E-mail Pronto", description: "Seu cliente de e-mail foi aberto." });
   };
 
   const handleSendWhatsApp = (proposal: Proposal) => {
@@ -341,87 +335,43 @@ ${companyProfile.phone}`;
 
     const cleanPhone = proposal.clientPhone?.replace(/\D/g, '') || '';
     if (cleanPhone.length < 10) {
-         toast({
-            title: "Número de Cliente Inválido",
-            description: `O cliente ${proposal.clientName} não possui um número de telefone válido.`,
-            variant: "destructive",
-        });
+         toast({ title: "Número Inválido", description: "O cliente não possui um telefone válido.", variant: "destructive" });
         return;
     }
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
     const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
     window.open(url, 'vendaspro_whatsapp');
-
-    toast({
-        title: "WhatsApp Aberto",
-        description: `A proposta para ${proposal.clientName} está pronta para ser enviada.`,
-    });
   };
-
 
   const handleDownloadPdf = async () => {
     const proposalElement = document.getElementById('proposal-preview');
-    if (!proposalElement) {
-        toast({
-            variant: 'destructive',
-            title: 'Erro ao gerar PDF',
-            description: 'Não foi possível encontrar o conteúdo da proposta.'
-        });
+    if (!proposalElement || !selectedProposal) {
+        toast({ variant: 'destructive', title: 'Erro ao gerar PDF' });
         return;
     }
-    if (!selectedProposal) return;
-
     setIsDownloading(true);
-
     try {
-        const canvas = await html2canvas(proposalElement, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: null,
-            windowWidth: proposalElement.scrollWidth,
-            windowHeight: proposalElement.scrollHeight,
-        });
-        
+        const canvas = await html2canvas(proposalElement, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL('image/png');
-        
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'mm',
-            format: 'a4',
-        });
-        
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const canvasWidth = canvas.width;
         const canvasHeight = canvas.height;
         const canvasAspectRatio = canvasWidth / canvasHeight;
-        
         let finalPdfWidth = pdfWidth;
         let finalPdfHeight = pdfWidth / canvasAspectRatio;
-
         if (finalPdfHeight > pdfHeight) {
             finalPdfHeight = pdfHeight;
             finalPdfWidth = pdfHeight * canvasAspectRatio;
         }
-
         const xOffset = (pdfWidth - finalPdfWidth) / 2;
         const yOffset = (pdfHeight - finalPdfHeight) / 2;
-        
         pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalPdfWidth, finalPdfHeight);
         pdf.save(`proposta-${selectedProposal.id}.pdf`);
-
-        toast({
-            title: 'Download Iniciado',
-            description: `O download da proposta ${selectedProposal.id} começou.`,
-        });
-
     } catch (error) {
-        console.error("Erro ao gerar PDF:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Erro ao gerar PDF',
-            description: 'Ocorreu um erro inesperado. Tente novamente.',
-        });
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Erro ao gerar PDF' });
     } finally {
         setIsDownloading(false);
     }
@@ -429,24 +379,14 @@ ${companyProfile.phone}`;
 
   const confirmDeleteAction = () => {
     if (!deletingProposal) return;
-    setSavedProposals(proposals => proposals.filter(p => p.id !== deletingProposal.id));
-    toast({
-      title: "Proposta Excluída",
-      description: `A proposta ${deletingProposal.id} foi removida com sucesso.`,
-    });
+    setSavedProposals(prev => prev.filter(p => p.id !== deletingProposal.id));
+    toast({ title: "Proposta Excluída" });
     setDeletingProposal(null);
   };
   
-  const handleCancelPreview = () => {
-    setSelectedProposal(null);
-  };
-
   const handleAddProductFromList = (product: Product) => {
     append({ name: product.name, quantity: 1, price: product.price, isMonthly: false });
-    toast({
-      title: "Item Adicionado!",
-      description: `"${product.name}" foi adicionado à proposta.`,
-    });
+    toast({ title: "Item Adicionado!", description: `"${product.name}" foi adicionado à proposta.` });
   };
 
   const handleEditProposalClick = (proposal: Proposal) => {
@@ -464,16 +404,11 @@ ${companyProfile.phone}`;
     });
     setIsQuickAddingClient(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    toast({
-        title: "Modo de Edição",
-        description: `Alterando a proposta ${proposal.id}. O cliente não pode ser modificado.`,
-    });
   };
 
   const handleCancelEdit = () => {
     setEditingProposal(null);
     form.reset({
-      clientId: undefined,
       clientName: '',
       clientPhone: '',
       proposalDate: new Date(),
@@ -484,154 +419,60 @@ ${companyProfile.phone}`;
       firstAsDownPayment: false,
     });
     setIsQuickAddingClient(false);
-    toast({
-        title: "Edição Cancelada",
-    });
   };
 
   const onSubmit = (data: ProposalFormValues) => {
     const currentTotals = data.items.reduce(
         (acc, item) => {
             const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
-            if (item.isMonthly) {
-                acc.monthly += subtotal;
-            } else {
-                acc.oneTime += subtotal;
-            }
+            if (item.isMonthly) acc.monthly += subtotal;
+            else acc.oneTime += subtotal;
             return acc;
         },
         { oneTime: 0, monthly: 0 }
     );
     
-    data.items.forEach(item => {
-        const lowerCaseName = item.name.toLowerCase().trim();
-        const newPrice = Number(item.price);
-        const existingProduct = products.find(p => p.name.toLowerCase().trim() === lowerCaseName);
-
-        if (existingProduct && existingProduct.price !== newPrice) {
-            const updatedPriceHistory = [newPrice, ...existingProduct.priceHistory.filter(p => p !== newPrice)];
-            updateProduct({
-                ...existingProduct,
-                price: newPrice,
-                priceHistory: updatedPriceHistory,
-            });
-        }
-    });
-
     if (editingProposal) {
       const updatedProposal: Proposal = {
+        ...data,
         id: editingProposal.id,
-        clientId: editingProposal.clientId,
-        clientName: editingProposal.clientName,
-        clientPhone: editingProposal.clientPhone,
-        proposalDate: data.proposalDate,
-        validityDate: data.validityDate,
-        items: data.items,
-        paymentMethod: data.paymentMethod,
-        installments: data.installments,
-        firstAsDownPayment: data.firstAsDownPayment,
         totalOneTime: currentTotals.oneTime,
         totalMonthly: currentTotals.monthly,
       };
-
       setSavedProposals(prev => prev.map(p => p.id === editingProposal.id ? updatedProposal : p));
-      toast({
-        title: 'Proposta Atualizada!',
-        description: `A proposta ${editingProposal.id} foi atualizada com sucesso.`,
-      });
-
+      toast({ title: 'Proposta Atualizada!' });
     } else {
-      const newId = savedProposals.length > 0
-        ? Math.max(0, ...savedProposals.map(p => Number(p.id))) + 1
-        : 1;
-
-      const newProposalData: Proposal = {
+      const newId = savedProposals.length > 0 ? Math.max(0, ...savedProposals.map(p => Number(p.id))) + 1 : 1;
+      const newProposal: Proposal = {
         ...data,
         id: String(newId),
         totalOneTime: currentTotals.oneTime,
         totalMonthly: currentTotals.monthly,
       };
-      setSavedProposals(prev => [newProposalData, ...prev]);
-
-      toast({
-        title: 'Proposta Salva!',
-        description: `A proposta ${newProposalData.id} foi salva com sucesso e adicionada à lista abaixo.`,
-      });
+      setSavedProposals(prev => [newProposal, ...prev]);
+      toast({ title: 'Proposta Salva!' });
     }
 
-    form.reset({
-      clientId: undefined,
-      clientName: '',
-      clientPhone: '',
-      proposalDate: new Date(),
-      validityDate: addDays(new Date(), 10),
-      items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
-      paymentMethod: 'boleto',
-      installments: 1,
-      firstAsDownPayment: false,
-    });
-    setIsQuickAddingClient(false);
-    setEditingProposal(null);
-  };
-
-  const handleEditProductClick = (e: React.MouseEvent, product: Product) => {
-    e.stopPropagation();
-    setEditingProduct(product);
-    productForm.reset({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-    });
-    setIsProductFormOpen(true);
-  };
-
-  const handleDeleteProductClick = (e: React.MouseEvent, product: Product) => {
-    e.stopPropagation();
-    setDeletingProduct(product);
-  };
-
-  const confirmDeleteProductAction = () => {
-    if (!deletingProduct) return;
-    deleteProduct(deletingProduct.id);
-    toast({
-      title: "Produto Excluído",
-      description: `"${deletingProduct.name}" foi removido com sucesso.`,
-    });
-    setDeletingProduct(null);
+    handleCancelEdit();
   };
 
   const onProductSubmit = (values: ProductFormValues) => {
     if (!editingProduct) return;
-    
-    const newPrice = values.price;
-    const oldPrice = editingProduct.price;
-    let newPriceHistory = editingProduct.priceHistory;
-    
-    if (newPrice !== oldPrice) {
-      newPriceHistory = [newPrice, ...editingProduct.priceHistory.filter(price => price !== newPrice)];
-    }
-
     updateProduct({
         ...editingProduct,
         name: values.name,
-        price: newPrice,
-        priceHistory: newPriceHistory,
-    });
-
-    toast({
-      title: "Produto Atualizado",
-      description: `"${values.name}" foi atualizado com sucesso.`
+        price: values.price,
+        priceHistory: values.price !== editingProduct.price ? [values.price, ...editingProduct.priceHistory] : editingProduct.priceHistory,
     });
     setIsProductFormOpen(false);
     setEditingProduct(null);
+    toast({ title: "Produto Atualizado" });
   };
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
       <datalist id="product-datalist">
-        {products.map(product => (
-          <option key={product.id} value={product.name} />
-        ))}
+        {products.map(product => <option key={product.id} value={product.name} />)}
       </datalist>
       
         <div className="flex items-center justify-between">
@@ -649,281 +490,151 @@ ${companyProfile.phone}`;
                                 <CardDescription>{editingProposal ? 'Altere os itens e condições de pagamento.' : 'Preencha os dados para gerar uma nova proposta'}</CardDescription>
                             </div>
                             <div className="flex items-center gap-4">
-                                <div className="space-y-1 text-right">
-                                    <FormLabel htmlFor="proposalDate">Data de Emissão</FormLabel>
-                                    <Controller
-                                        control={form.control}
-                                        name="proposalDate"
-                                        render={({ field }) => (
+                                <FormField
+                                    control={form.control}
+                                    name="proposalDate"
+                                    render={({ field }) => (
+                                        <div className="space-y-1 text-right">
+                                            <Label className="text-xs uppercase font-bold text-muted-foreground">Emissão</Label>
                                             <Popover>
                                                 <PopoverTrigger asChild>
-                                                <Button
-                                                    type="button"
-                                                    variant={"outline"}
-                                                    className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                                <Button type="button" variant="outline" className={cn("w-[140px] justify-start text-left font-normal h-8 text-xs", !field.value && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-3 w-3" />
+                                                    {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Data</span>}
                                                 </Button>
                                                 </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0">
-                                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
-                                                </PopoverContent>
+                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={ptBR}/></PopoverContent>
                                             </Popover>
-                                        )}
-                                    />
-                                </div>
-                                <div className="space-y-1 text-right">
-                                    <FormLabel htmlFor="validityDate">Data de Validade</FormLabel>
-                                    <Controller
-                                        control={form.control}
-                                        name="validityDate"
-                                        render={({ field }) => (
+                                        </div>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="validityDate"
+                                    render={({ field }) => (
+                                        <div className="space-y-1 text-right">
+                                            <Label className="text-xs uppercase font-bold text-muted-foreground">Validade</Label>
                                             <Popover>
                                                 <PopoverTrigger asChild>
-                                                <Button
-                                                    type="button"
-                                                    variant={"outline"}
-                                                    className={cn("w-[180px] justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                                <Button type="button" variant="outline" className={cn("w-[140px] justify-start text-left font-normal h-8 text-xs", !field.value && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-3 w-3" />
+                                                    {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Data</span>}
                                                 </Button>
                                                 </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0">
-                                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR}/>
-                                                </PopoverContent>
+                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={ptBR}/></PopoverContent>
                                             </Popover>
-                                        )}
-                                    />
-                                </div>
+                                        </div>
+                                    )}
+                                />
                             </div>
                         </CardHeader>
-                        <CardContent className="flex items-center gap-4">
-                            {companyProfile.logoUrl ? (
-                                <img
-                                src={companyProfile.logoUrl}
-                                alt="Logo"
-                                data-ai-hint="logo"
-                                className="h-16 w-24 object-contain"
-                                />
-                            ) : (
-                                <Building className="h-16 w-16 text-muted-foreground" />
-                            )}
+                        <CardContent className="flex items-center gap-4 border-t pt-6">
+                            {companyProfile.logoUrl ? <img src={companyProfile.logoUrl} alt="Logo" data-ai-hint="logo" className="h-16 w-24 object-contain" /> : <Building className="h-16 w-16 text-muted-foreground" />}
                             <div>
                                 <h3 className="font-bold text-lg">{companyProfile.name}</h3>
-                                <p className="text-sm text-muted-foreground">{companyProfile.email}</p>
-                                <p className="text-sm text-muted-foreground">{companyProfile.phone}</p>
-                                <p className="text-sm text-muted-foreground">{companyProfile.address}</p>
+                                <p className="text-sm text-muted-foreground">{companyProfile.email} | {companyProfile.phone}</p>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card className="mt-6">
-                    <CardHeader>
-                        <CardTitle>Dados do Cliente</CardTitle>
-                        {editingProposal ? (
-                            <CardDescription>O cliente não pode ser alterado durante a edição.</CardDescription>
-                        ) : (
-                            <CardDescription>Selecione um cliente existente ou cadastre um novo.</CardDescription>
-                        )}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {editingProposal ? (
-                            <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/50">
-                                <div><span className="font-semibold">Cliente:</span> {editingProposal.clientName}</div>
-                                <div><span className="font-semibold">Telefone:</span> {editingProposal.clientPhone}</div>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="flex gap-2">
-                                    <div className="flex-1">
-                                        <Label className="mb-2 block">Selecionar Cliente</Label>
-                                        <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecione um cliente existente..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                        </SelectContent>
-                                        </Select>
+                        <CardHeader>
+                            <CardTitle>Dados do Cliente</CardTitle>
+                            <CardDescription>Selecione um cliente ou preencha manualmente.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {!editingProposal ? (
+                                <>
+                                    <div className="flex gap-2">
+                                        <div className="flex-1">
+                                            <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
+                                                <SelectTrigger><SelectValue placeholder="Selecione um cliente..." /></SelectTrigger>
+                                                <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <Button type="button" variant="outline" onClick={handleQuickAddClient}><PlusCircle className="mr-2 h-4 w-4" />Avulso</Button>
                                     </div>
-                                    <Button type="button" variant="outline" className="mt-auto" onClick={handleQuickAddClient}>
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Cadastro Rápido
-                                    </Button>
+                                    {isQuickAddingClient && (
+                                        <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20">
+                                            <div className="space-y-2">
+                                                <Label>Nome do Cliente</Label>
+                                                <Input {...form.register('clientName')} placeholder="Nome completo" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Telefone</Label>
+                                                <Input {...form.register('clientPhone')} placeholder="(00) 00000-0000" />
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/50">
+                                    <div><span className="font-semibold">Cliente:</span> {form.getValues('clientName')}</div>
+                                    <div><span className="font-semibold">Telefone:</span> {form.getValues('clientPhone')}</div>
                                 </div>
-
-                                {isQuickAddingClient && (
-                                    <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20">
-                                        <div>
-                                            <Label htmlFor="clientName">Nome do Cliente</Label>
-                                            <Input id="clientName" {...form.register('clientName')} placeholder="Nome completo ou Razão Social" />
-                                            {form.formState.errors.clientName && <p className="text-destructive text-sm mt-1">{form.formState.errors.clientName.message}</p>}
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="clientPhone">Telefone</Label>
-                                            <Input id="clientPhone" {...form.register('clientPhone')} placeholder="(00) 00000-0000" />
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {form.getValues('clientId') && !isQuickAddingClient && (
-                                    <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md">
-                                        <div><span className="font-semibold">Cliente:</span> {form.getValues('clientName')}</div>
-                                        <div><span className="font-semibold">Telefone:</span> {form.getValues('clientPhone')}</div>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </CardContent>
+                            )}
+                        </CardContent>
                     </Card>
 
                     <Card className="mt-6">
-                    <CardHeader>
-                        <CardTitle>Itens da Proposta</CardTitle>
-                        <CardDescription>Adicione os produtos ou serviços que fazem parte desta proposta. Defina se o item é cobrança única ou mensal.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead className="w-[40%]">Descrição</TableHead>
-                            <TableHead>Qtd.</TableHead>
-                            <TableHead>Recorrência</TableHead>
-                            <TableHead>Preço Unit.</TableHead>
-                            <TableHead>Subtotal</TableHead>
-                            <TableHead className="text-right">Ação</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {fields.map((item, index) => {
-                            const currentItemName = watchItems[index]?.name;
-                            const currentProduct = products.find(p => p.name.toLowerCase() === currentItemName?.toLowerCase());
-
-                            return (
-                            <TableRow key={item.id}>
-                                <TableCell>
-                                <Textarea
-                                    placeholder="Descrição do produto ou serviço"
-                                    {...form.register(`items.${index}.name`)}
-                                    className="min-h-0 h-10"
-                                    list="product-datalist"
-                                    onBlur={() => handleItemNameBlur(index)}
-                                />
-                                </TableCell>
-                                <TableCell>
-                                <Input
-                                    type="number"
-                                    {...form.register(`items.${index}.quantity`)}
-                                    className="w-16"
-                                />
-                                </TableCell>
-                                <TableCell>
-                                    <Controller
-                                        control={form.control}
-                                        name={`items.${index}.isMonthly`}
-                                        render={({ field }) => (
-                                            <Select onValueChange={(val) => field.onChange(val === 'monthly')} value={field.value ? 'monthly' : 'onetime'}>
-                                                <SelectTrigger className="w-28 h-10">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="onetime" className="flex items-center gap-2">
-                                                        Único
-                                                    </SelectItem>
-                                                    <SelectItem value="monthly" className="flex items-center gap-2">
-                                                        Mensal
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                <div className="relative flex items-center">
-                                    <Input
-                                    type="number"
-                                    step="0.01"
-                                    {...form.register(`items.${index}.price`)}
-                                    className={cn("w-28", currentProduct && 'pr-8')}
-                                    />
-                                    {currentProduct && (
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute right-0 h-full w-8 text-muted-foreground hover:bg-transparent"
-                                            aria-label="Ver histórico de preços"
-                                        >
-                                            <History className="h-4 w-4" />
-                                        </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto max-w-xs p-2">
-                                        <div className="space-y-1">
-                                            <p className="font-semibold text-sm px-1.5">Histórico de Preços</p>
-                                            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                                            {currentProduct.priceHistory.length > 0 ? (
-                                                currentProduct.priceHistory.map((price, idx) => (
-                                                <Button
-                                                    key={`${price}-${idx}`}
-                                                    type="button"
-                                                    variant="ghost"
-                                                    className="h-auto justify-between p-1.5 text-xs font-normal gap-2"
-                                                    onClick={() => {
-                                                    form.setValue(`items.${index}.price`, price, { shouldDirty: true });
-                                                    form.trigger(`items.${index}.price`);
-                                                    }}
-                                                >
-                                                    <span>{price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                                    {price === currentProduct.price && <Badge variant="secondary">Recente</Badge>}
-                                                </Button>
-                                                ))
-                                            ) : (
-                                                <p className="text-xs text-muted-foreground p-1.5">Nenhum histórico.</p>
+                        <CardHeader><CardTitle>Itens da Proposta</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                            <TableHeader>
+                                <TableRow>
+                                <TableHead className="w-[40%]">Descrição</TableHead>
+                                <TableHead>Qtd.</TableHead>
+                                <TableHead>Recorrência</TableHead>
+                                <TableHead>Preço Unit.</TableHead>
+                                <TableHead>Subtotal</TableHead>
+                                <TableHead className="text-right w-10"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {fields.map((item, index) => {
+                                const currentItemName = watchItems[index]?.name;
+                                const currentProduct = products.find(p => p.name.toLowerCase() === currentItemName?.toLowerCase());
+                                return (
+                                <TableRow key={item.id}>
+                                    <TableCell><Textarea placeholder="Descrição..." {...form.register(`items.${index}.name`)} className="min-h-0 h-10 py-1" list="product-datalist" onBlur={() => handleItemNameBlur(index)} /></TableCell>
+                                    <TableCell><Input type="number" {...form.register(`items.${index}.quantity`)} className="w-16 h-8" /></TableCell>
+                                    <TableCell>
+                                        <Controller
+                                            control={form.control}
+                                            name={`items.${index}.isMonthly`}
+                                            render={({ field }) => (
+                                                <Select onValueChange={(val) => field.onChange(val === 'monthly')} value={field.value ? 'monthly' : 'onetime'}>
+                                                    <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                    <SelectContent><SelectItem value="onetime">Único</SelectItem><SelectItem value="monthly">Mensal</SelectItem></SelectContent>
+                                                </Select>
                                             )}
-                                            </div>
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="relative flex items-center">
+                                            <Input type="number" step="0.01" {...form.register(`items.${index}.price`)} className={cn("w-24 h-8 pr-6", !currentProduct && 'pr-2')} />
+                                            {currentProduct && (
+                                                <Popover>
+                                                    <PopoverTrigger asChild><Button type="button" variant="ghost" size="icon" className="absolute right-0 h-8 w-6 text-muted-foreground"><History className="h-3 w-3" /></Button></PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-2"><p className="font-bold text-xs mb-1">Histórico</p><div className="flex flex-col gap-1">{currentProduct.priceHistory.map((p, i) => <Button key={i} variant="ghost" className="h-6 text-[10px] justify-start" onClick={() => { form.setValue(`items.${index}.price`, p); form.trigger(`items.${index}.price`); }}>{p.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Button>)}</div></PopoverContent>
+                                                </Popover>
+                                            )}
                                         </div>
-                                        </PopoverContent>
-                                    </Popover>
-                                    )}
-                                </div>
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                {((Number(watchItems[index]?.quantity) || 0) * (Number(watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                                </TableCell>
-                            </TableRow>
-                            )})}
-                        </TableBody>
-                        </Table>
-                        {form.formState.errors.items && (
-                            <p className="text-destructive text-sm mt-2">{form.formState.errors.items.message || form.formState.errors.items.root?.message}</p>
-                        )}
-                    </CardContent>
-                    <CardFooter className="justify-between items-start pt-6 border-t">
-                        <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
-                        </Button>
-                        <div className="text-right space-y-2">
-                            <div className="flex items-center justify-end gap-2 text-primary">
-                                <Tag className="h-4 w-4" />
-                                <span className="text-sm font-medium">Total de Investimento (Único):</span>
-                                <span className="text-xl font-bold">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    </TableCell>
+                                    <TableCell className="font-medium text-xs">{((Number(watchItems[index]?.quantity) || 0) * (Number(watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                                    <TableCell className="text-right"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                                </TableRow>
+                                )})}
+                            </TableBody>
+                            </Table>
+                        </CardContent>
+                        <CardFooter className="justify-between border-t pt-6">
+                            <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })}><PlusCircle className="mr-2 h-4 w-4" />Adicionar Item</Button>
+                            <div className="text-right space-y-1">
+                                <div className="flex items-center justify-end gap-2 text-primary font-bold"><Tag className="h-4 w-4" /><span>Investimento: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                <div className="flex items-center justify-end gap-2 text-emerald-500 font-bold"><Repeat className="h-4 w-4" /><span>Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
                             </div>
-                            <div className="flex items-center justify-end gap-2 text-emerald-500">
-                                <Repeat className="h-4 w-4" />
-                                <span className="text-sm font-medium">Total Recorrente (Mensal):</span>
-                                <span className="text-xl font-bold">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                            </div>
-                    </div>
-                    </CardFooter>
+                        </CardFooter>
                     </Card>
                 </form>
             </Form>
@@ -931,389 +642,161 @@ ${companyProfile.phone}`;
 
         <div className="lg:col-span-1 space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Condições de Pagamento</CardTitle>
-              <CardDescription>O parcelamento se aplica ao Valor Único (Investimento).</CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle>Pagamento e Resumo</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label className="mb-2 block">Forma de Pagamento</Label>
+              <div className="space-y-2">
+                <Label>Forma (Venda Única)</Label>
                 <Controller
                   control={form.control}
                   name="paymentMethod"
                   render={({ field }) => (
                        <Select onValueChange={field.onChange} value={field.value}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="boleto">Boleto Bancário</SelectItem>
-                              <SelectItem value="pix">PIX</SelectItem>
-                              <SelectItem value="cartao">Cartão de Crédito</SelectItem>
-                          </SelectContent>
+                          <SelectContent><SelectItem value="boleto">Boleto</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="cartao">Cartão</SelectItem></SelectContent>
                       </Select>
                   )}
                 />
               </div>
-              <div>
-                <Label className="mb-2 block">Parcelamento</Label>
+              <div className="space-y-2">
+                <Label>Parcelas</Label>
                  <Controller
                   control={form.control}
                   name="installments"
                   render={({ field }) => (
                       <Select onValueChange={field.onChange} value={String(field.value)}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                          {[...Array(6)].map((_, i) => (
-                              <SelectItem key={i + 1} value={String(i + 1)}>
-                              {i + 1}x de { (totals.oneTime / (i + 1) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
-                              </SelectItem>
-                          ))}
-                          </SelectContent>
+                          <SelectContent>{[...Array(6)].map((_, i) => <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}x de { (totals.oneTime / (i + 1) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</SelectItem>)}</SelectContent>
                       </Select>
                   )}
                 />
               </div>
-              <Controller
-                  control={form.control}
-                  name="firstAsDownPayment"
-                  render={({ field }) => (
-                      <div className="flex items-center space-x-2">
-                          <Switch id="firstAsDownPayment" checked={field.value} onCheckedChange={field.onChange} />
-                          <Label htmlFor="firstAsDownPayment">Considerar 1ª parcela como entrada?</Label>
-                      </div>
-                  )}
-              />
+              <div className="flex items-center space-x-2">
+                  <Controller control={form.control} name="firstAsDownPayment" render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />} />
+                  <Label className="text-xs">1ª parcela como entrada?</Label>
+              </div>
+              <Separator />
+              <div className="space-y-1 text-sm">
+                  <div className="flex justify-between font-bold"><span>Total Único:</span> <span className="text-primary">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                  <div className="flex justify-between font-bold"><span>Total Mensal:</span> <span className="text-emerald-500">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                  <div className="flex justify-between text-xs text-muted-foreground italic"><span>({watchInstallments}x de { (totals.oneTime / watchInstallments || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) } no investimento)</span></div>
+              </div>
             </CardContent>
-            <CardFooter className="flex-col items-start space-y-2">
-              <p className="font-bold text-lg">Resumo Final</p>
-              <div className="w-full text-sm space-y-1">
-                  <div className="flex justify-between"><span>Venda Única:</span> <span className="font-medium text-primary">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                  <div className="flex justify-between"><span>Mensalidade:</span> <span className="font-medium text-emerald-500">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                  <Separator className="my-1" />
-                  <div className="flex justify-between"><span>Parcelas Venda:</span> <span className="font-medium">{watchInstallments}x de { (totals.oneTime / watchInstallments || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</span></div>
-              </div>
-            </CardFooter>
+            <CardFooter><Button type="submit" form="proposal-form" className="w-full">{editingProposal ? 'Atualizar' : 'Salvar Proposta'}</Button></CardFooter>
           </Card>
-          <div className="flex flex-col gap-2">
-            {editingProposal && (
-                <Button type="button" variant="outline" size="lg" onClick={handleCancelEdit}>Cancelar Edição</Button>
-            )}
-            <Button type="submit" size="lg" form="proposal-form">
-                {editingProposal ? 'Atualizar Proposta' : 'Salvar Proposta'}
-            </Button>
-          </div>
+          
           <Card>
-            <CardHeader>
-              <CardTitle>Produtos Cadastrados</CardTitle>
-              <CardDescription>Clique em um item para adicioná-lo à proposta.</CardDescription>
-               <div className="relative pt-2">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground mt-2" />
-                  <Input 
-                    placeholder="Buscar produto..." 
-                    className="pl-8" 
-                    value={productSearch} 
-                    onChange={(e) => setProductSearch(e.target.value)} 
-                  />
-              </div>
+            <CardHeader className="p-4"><CardTitle className="text-sm">Produtos Rápidos</CardTitle>
+                <div className="relative mt-2"><Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" /><Input placeholder="Buscar..." className="pl-7 h-8 text-xs" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} /></div>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-72">
-                <div className="flex flex-col gap-1 pr-2">
-                  {filteredProducts.map(product => (
-                     <div
-                      key={product.id}
-                      className="group flex cursor-pointer items-center justify-between rounded-md p-2 hover:bg-muted"
-                      onClick={() => handleAddProductFromList(product)}
-                    >
-                      <div className="flex-1 truncate pr-2">
-                        <p className="font-semibold text-sm truncate">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                      </div>
-                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => handleEditProductClick(e, product)}
-                          aria-label="Editar produto"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={(e) => handleDeleteProductClick(e, product)}
-                          aria-label="Excluir produto"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+            <CardContent className="p-0">
+              <ScrollArea className="h-64">
+                <div className="px-4 pb-4 space-y-1">
+                  {filteredProducts.map(p => (
+                     <div key={p.id} className="group flex cursor-pointer items-center justify-between rounded-md p-2 hover:bg-muted" onClick={() => handleAddProductFromList(p)}>
+                      <div className="flex-1 truncate"><p className="font-semibold text-xs truncate">{p.name}</p><p className="text-[10px] text-muted-foreground">{p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></div>
+                      <div className="flex items-center opacity-0 group-hover:opacity-100"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingProduct(p); productForm.reset({ id: p.id, name: p.name, price: p.price }); setIsProductFormOpen(true); }}><Pencil className="h-3 w-3" /></Button><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); setDeletingProduct(p); }}><Trash2 className="h-3 w-3" /></Button></div>
                     </div>
                   ))}
-                   {filteredProducts.length === 0 && (
-                      <p className="text-sm text-center text-muted-foreground py-4">Nenhum produto encontrado.</p>
-                   )}
                 </div>
               </ScrollArea>
             </CardContent>
           </Card>
-
         </div>
       </div>
       
       <Card className="mt-6">
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-                <ListChecks className="h-5 w-5"/>
-                Propostas Salvas
-            </CardTitle>
-            <CardDescription>Gerencie e acompanhe as propostas que você já criou.</CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5"/>Propostas Geradas</CardTitle></CardHeader>
         <CardContent>
             <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Proposta</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Investimento</TableHead>
-                        <TableHead>Mensalidade</TableHead>
-                        <TableHead className="text-right w-[180px]">Ações</TableHead>
-                    </TableRow>
-                </TableHeader>
+                <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Investimento</TableHead><TableHead>Mensal</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                 <TableBody>
-                    {savedProposals.length === 0 ? (
-                        <TableRow>
-                            <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
-                                Nenhuma proposta salva ainda.
+                    {savedProposals.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-20 text-muted-foreground">Vazio</TableCell></TableRow> : savedProposals.map(p => (
+                        <TableRow key={p.id}>
+                            <TableCell className="font-bold">#{p.id}</TableCell>
+                            <TableCell>{p.clientName}</TableCell>
+                            <TableCell>{format(p.proposalDate, 'dd/MM/yyyy')}</TableCell>
+                            <TableCell className="text-primary font-medium">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="text-emerald-500 font-medium">{p.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="text-right">
+                                <div className="flex justify-end gap-1">
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleEditProposalClick(p)}><Pencil className="h-4 w-4" /></Button>
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedProposal(p)}><Printer className="h-4 w-4" /></Button>
+                                    <Button variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingProposal(p)}><Trash2 className="h-4 w-4" /></Button>
+                                </div>
                             </TableCell>
                         </TableRow>
-                    ) : (
-                        savedProposals.map(proposal => (
-                            <TableRow key={proposal.id}>
-                                <TableCell className="font-medium">{proposal.id}</TableCell>
-                                <TableCell>{proposal.clientName}</TableCell>
-                                <TableCell>{isClient ? format(proposal.proposalDate, 'dd/MM/yyyy') : ''}</TableCell>
-                                <TableCell>{proposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                                <TableCell>{proposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                                <TableCell className="text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <Button type="button" variant="outline" size="icon" onClick={() => handleEditProposalClick(proposal)}>
-                                            <Pencil className="h-4 w-4" />
-                                            <span className="sr-only">Editar</span>
-                                        </Button>
-                                        <Button type="button" variant="outline" size="icon" onClick={() => setSelectedProposal(proposal)}>
-                                            <Printer className="h-4 w-4" />
-                                            <span className="sr-only">Visualizar e Imprimir</span>
-                                        </Button>
-                                        <Button type="button" variant="outline" size="icon" onClick={() => setDeletingProposal(proposal)}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                            <span className="sr-only">Excluir</span>
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))
-                    )}
+                    ))}
                 </TableBody>
             </Table>
         </CardContent>
       </Card>
 
-
-        <Dialog open={!!selectedProposal} onOpenChange={(isOpen) => !isOpen && setSelectedProposal(null)}>
+        <Dialog open={!!selectedProposal} onOpenChange={(open) => !open && setSelectedProposal(null)}>
             <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
-                <DialogHeader className="print-hide">
-                <DialogTitle>Pré-visualização da Proposta</DialogTitle>
-                <DialogDescription>
-                    Confira como o documento final será gerado. Após a confirmação, você poderá enviá-lo ao cliente.
-                </DialogDescription>
-                </DialogHeader>
+                <DialogHeader className="print-hide"><DialogTitle>Pré-visualização da Proposta</DialogTitle></DialogHeader>
                 {selectedProposal && (
-                <div id="print-container" className="flex-1 border rounded-md bg-muted/30 overflow-y-auto p-8">
-                    <div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto font-sans">
+                <ScrollArea className="flex-1 -mx-6 px-6">
+                    <div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto font-sans my-8">
                         <div className="flex justify-between items-start mb-8">
-                            <div>
-                                <h1 className="text-2xl font-bold">{companyProfile.name}</h1>
-                                { companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" data-ai-hint="logo" className="mt-2 max-h-12 w-auto" /> }
-                            </div>
-                            <div className="text-right text-sm">
-                                <p>{companyProfile.address}</p>
-                                <p>{companyProfile.email}</p>
-                                <p>{companyProfile.phone}</p>
-                            </div>
+                            <div><h1 className="text-2xl font-bold">{companyProfile.name}</h1>{ companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="mt-2 max-h-12" /> }</div>
+                            <div className="text-right text-xs"><p>{companyProfile.address}</p><p>{companyProfile.email}</p><p>{companyProfile.phone}</p></div>
                         </div>
-                        
-                        <hr className="my-8 border-gray-300" />
-
-                        <h2 className="text-xl font-bold mb-4">Proposta Comercial {selectedProposal.id}</h2>
-                        
+                        <hr className="my-8" />
+                        <h2 className="text-xl font-bold mb-4">Proposta Comercial #{selectedProposal.id}</h2>
                         <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
-                        <div>
-                            <p className="font-bold text-gray-600">PARA:</p>
-                            <p className="font-semibold">{selectedProposal.clientName}</p>
-                            <p>{selectedProposal.clientPhone}</p>
+                            <div><p className="font-bold text-gray-500 uppercase text-xs">Para:</p><p className="font-bold">{selectedProposal.clientName}</p><p>{selectedProposal.clientPhone}</p></div>
+                            <div className="text-right"><p><span className="font-bold">Emissão:</span> {format(selectedProposal.proposalDate, 'dd/MM/yyyy')}</p><p><span className="font-bold">Validade:</span> {format(selectedProposal.validityDate, 'dd/MM/yyyy')}</p></div>
                         </div>
-                        <div className="text-right">
-                            <p><span className="font-bold text-gray-600">Data da Proposta:</span> {isClient ? format(selectedProposal.proposalDate, 'dd/MM/yyyy') : ''}</p>
-                            <p><span className="font-bold text-gray-600">Validade:</span> {isClient ? format(selectedProposal.validityDate, 'dd/MM/yyyy') : ''}</p>
-                        </div>
-                        </div>
-
-                        <p className="text-sm mb-4">Prezado(a) {selectedProposal.clientName.split(' ')[0]},</p>
-                        <p className="text-sm mb-4">É com grande prazer que apresentamos nossa proposta comercial para os serviços solicitados. Acreditamos que nossa solução trará grande valor para sua empresa.</p>
-
                         <table className="w-full text-left text-sm mb-8">
-                        <thead className="bg-gray-100">
-                            <tr>
-                            <th className="p-2 font-semibold">Item</th>
-                            <th className="p-2 text-center font-semibold">Qtd.</th>
-                            <th className="p-2 text-right font-semibold">Preço Unit.</th>
-                            <th className="p-2 text-right font-semibold">Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {selectedProposal.items.map((item, index) => (
-                            <tr key={index} className="border-b border-gray-200">
-                                <td className="p-2">{item.name} {item.isMonthly && <span className="text-[10px] font-bold text-emerald-600">(mensal)</span>}</td>
-                                <td className="p-2 text-center">{item.quantity}</td>
-                                <td className="p-2 text-right">{(Number(item.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                                <td className="p-2 text-right">{((Number(item.quantity) || 0) * (Number(item.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                            </tr>
-                            ))}
-                        </tbody>
+                            <thead className="bg-gray-100"><tr><th className="p-2">Item</th><th className="p-2 text-center">Qtd.</th><th className="p-2 text-right">Preço Unit.</th><th className="p-2 text-right">Subtotal</th></tr></thead>
+                            <tbody>{selectedProposal.items.map((it, i) => (
+                                <tr key={i} className="border-b"><td className="p-2">{it.name} {it.isMonthly && <span className="text-[10px] font-bold text-emerald-600">(mensal)</span>}</td><td className="p-2 text-center">{it.quantity}</td><td className="p-2 text-right">{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="p-2 text-right">{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                            ))}</tbody>
                         </table>
-                        
-                        <div className="flex justify-end mb-8">
-                            <div className="w-2/3 space-y-1">
-                                <div className="flex justify-between text-base">
-                                    <span className="font-semibold text-gray-600">Total Investimento (Único):</span>
-                                    <span className="font-bold">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                </div>
-                                <div className="flex justify-between text-base border-t pt-1">
-                                    <span className="font-semibold text-emerald-700">Total Recorrente (Mensal):</span>
-                                    <span className="font-bold text-emerald-700">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-gray-50 p-4 rounded-md text-sm">
-                        <h3 className="font-bold mb-2">Condições de Pagamento (Valor Único)</h3>
-                        <p className="capitalize"><span className="font-semibold">Forma:</span> {selectedProposal.paymentMethod.replace('cartao', 'Cartão de Crédito')}</p>
-                        <p><span className="font-semibold">Parcelamento:</span> {selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                        {selectedProposal.firstAsDownPayment && <p>A primeira parcela deverá ser paga como entrada.</p>}
-                        </div>
-
-                        <div className="mt-12 text-xs text-gray-500 text-center">
-                            <p>Agradecemos a oportunidade e ficamos à disposição para quaisquer esclarecimentos.</p>
-                            <p>Atenciosamente, {companyProfile.name}</p>
-                        </div>
+                        <div className="flex justify-end mb-8"><div className="w-1/2 space-y-1"><div className="flex justify-between text-sm"><span>Total Único:</span> <span className="font-bold">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div><div className="flex justify-between text-sm text-emerald-700 pt-1 border-t"><span>Total Mensal:</span> <span className="font-bold">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div></div></div>
+                        <div className="bg-gray-50 p-4 rounded text-sm"><h3 className="font-bold mb-1">Pagamento (Investimento Único)</h3><p>Forma: {selectedProposal.paymentMethod.toUpperCase()} | Parcelas: {selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></div>
+                        <div className="mt-12 text-center text-[10px] text-gray-400"><p>Atenciosamente, {companyProfile.name}</p></div>
                     </div>
-                </div>
+                </ScrollArea>
                 )}
-                <DialogFooter className="print-hide">
-                    <Button type="button" variant="outline" onClick={handleCancelPreview}>Cancelar</Button>
-                    <Button type="button" variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>
-                        {isDownloading ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Download className="mr-2 h-4 w-4" />
-                        )}
-                        Baixar PDF
-                    </Button>
-                    {selectedProposal && (
-                        <>
-                        <Button type="button" onClick={() => {
-                            handleSendEmail(selectedProposal);
-                        }}>
-                          <Mail className="mr-2 h-4 w-4" /> Enviar por E-mail
-                        </Button>
-                        <Button type="button" onClick={() => handleSendWhatsApp(selectedProposal)}>
-                          <Send className="mr-2 h-4 w-4" /> Enviar por WhatsApp
-                        </Button>
-                        </>
-                    )}
+                <DialogFooter className="print-hide border-t pt-4">
+                    <Button variant="outline" onClick={() => setSelectedProposal(null)}>Fechar</Button>
+                    <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>{isDownloading ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4" />} PDF</Button>
+                    <Button onClick={() => handleSendWhatsApp(selectedProposal!)}><Send className="h-4 w-4" /> WhatsApp</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
         
         <AlertDialog open={!!deletingProposal} onOpenChange={(open) => !open && setDeletingProposal(null)}>
-            <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Essa ação não pode ser desfeita. Isso excluirá permanentemente a
-                    proposta <span className="font-semibold">{deletingProposal?.id}</span> para o cliente <span className="font-semibold">{deletingProposal?.clientName}</span>.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDeleteAction}>Confirmar Exclusão</AlertDialogAction>
-                </AlertDialogFooter>
+            <AlertDialogContent>
+                <AlertDialogHeader><AlertDialogTitle>Excluir Proposta?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                <AlertDialogFooter><AlertDialogCancel>Não</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction}>Sim, Excluir</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
 
         <Dialog open={isProductFormOpen} onOpenChange={setIsProductFormOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[400px]">
                 <Form {...productForm}>
-                <form onSubmit={productForm.handleSubmit(onProductSubmit)}>
-                    <DialogHeader>
-                    <DialogTitle>Editar Produto</DialogTitle>
-                    <DialogDescription>
-                        Altere os dados do produto abaixo. As alterações serão refletidas em futuras propostas.
-                    </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                    <FormField
-                        control={productForm.control}
-                        name="name"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Nome do Produto</FormLabel>
-                            <FormControl>
-                            <Input placeholder="Nome do produto ou serviço" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={productForm.control}
-                        name="price"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Preço</FormLabel>
-                            <FormControl>
-                            <Input type="number" step="0.01" placeholder="0,00" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    </div>
-                    <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsProductFormOpen(false)}>Cancelar</Button>
-                    <Button type="submit">Salvar Alterações</Button>
-                    </DialogFooter>
-                </form>
+                    <form onSubmit={productForm.handleSubmit(onProductSubmit)}>
+                        <DialogHeader><DialogTitle>Editar Produto</DialogTitle></DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <FormField control={productForm.control} name="name" render={({ field }) => (
+                                <FormItem><FormLabel>Nome</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={productForm.control} name="price" render={({ field }) => (
+                                <FormItem><FormLabel>Preço Base</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                        </div>
+                        <DialogFooter><Button type="button" variant="outline" onClick={() => setIsProductFormOpen(false)}>Cancelar</Button><Button type="submit">Salvar</Button></DialogFooter>
+                    </form>
                 </Form>
             </DialogContent>
         </Dialog>
 
         <AlertDialog open={!!deletingProduct} onOpenChange={(open) => !open && setDeletingProduct(null)}>
             <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o produto <span className="font-semibold">{deletingProduct?.name}</span>.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={confirmDeleteProductAction}>Confirmar Exclusão</AlertDialogAction>
-                </AlertDialogFooter>
+                <AlertDialogHeader><AlertDialogTitle>Remover Produto?</AlertDialogTitle></AlertDialogHeader>
+                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteProductAction}>Remover</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
     </div>
