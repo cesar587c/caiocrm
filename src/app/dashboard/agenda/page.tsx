@@ -96,11 +96,15 @@ export default function AgendaPage() {
 
   const isAdmin = currentUser?.role === 'admin';
 
+  // Sistema de destravamento robusto para evitar pointer-events: none preso
   useEffect(() => {
     const anyDialogOpen = isModalOpen || isDeleteDialogOpen || isNotifying || isJustificationDialogOpen;
     if (!anyDialogOpen) {
-      document.body.style.pointerEvents = 'auto';
-      document.body.style.overflow = 'auto';
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = 'auto';
+        document.body.style.overflow = 'auto';
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isModalOpen, isDeleteDialogOpen, isNotifying, isJustificationDialogOpen]);
 
@@ -207,39 +211,42 @@ export default function AgendaPage() {
   };
 
   const triggerNotifications = async (appointment: any) => {
-    setIsNotifying(true);
-    const techIds = appointment.assignedTo
-        .filter((at: string) => at.startsWith('user:'))
-        .map((at: string) => at.split(':')[1]);
-    
-    const technicians = users.filter(u => techIds.includes(u.id));
-
-    try {
-        const response = await sendAppointmentNotifications({
-            appointment,
-            companyName: companyProfile.name,
-            technicians,
-            customMessageTemplate: companyProfile.whatsappReminderMessage
-        });
+    // Atraso intencional para permitir que o modal anterior feche e o body destrave
+    setTimeout(async () => {
+        setIsNotifying(true);
+        const techIds = appointment.assignedTo
+            .filter((at: string) => at.startsWith('user:'))
+            .map((at: string) => at.split(':')[1]);
         
-        if (response.success) {
-            toast({
-                title: "Notificações Enviadas",
-                description: "O cliente e os técnicos foram avisados via WhatsApp (Simulado).",
+        const technicians = users.filter(u => techIds.includes(u.id));
+
+        try {
+            const response = await sendAppointmentNotifications({
+                appointment,
+                companyName: companyProfile.name,
+                technicians,
+                customMessageTemplate: companyProfile.whatsappReminderMessage
             });
-        } else {
-            throw new Error("Falha no envio");
+            
+            if (response.success) {
+                toast({
+                    title: "Notificações Enviadas",
+                    description: "O cliente e os técnicos foram avisados via WhatsApp (Automático).",
+                });
+            } else {
+                throw new Error("Falha no envio");
+            }
+        } catch (error) {
+            console.error("Erro ao enviar notificações automáticas:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro nas Notificações",
+                description: "Não foi possível enviar os avisos automáticos agora.",
+            });
+        } finally {
+            setIsNotifying(false);
         }
-    } catch (error) {
-        console.error("Erro ao enviar notificações automáticas:", error);
-        toast({
-            variant: "destructive",
-            title: "Erro nas Notificações",
-            description: "Não foi possível enviar os avisos automáticos agora.",
-        });
-    } finally {
-        setIsNotifying(false);
-    }
+    }, 300);
   };
 
   const handleMarkAsCompleted = () => {
@@ -307,7 +314,7 @@ export default function AgendaPage() {
     setEditingAppointment(null);
     setSelectedAppointment(null);
     
-    // Disparo automático
+    // Disparo automático com pequeno delay controlado
     triggerNotifications(savedAppointment);
   }
 
@@ -470,7 +477,9 @@ export default function AgendaPage() {
                                                 </Button>
                                             </FormControl>
                                         </DialogTrigger>
-                                        <DialogContent className="w-auto"><Calendar mode="single" selected={field.value} onSelect={(date) => { if(date) { field.onChange(date); openModalForDay(date); } }} locale={ptBR} /></DialogContent>
+                                        <DialogContent className="w-auto" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+                                          <Calendar mode="single" selected={field.value} onSelect={(date) => { if(date) { field.onChange(date); openModalForDay(date); } }} locale={ptBR} />
+                                        </DialogContent>
                                     </Dialog>
                                     <FormMessage />
                                 </FormItem>
@@ -591,7 +600,7 @@ export default function AgendaPage() {
       </Dialog>
       
       <Dialog open={isNotifying} onOpenChange={setIsNotifying}>
-        <DialogContent className="sm:max-w-md text-center p-8">
+        <DialogContent className="sm:max-w-md text-center p-8" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <div className="flex flex-col items-center gap-4">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 <DialogTitle>Enviando Notificações Automáticas</DialogTitle>
@@ -603,7 +612,7 @@ export default function AgendaPage() {
       </Dialog>
 
     <Dialog open={isJustificationDialogOpen} onOpenChange={setIsJustificationDialogOpen}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <DialogHeader><DialogTitle>Justificar Não Conclusão</DialogTitle></DialogHeader>
             <div className="py-4"><Textarea placeholder="Motivo..." value={justification} onChange={(e) => setJustification(e.target.value)} rows={4}/></div>
             <DialogFooter>
@@ -614,7 +623,7 @@ export default function AgendaPage() {
     </Dialog>
 
     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Agendamento?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -630,3 +639,4 @@ export default function AgendaPage() {
     </>
   );
 }
+

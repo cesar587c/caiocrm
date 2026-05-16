@@ -80,12 +80,15 @@ export default function UsuariosPage() {
     confirmPassword: false,
   });
 
-  // Fix for system "lock"
+  // Fix para sistema "lock" de clique preso no body
   useEffect(() => {
     const anyDialogOpen = !!deletingUser;
     if (!anyDialogOpen) {
-      document.body.style.pointerEvents = 'auto';
-      document.body.style.overflow = 'auto';
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = 'auto';
+        document.body.style.overflow = 'auto';
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [deletingUser]);
 
@@ -500,3 +503,4 @@ export default function UsuariosPage() {
     </>
   );
 }
+
