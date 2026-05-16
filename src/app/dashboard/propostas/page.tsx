@@ -469,6 +469,13 @@ ${companyProfile.phone}`;
     toast({ title: "Produto Atualizado" });
   };
 
+  const confirmDeleteProductAction = () => {
+    if (!deletingProduct) return;
+    deleteProduct(deletingProduct.id);
+    toast({ title: "Produto Removido" });
+    setDeletingProduct(null);
+  };
+
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
       <datalist id="product-datalist">
