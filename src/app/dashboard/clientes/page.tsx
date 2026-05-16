@@ -39,7 +39,11 @@ import {
   MessageSquare,
   History,
   Clock,
-  CalendarPlus
+  CalendarPlus,
+  Send,
+  BellRing,
+  CheckCircle2,
+  AlertTriangle
 } from "lucide-react";
 import { format, startOfDay, endOfDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -115,6 +119,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { sendAppointmentNotifications } from "@/app/actions";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -177,14 +182,14 @@ const defaultFormValues = {
 };
 
 export default function ClientesPage() {
-  const { customers, addCustomer, addCustomers, updateCustomer, deleteCustomer, addAppointment, currentUser } = useSettings();
+  const { customers, addCustomer, addCustomers, updateCustomer, deleteCustomer, addAppointment, currentUser, companyProfile, users } = useSettings();
   const [isCnpjLoading, setIsCnpjLoading] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
   const [convertingCustomer, setConvertingCustomer] = useState<Customer | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTermTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [date, setDate] = useState<DateRange | undefined>(undefined);
@@ -195,15 +200,24 @@ export default function ClientesPage() {
   const [interactionNextDate, setInteractionNextDate] = useState<string>("");
   const [interactionNextTime, setInteractionNextTime] = useState<string>("");
 
+  // States para notificação
+  const [notificationState, setNotificationState] = useState<{
+    isOpen: boolean;
+    isLoading: boolean;
+    isSimulated: boolean;
+    details: any[];
+  }>({ isOpen: false, isLoading: false, isSimulated: false, details: [] });
+  const [sentMessageIndexes, setSentMessages] = useState<number[]>([]);
+
   const { toast } = useToast();
 
   useEffect(() => {
-    const anyModalOpen = isFormDialogOpen || isImportDialogOpen || !!deletingCustomer || !!convertingCustomer;
+    const anyModalOpen = isFormDialogOpen || isImportDialogOpen || !!deletingCustomer || !!convertingCustomer || notificationState.isOpen;
     if (!anyModalOpen) {
       document.body.style.pointerEvents = 'auto';
       document.body.style.overflow = 'auto';
     }
-  }, [isFormDialogOpen, isImportDialogOpen, deletingCustomer, convertingCustomer]);
+  }, [isFormDialogOpen, isImportDialogOpen, deletingCustomer, convertingCustomer, notificationState.isOpen]);
 
   const formatPhoneNumber = (value: string) => {
     if (!value) return "";
@@ -232,10 +246,10 @@ export default function ClientesPage() {
   });
 
   const displayedCustomers = useMemo(() => {
-    const lowercasedSearchTerm = searchTerm.toLowerCase();
+    const lowercasedSearchTerm = searchTermTerm.toLowerCase();
 
     let filtered = customers.filter(c =>
-        searchTerm === "" ||
+        searchTermTerm === "" ||
         c.name.toLowerCase().includes(lowercasedSearchTerm) ||
         (c.nomeFantasia && c.nomeFantasia.toLowerCase().includes(lowercasedSearchTerm)) ||
         (c.contactName && c.contactName.toLowerCase().includes(lowercasedSearchTerm)) ||
@@ -283,7 +297,7 @@ export default function ClientesPage() {
 
     return filtered.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
-  }, [customers, searchTerm, activeTab, selectedServices, date]);
+  }, [customers, searchTermTerm, activeTab, selectedServices, date]);
 
 
   const handleCnpjLookup = async () => {
@@ -358,12 +372,8 @@ export default function ClientesPage() {
   
   const handleCloneClick = (customer: Customer) => {
     const { id, createdAt, lastContact, interactions, status, ...rest } = customer;
-    
-    // Se o registro original for um Lead (está em algum estágio do funil), preservamos o status para que a cópia continue no funil.
-    // Se for um cliente regular, definimos como 'new'.
     const isLeadStatus = ['lead', 'opportunity', 'proposal', 'negotiation'].includes(status);
     const clonedStatus = isLeadStatus ? status : 'new';
-
     const clonedCustomer: Omit<Customer, 'id'> = {
       ...rest,
       status: clonedStatus,
@@ -375,10 +385,7 @@ export default function ClientesPage() {
       interactions: [],
     };
     addCustomer(clonedCustomer);
-    toast({
-        title: "Registro Clonado!",
-        description: `O registro de "${customer.name}" foi duplicado com sucesso.`,
-    });
+    toast({ title: "Registro Clonado!", description: `O registro de "${customer.name}" foi duplicado com sucesso.` });
   };
 
   const handleInactivateClick = (customer: Customer) => {
@@ -409,9 +416,7 @@ export default function ClientesPage() {
 
   const handleDeleteClick = (customer: Customer) => {
     setIsFormDialogOpen(false);
-    setTimeout(() => {
-        setDeletingCustomer(customer);
-    }, 150);
+    setTimeout(() => { setDeletingCustomer(customer); }, 150);
   };
 
   const confirmDeleteAction = () => {
@@ -422,9 +427,38 @@ export default function ClientesPage() {
     setEditingCustomer(null);
   };
 
+  const triggerNotifications = async (appointment: any) => {
+    setNotificationState(prev => ({ ...prev, isOpen: true, isLoading: true }));
+    setSentMessages([]);
+    const technicians = users.filter(u => appointment.assignedTo.includes(`user:${u.id}`));
+    try {
+        const response = await sendAppointmentNotifications({
+            appointment,
+            companyName: companyProfile.name,
+            technicians,
+            customMessageTemplate: companyProfile.whatsappReminderMessage
+        });
+        if (response.success) {
+            setNotificationState({
+                isOpen: true,
+                isLoading: false,
+                isSimulated: !!response.isSimulated,
+                details: response.details || []
+            });
+            if (!response.isSimulated) {
+                toast({ title: "Notificações Enviadas", description: "O lembrete foi enviado via WhatsApp." });
+            }
+        } else {
+            throw new Error("Falha no envio");
+        }
+    } catch (error) {
+        setNotificationState(prev => ({ ...prev, isOpen: false, isLoading: false }));
+        toast({ variant: "destructive", title: "Erro nas Notificações", description: "Não foi possível enviar os avisos agora." });
+    }
+  };
+
   const handleAddInteraction = () => {
     if (!interactionSummary.trim() || !editingCustomer || !currentUser) return;
-
     const newInteraction: Interaction = {
         id: `int_${Date.now()}`,
         timestamp: new Date().toISOString(),
@@ -434,18 +468,11 @@ export default function ClientesPage() {
         userId: currentUser.id,
         userName: currentUser.name,
     };
-
     const updatedInteractions = [...(editingCustomer.interactions || []), newInteraction];
-    
-    updateCustomer({
-        ...editingCustomer,
-        interactions: updatedInteractions,
-        lastContact: new Date().toISOString(),
-    });
+    updateCustomer({ ...editingCustomer, interactions: updatedInteractions, lastContact: new Date().toISOString() });
 
-    // Se houver data de próximo contato, cria agendamento automático
     if (interactionNextDate && interactionNextTime) {
-        addAppointment({
+        const appointmentData = {
             date: interactionNextDate,
             time: interactionNextTime,
             clientName: editingCustomer.name,
@@ -454,35 +481,28 @@ export default function ClientesPage() {
             contact: editingCustomer.contactName || editingCustomer.name,
             assignedTo: [`user:${currentUser.id}`],
             summary: `Retorno CRM: ${interactionSummary.substring(0, 50)}...`,
-            status: 'scheduled',
-        });
+            status: 'scheduled' as const,
+        };
+        addAppointment(appointmentData);
         toast({ title: "Agendamento Criado", description: "O próximo contato foi adicionado à sua agenda." });
+        triggerNotifications(appointmentData);
     }
-
     setInteractionSummary("");
     setInteractionNextDate("");
     setInteractionNextTime("");
-    
     toast({ title: "Interação Registrada", description: "O histórico do cliente foi atualizado." });
   };
 
+  const sendManualWhatsApp = (detail: any, index: number) => {
+    const cleanPhone = detail.phone.replace(/\D/g, '');
+    const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
+    const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(detail.message)}`;
+    window.open(url, 'vendaspro_whatsapp');
+    setSentMessages(prev => prev.includes(index) ? prev : [...prev, index]);
+  };
+
   const handleDownloadTemplate = () => {
-    const data = [
-      {
-        "Razão Social": "Exemplo Empresa LTDA",
-        "Nome Fantasia": "Exemplo Fantasia",
-        "CNPJ/CPF": "00.000.000/0000-00",
-        "Contato": "João Silva",
-        "E-mail": "contato@exemplo.com",
-        "Telefone": "11999999999",
-        "Endereço": "Rua das Flores, 123",
-        "CEP": "01001-000",
-        "Tipo": "Contrato",
-        "Valor Venda": 500,
-        "Valor Mensal": 150.50,
-        "Observações": "Descreva detalhes técnicos aqui..."
-      }
-    ];
+    const data = [{ "Razão Social": "Exemplo Empresa LTDA", "Nome Fantasia": "Exemplo Fantasia", "CNPJ/CPF": "00.000.000/0000-00", "Contato": "João Silva", "E-mail": "contato@exemplo.com", "Telefone": "11999999999", "Endereço": "Rua das Flores, 123", "CEP": "01001-000", "Tipo": "Contrato", "Valor Venda": 500, "Valor Mensal": 150.50, "Observações": "Descreva detalhes técnicos aqui..." }];
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.book_append_sheet(workbook, worksheet, "Importação");
@@ -490,33 +510,12 @@ export default function ClientesPage() {
   };
 
   const handleExportExcel = () => {
-    const dataToExport = displayedCustomers.map(c => ({
-      "Razão Social": c.name,
-      "Nome Fantasia": c.nomeFantasia || "",
-      "CNPJ/CPF": c.cnpj ? formatDocument(c.cnpj) : "",
-      "Contato": c.contactName || "",
-      "E-mail": c.email,
-      "Telefone": c.telefone ? formatPhoneNumber(c.telefone) : "",
-      "Endereço": c.endereco || "",
-      "CEP": c.cep || "",
-      "Status": statusMap[c.status],
-      "Tipo": c.type === 'active_contract' ? 'Contrato' : (c.type === 'one_time' ? 'Avulso' : 'Lead'),
-      "Valor Venda": c.oneTimeValue || 0,
-      "Valor Mensal": c.monthlyValue || 0,
-      "Categorias": (c.serviceCategories || []).map(catId => SERVICE_CATEGORIES.find(s => s.id === catId)?.label).join(", "),
-      "Observações": c.observations || "",
-      "Data de Cadastro": format(new Date(c.createdAt), 'dd/MM/yyyy HH:mm'),
-    }));
-
+    const dataToExport = displayedCustomers.map(c => ({ "Razão Social": c.name, "Nome Fantasia": c.nomeFantasia || "", "CNPJ/CPF": c.cnpj ? formatDocument(c.cnpj) : "", "Contato": c.contactName || "", "E-mail": c.email, "Telefone": c.telefone ? formatPhoneNumber(c.telefone) : "", "Endereço": c.endereco || "", "CEP": c.cep || "", "Status": statusMap[c.status], "Tipo": c.type === 'active_contract' ? 'Contrato' : (c.type === 'one_time' ? 'Avulso' : 'Lead'), "Valor Venda": c.oneTimeValue || 0, "Valor Mensal": c.monthlyValue || 0, "Categorias": (c.serviceCategories || []).map(catId => SERVICE_CATEGORIES.find(s => s.id === catId)?.label).join(", "), "Observações": c.observations || "", "Data de Cadastro": format(new Date(c.createdAt), 'dd/MM/yyyy HH:mm') }));
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.book_append_sheet(workbook, worksheet, "Clientes");
     XLSX.writeFile(workbook, `clientes_vendaspro_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-    
-    toast({
-        title: "Exportação Concluída",
-        description: `${dataToExport.length} registros exportados para Excel.`
-    });
+    toast({ title: "Exportação Concluída", description: `${dataToExport.length} registros exportados para Excel.` });
   };
 
   const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -529,48 +528,16 @@ export default function ClientesPage() {
             const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const rawData = XLSX.utils.sheet_to_json<any>(worksheet);
-            if (rawData.length === 0) {
-                toast({ variant: 'destructive', title: 'Arquivo Vazio' });
-                return;
-            }
+            if (rawData.length === 0) { toast({ variant: 'destructive', title: 'Arquivo Vazio' }); return; }
             const importedCustomers: Omit<Customer, 'id'>[] = [];
             rawData.forEach((row: any) => {
-                const findValue = (keys: string[]) => {
-                    const key = Object.keys(row).find(k => keys.some(sk => k.trim().toLowerCase().includes(sk)));
-                    return key ? String(row[key]).trim() : '';
-                };
+                const findValue = (keys: string[]) => { const key = Object.keys(row).find(k => keys.some(sk => k.trim().toLowerCase().includes(sk))); return key ? String(row[key]).trim() : ''; };
                 const razaoSocial = findValue(['razão social', 'razao social', 'nome', 'empresa', 'cliente']);
                 if (!razaoSocial) return;
-                importedCustomers.push({
-                    name: razaoSocial,
-                    nomeFantasia: findValue(['nome fantasia', 'fantasia']) || razaoSocial,
-                    contactName: findValue(['contato', 'responsável']),
-                    email: findValue(['e-mail', 'email']),
-                    telefone: findValue(['telefone', 'celular', 'whatsapp']),
-                    cnpj: findValue(['cnpj', 'cpf', 'documento', 'identificação', 'cadastro', 'cnpj/cpf']).replace(/\D/g, ''),
-                    endereco: findValue(['endereço', 'endereco', 'rua', 'logradouro']),
-                    cep: findValue(['cep', 'postal', 'código postal']),
-                    status: 'new',
-                    responsible: currentUser?.name || "Admin",
-                    potential: "medium",
-                    lastContact: new Date().toISOString(),
-                    createdAt: new Date().toISOString(),
-                    type: findValue(['tipo']).toLowerCase().includes('contrato') ? 'active_contract' : 'one_time',
-                    serviceCategories: [],
-                    observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']),
-                    oneTimeValue: Number(findValue(['valor venda', 'venda'])) || 0,
-                    monthlyValue: Number(findValue(['valor mensal', 'mensal'])) || 0,
-                    interactions: [],
-                });
+                importedCustomers.push({ name: razaoSocial, nomeFantasia: findValue(['nome fantasia', 'fantasia']) || razaoSocial, contactName: findValue(['contato', 'responsável']), email: findValue(['e-mail', 'email']), telefone: findValue(['telefone', 'celular', 'whatsapp']), cnpj: findValue(['cnpj', 'cpf', 'documento', 'identificação', 'cadastro', 'cnpj/cpf']).replace(/\D/g, ''), endereco: findValue(['endereço', 'endereco', 'rua', 'logradouro']), cep: findValue(['cep', 'postal', 'código postal']), status: 'new', responsible: currentUser?.name || "Admin", potential: "medium", lastContact: new Date().toISOString(), createdAt: new Date().toISOString(), type: findValue(['tipo']).toLowerCase().includes('contrato') ? 'active_contract' : 'one_time', serviceCategories: [], observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']), oneTimeValue: Number(findValue(['valor venda', 'venda'])) || 0, monthlyValue: Number(findValue(['valor mensal', 'mensal'])) || 0, interactions: [] });
             });
-            if (importedCustomers.length > 0) {
-                addCustomers(importedCustomers);
-                toast({ title: "Importação Concluída!", description: `${importedCustomers.length} registros importados.` });
-                setIsImportDialogOpen(false);
-            }
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Erro no Processamento' });
-        }
+            if (importedCustomers.length > 0) { addCustomers(importedCustomers); toast({ title: "Importação Concluída!", description: `${importedCustomers.length} registros importados.` }); setIsImportDialogOpen(false); }
+        } catch (error) { toast({ variant: 'destructive', title: 'Erro no Processamento' }); }
     };
     reader.readAsArrayBuffer(file);
   };
@@ -578,55 +545,11 @@ export default function ClientesPage() {
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (editingCustomer) {
       let nextStatus = editingCustomer.status;
-      if (values.isLead) {
-          if (editingCustomer.status === "new" || editingCustomer.status === "active" || editingCustomer.status === "won") {
-            nextStatus = "lead";
-          }
-      } else {
-          if (editingCustomer.status === "lead" || editingCustomer.status === "new" || editingCustomer.status === "opportunity" || editingCustomer.status === "proposal" || editingCustomer.status === "negotiation") {
-              nextStatus = "won";
-          }
-      }
-      updateCustomer({
-        ...editingCustomer,
-        name: values.razaoSocial,
-        nomeFantasia: values.nomeFantasia || "",
-        contactName: values.contactName,
-        cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
-        email: values.email || '',
-        telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '',
-        endereco: values.endereco,
-        cep: values.cep,
-        status: nextStatus,
-        type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
-        serviceCategories: values.serviceCategories,
-        observations: values.observations,
-        oneTimeValue: values.oneTimeValue,
-        monthlyValue: values.monthlyValue,
-      });
+      if (values.isLead) { if (editingCustomer.status === "new" || editingCustomer.status === "active" || editingCustomer.status === "won") { nextStatus = "lead"; } } else { if (editingCustomer.status === "lead" || editingCustomer.status === "new" || editingCustomer.status === "opportunity" || editingCustomer.status === "proposal" || editingCustomer.status === "negotiation") { nextStatus = "won"; } }
+      updateCustomer({ ...editingCustomer, name: values.razaoSocial, nomeFantasia: values.nomeFantasia || "", contactName: values.contactName, cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '', email: values.email || '', telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '', endereco: values.endereco, cep: values.cep, status: nextStatus, type: values.isLead ? "lead" : (values.tipoCliente as CustomerType), serviceCategories: values.serviceCategories, observations: values.observations, oneTimeValue: values.oneTimeValue, monthlyValue: values.monthlyValue });
       toast({ title: "Dados Atualizados!" });
     } else {
-      const newCustomerData: Omit<Customer, 'id'> = {
-        name: values.razaoSocial,
-        nomeFantasia: values.nomeFantasia || "",
-        contactName: values.contactName,
-        cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
-        email: values.email || '',
-        telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '',
-        endereco: values.endereco,
-        cep: values.cep,
-        status: values.isLead ? "lead" : "new",
-        responsible: currentUser?.name || "Admin",
-        potential: "medium",
-        lastContact: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        type: values.isLead ? "lead" : (values.tipoCliente as CustomerType),
-        serviceCategories: values.serviceCategories,
-        observations: values.observations,
-        oneTimeValue: values.oneTimeValue,
-        monthlyValue: values.monthlyValue,
-        interactions: [],
-      };
+      const newCustomerData: Omit<Customer, 'id'> = { name: values.razaoSocial, nomeFantasia: values.nomeFantasia || "", contactName: values.contactName, cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '', email: values.email || '', telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '', endereco: values.endereco, cep: values.cep, status: values.isLead ? "lead" : "new", responsible: currentUser?.name || "Admin", potential: "medium", lastContact: new Date().toISOString(), createdAt: new Date().toISOString(), type: values.isLead ? "lead" : (values.tipoCliente as CustomerType), serviceCategories: values.serviceCategories, observations: values.observations, oneTimeValue: values.oneTimeValue, monthlyValue: values.monthlyValue, interactions: [] };
       addCustomer(newCustomerData);
       toast({ title: "Cliente Salvo!" });
     }
@@ -693,11 +616,7 @@ export default function ClientesPage() {
                 setIsFormDialogOpen(open);
             }}>
               <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}><PlusCircle className="h-3.5 w-3.5" /><span>Novo</span></Button>
-              <DialogContent 
-                className="sm:max-w-[900px]" 
-                onOpenAutoFocus={(e) => e.preventDefault()}
-                onCloseAutoFocus={(e) => e.preventDefault()}
-              >
+              <DialogContent className="sm:max-w-[900px]" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <DialogHeader>
@@ -736,9 +655,7 @@ export default function ClientesPage() {
                                                     <Tag className="h-3.5 w-3.5 text-primary" />
                                                     Valor de Venda (Única)
                                                 </FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" step="0.01" placeholder="0,00" {...field} />
-                                                </FormControl>
+                                                <FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} /></FormControl>
                                                 <FormDescription>Peças ou serviço avulso.</FormDescription>
                                                 <FormMessage />
                                             </FormItem>
@@ -753,16 +670,13 @@ export default function ClientesPage() {
                                                     <Repeat className="h-3.5 w-3.5 text-primary" />
                                                     Valor do Contrato (Mensal)
                                                 </FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" step="0.01" placeholder="0,00" {...field} />
-                                                </FormControl>
+                                                <FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} /></FormControl>
                                                 <FormDescription>Recorrência mensal.</FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
                                 </div>
-
                                 {!isLead && (
                                     <>
                                     <Separator className="bg-primary/10" />
@@ -773,27 +687,9 @@ export default function ClientesPage() {
                                             <FormItem className="space-y-3">
                                                 <FormLabel>Classificação do Cliente</FormLabel>
                                                 <FormControl>
-                                                    <RadioGroup
-                                                        onValueChange={field.onChange}
-                                                        defaultValue={field.value}
-                                                        className="flex flex-row space-x-4"
-                                                    >
-                                                        <FormItem className="flex items-center space-x-2 space-y-0">
-                                                            <FormControl>
-                                                                <RadioGroupItem value="one_time" />
-                                                            </FormControl>
-                                                            <FormLabel className="font-normal cursor-pointer">
-                                                                Avulso
-                                                            </FormLabel>
-                                                        </FormItem>
-                                                        <FormItem className="flex items-center space-x-2 space-y-0">
-                                                            <FormControl>
-                                                                <RadioGroupItem value="active_contract" />
-                                                            </FormControl>
-                                                            <FormLabel className="font-normal cursor-pointer">
-                                                                Contrato
-                                                            </FormLabel>
-                                                        </FormItem>
+                                                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-row space-x-4">
+                                                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="one_time" /></FormControl><FormLabel className="font-normal cursor-pointer">Avulso</FormLabel></FormItem>
+                                                        <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="active_contract" /></FormControl><FormLabel className="font-normal cursor-pointer">Contrato</FormLabel></FormItem>
                                                     </RadioGroup>
                                                 </FormControl>
                                                 <FormMessage />
@@ -803,7 +699,6 @@ export default function ClientesPage() {
                                     </>
                                 )}
                             </div>
-
                             <div className="space-y-4 mt-2">
                               <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados {isLead ? 'do Lead' : 'Gerais'}</h3>
                               <Separator />
@@ -817,33 +712,20 @@ export default function ClientesPage() {
                                         <FormLabel>CNPJ/CPF</FormLabel>
                                         <div className="flex items-center gap-2">
                                           <FormControl><Input placeholder="00.000.000/0000-00" {...field} onChange={(e) => field.onChange(formatDocument(e.target.value))} /></FormControl>
-                                          <Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
-                                            {isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                                          </Button>
+                                          <Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>{isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}</Button>
                                         </div>
                                         <FormMessage />
                                       </FormItem>
                                     )}
                                   />
                                 )}
-                                <FormField 
-                                  control={form.control} 
-                                  name="razaoSocial" 
-                                  render={({ field }) => (
-                                    <FormItem className={cn(isLead && "md:col-span-2")}>
-                                      <FormLabel>{isLead ? 'Nome do Lead / Empresa' : 'Razão Social'}</FormLabel>
-                                      <FormControl><Input placeholder={isLead ? 'Ex: Tech Solutions' : ''} {...field} /></FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )} 
-                                />
+                                <FormField control={form.control} name="razaoSocial" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>{isLead ? 'Nome do Lead / Empresa' : 'Razão Social'}</FormLabel><FormControl><Input placeholder={isLead ? 'Ex: Tech Solutions' : ''} {...field} /></FormControl><FormMessage /></FormItem>)} />
                                 {!isLead && (
                                   <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl></FormItem>)} />
                                 )}
                                 <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>Nome do Contato</FormLabel><FormControl><Input placeholder="Pessoa principal de contato" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
                               </div>
                             </div>
-
                             <div className="space-y-4 mt-2">
                               <h3 className="text-sm font-semibold flex items-center gap-2"><Phone className="h-4 w-4" /> Comunicação</h3>
                               <Separator />
@@ -861,52 +743,29 @@ export default function ClientesPage() {
                               </div>
                             </div>
                         </div>
-
                         <div className="lg:col-span-2 border-l pl-6 space-y-6">
                             <div className="space-y-4">
                                 <h3 className="text-sm font-semibold flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" /> Histórico de Contatos (CRM)</h3>
                                 <div className="space-y-3 bg-muted/30 p-3 rounded-lg border border-border/50">
                                     <div className="space-y-2">
                                         <Label className="text-xs uppercase text-muted-foreground font-bold">Resumo do Contato</Label>
-                                        <Textarea 
-                                            placeholder="O que foi conversado hoje?" 
-                                            className="text-xs h-20 bg-background"
-                                            value={interactionSummary}
-                                            onChange={(e) => setInteractionSummary(e.target.value)}
-                                        />
+                                        <Textarea placeholder="O que foi conversado hoje?" className="text-xs h-20 bg-background" value={interactionSummary} onChange={(e) => setInteractionSummary(e.target.value)} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div className="space-y-1">
                                             <Label className="text-[10px] uppercase text-muted-foreground font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Próximo Contato</Label>
-                                            <Input 
-                                                type="date" 
-                                                className="text-xs h-8 bg-background" 
-                                                value={interactionNextDate}
-                                                onChange={(e) => setInteractionNextDate(e.target.value)}
-                                            />
+                                            <Input type="date" className="text-xs h-8 bg-background" value={interactionNextDate} onChange={(e) => setInteractionNextDate(e.target.value)} />
                                         </div>
                                         <div className="space-y-1">
                                             <Label className="text-[10px] uppercase text-muted-foreground font-bold">Horário</Label>
-                                            <Input 
-                                                type="time" 
-                                                className="text-xs h-8 bg-background" 
-                                                value={interactionNextTime}
-                                                onChange={(e) => setInteractionNextTime(e.target.value)}
-                                            />
+                                            <Input type="time" className="text-xs h-8 bg-background" value={interactionNextTime} onChange={(e) => setInteractionNextTime(e.target.value)} />
                                         </div>
                                     </div>
-                                    <Button 
-                                        type="button" 
-                                        size="sm" 
-                                        className="w-full h-8 text-xs gap-2" 
-                                        disabled={!interactionSummary.trim() || !editingCustomer}
-                                        onClick={handleAddInteraction}
-                                    >
+                                    <Button type="button" size="sm" className="w-full h-8 text-xs gap-2" disabled={!interactionSummary.trim() || !editingCustomer} onClick={handleAddInteraction}>
                                         <Check className="h-3 w-3" /> Registrar Interação
                                     </Button>
                                     {!editingCustomer && <p className="text-[10px] text-center text-destructive">Salve o cadastro primeiro para registrar interações.</p>}
                                 </div>
-
                                 <ScrollArea className="h-[300px] pr-3">
                                     <div className="space-y-4 mt-4">
                                         {editingCustomer?.interactions && editingCustomer.interactions.length > 0 ? (
@@ -914,10 +773,7 @@ export default function ClientesPage() {
                                                 <div key={int.id} className="relative pl-4 border-l-2 border-primary/20 pb-4">
                                                     <div className="absolute -left-[7px] top-0 h-3 w-3 rounded-full bg-primary" />
                                                     <div className="flex flex-col gap-1">
-                                                        <div className="flex justify-between items-center">
-                                                            <span className="text-[10px] font-bold text-primary uppercase">{int.userName}</span>
-                                                            <span className="text-[10px] text-muted-foreground">{format(parseISO(int.timestamp), 'dd/MM/yyyy HH:mm')}</span>
-                                                        </div>
+                                                        <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-primary uppercase">{int.userName}</span><span className="text-[10px] text-muted-foreground">{format(parseISO(int.timestamp), 'dd/MM/yyyy HH:mm')}</span></div>
                                                         <p className="text-xs text-foreground/90 bg-muted/50 p-2 rounded leading-relaxed">{int.summary}</p>
                                                         {int.nextContactDate && (
                                                             <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold mt-1">
@@ -929,31 +785,17 @@ export default function ClientesPage() {
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                                                <History className="h-8 w-8 mb-2 opacity-20" />
-                                                <p className="text-xs italic">Nenhuma interação registrada.</p>
-                                            </div>
+                                            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground"><History className="h-8 w-8 mb-2 opacity-20" /><p className="text-xs italic">Nenhuma interação registrada.</p></div>
                                         )}
                                     </div>
                                 </ScrollArea>
                             </div>
-
                             <div className="space-y-4">
                               <h3 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Observações Técnicas</h3>
                               <Separator />
-                              <FormField
-                                control={form.control}
-                                name="observations"
-                                render={({ field }) => (
+                              <FormField control={form.control} name="observations" render={({ field }) => (
                                   <FormItem>
-                                    <FormControl>
-                                      <Textarea 
-                                        placeholder="Ex: 5 PCs, 2 Impressoras HP. Manutenção preventiva mensal..." 
-                                        className="min-h-[100px] text-xs"
-                                        {...field} 
-                                        value={field.value || ''}
-                                      />
-                                    </FormControl>
+                                    <FormControl><Textarea placeholder="Ex: 5 PCs, 2 Impressoras HP. Manutenção preventiva mensal..." className="min-h-[100px] text-xs" {...field} value={field.value || ''} /></FormControl>
                                     <FormDescription className="text-[10px]">Especifique equipamentos e particularidades fixas.</FormDescription>
                                     <FormMessage />
                                   </FormItem>
@@ -984,44 +826,19 @@ export default function ClientesPage() {
             <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row gap-4">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Buscar cliente..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                      </div>
-                      
+                      <div className="relative flex-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar cliente..." className="pl-8" value={searchTermTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="gap-2">
-                            <Filter className="h-4 w-4" />
-                            Serviços {selectedServices.length > 0 && `(${selectedServices.length})`}
-                          </Button>
-                        </DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild><Button variant="outline" className="gap-2"><Filter className="h-4 w-4" />Serviços {selectedServices.length > 0 && `(${selectedServices.length})`}</Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
                           <DropdownMenuLabel>Filtrar por Serviço</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           {SERVICE_CATEGORIES.map((cat) => (
-                            <DropdownMenuCheckboxItem
-                              key={cat.id}
-                              checked={selectedServices.includes(cat.id)}
-                              onCheckedChange={(checked) => {
-                                setSelectedServices(prev => 
-                                  checked ? [...prev, cat.id] : prev.filter(id => id !== cat.id)
-                                );
-                              }}
-                              onSelect={(e) => e.preventDefault()}
-                            >
-                              {cat.label}
-                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem key={cat.id} checked={selectedServices.includes(cat.id)} onCheckedChange={(checked) => { setSelectedServices(prev => checked ? [...prev, cat.id] : prev.filter(id => id !== cat.id)); }} onSelect={(e) => e.preventDefault()}>{cat.label}</DropdownMenuCheckboxItem>
                           ))}
                           {selectedServices.length > 0 && (
                             <>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="justify-center text-primary font-medium"
-                                onClick={() => setSelectedServices([])}
-                              >
-                                Limpar Filtros
-                              </DropdownMenuItem>
+                              <DropdownMenuItem className="justify-center text-primary font-medium" onClick={() => setSelectedServices([])}>Limpar Filtros</DropdownMenuItem>
                             </>
                           )}
                         </DropdownMenuContent>
@@ -1044,20 +861,7 @@ export default function ClientesPage() {
                         <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
                         <TableCell>
                             <div className="flex flex-col">
-                                <div className="flex items-center gap-2 flex-wrap mb-1">
-                                    <span className="font-medium text-base">{customer.name}</span>
-                                    <div className="flex gap-1">
-                                        {(customer.serviceCategories || []).map(catId => {
-                                            const cat = SERVICE_CATEGORIES.find(c => c.id === catId);
-                                            if (!cat) return null;
-                                            return (
-                                                <Badge key={catId} variant="outline" className={cn("text-[8px] h-4 leading-none uppercase font-bold px-1 py-0", cat.color)}>
-                                                    {cat.label}
-                                                </Badge>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+                                <div className="flex items-center gap-2 flex-wrap mb-1"><span className="font-medium text-base">{customer.name}</span><div className="flex gap-1">{(customer.serviceCategories || []).map(catId => { const cat = SERVICE_CATEGORIES.find(c => c.id === catId); if (!cat) return null; return ( <Badge key={catId} variant="outline" className={cn("text-[8px] h-4 leading-none uppercase font-bold px-1 py-0", cat.color)}>{cat.label}</Badge> ); })}</div></div>
                                 <div className="text-xs text-muted-foreground">{customer.email}</div>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {customer.cnpj && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Building2 className="h-3 w-3" /><span>{formatDocument(customer.cnpj)}</span></div>}
@@ -1067,132 +871,82 @@ export default function ClientesPage() {
                         </TableCell>
                         <TableCell>
                             <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2">
-                                    <Badge variant={customer.status === 'active' || customer.status === 'won' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
-                                </div>
+                                <div className="flex items-center gap-2"><Badge variant={customer.status === 'active' || customer.status === 'won' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge></div>
                                 <div className="flex flex-col text-[10px] gap-0.5 mt-1">
-                                    {customer.oneTimeValue ? (
-                                        <div className="flex items-center gap-1 text-primary font-bold">
-                                            <Tag className="h-2.5 w-2.5" />
-                                            <span>Venda: {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                        </div>
-                                    ) : null}
-                                    {customer.monthlyValue ? (
-                                        <div className="flex items-center gap-1 text-emerald-500 font-bold">
-                                            <Repeat className="h-2.5 w-2.5" />
-                                            <span>Mensal: {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                        </div>
-                                    ) : null}
+                                    {customer.oneTimeValue ? ( <div className="flex items-center gap-1 text-primary font-bold"><Tag className="h-2.5 w-2.5" /><span>Venda: {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div> ) : null}
+                                    {customer.monthlyValue ? ( <div className="flex items-center gap-1 text-emerald-500 font-bold"><Repeat className="h-2.5 w-2.5" /><span>Mensal: {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div> ) : null}
                                 </div>
-                                {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && customer.status !== 'opportunity' && customer.status !== 'proposal' && customer.status !== 'negotiation' && (
-                                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
-                                        {customer.type === 'active_contract' ? 'Contrato' : 'Avulso'}
-                                    </span>
-                                )}
+                                {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && customer.status !== 'opportunity' && customer.status !== 'proposal' && customer.status !== 'negotiation' && ( <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{customer.type === 'active_contract' ? 'Contrato' : 'Avulso'}</span> )}
                             </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-xs font-medium">{format(parseISO(customer.lastContact), 'dd/MM/yyyy')}</span>
-                                <span className="text-[10px] text-muted-foreground">{format(parseISO(customer.lastContact), 'HH:mm')}</span>
-                            </div>
-                        </TableCell>
+                        <TableCell className="hidden md:table-cell"><div className="flex flex-col gap-0.5"><span className="text-xs font-medium">{format(parseISO(customer.lastContact), 'dd/MM/yyyy')}</span><span className="text-[10px] text-muted-foreground">{format(parseISO(customer.lastContact), 'HH:mm')}</span></div></TableCell>
                         <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleCloneClick(customer); }}>
-                                            <Copy className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Clonar Registro</TooltipContent>
-                                </Tooltip>
-                                
-                                {customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' ? (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={(e) => { e.stopPropagation(); handleInactivateClick(customer); }}>
-                                                <Archive className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Inativar Cliente</TooltipContent>
-                                    </Tooltip>
-                                ) : (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={(e) => { e.stopPropagation(); handleReactivateClick(customer); }}>
-                                                <RotateCcw className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Reativar Cliente</TooltipContent>
-                                    </Tooltip>
-                                )}
-
+                                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleCloneClick(customer); }}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Clonar Registro</TooltipContent></Tooltip>
+                                {customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' ? ( <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={(e) => { e.stopPropagation(); handleInactivateClick(customer); }}><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Inativar Cliente</TooltipContent></Tooltip> ) : ( <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={(e) => { e.stopPropagation(); handleReactivateClick(customer); }}><RotateCcw className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Reativar Cliente</TooltipContent></Tooltip> )}
                                 {(customer.status === 'lead' || customer.status === 'opportunity' || customer.status === 'proposal' || customer.status === 'negotiation') && (
                                     <>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}>
-                                                    <UserCheck className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Converter em Cliente (Venda Ganha)</TooltipContent>
-                                        </Tooltip>
-                                        
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDiscardClick(customer); }}>
-                                                    <UserX className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Descartar Lead (Venda Perdida)</TooltipContent>
-                                        </Tooltip>
+                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}><UserCheck className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Converter em Cliente (Venda Ganha)</TooltipContent></Tooltip>
+                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDiscardClick(customer); }}><UserX className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Descartar Lead (Venda Perdida)</TooltipContent></Tooltip>
                                     </>
                                 )}
                             </div>
                         </TableCell>
                         </TableRow>
                     ))
-                    ) : (
-                        <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow>
-                    )}
+                    ) : ( <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow> )}
                     </TableBody>
                 </Table>
                 </CardContent>
-                <CardFooter className="justify-center border-t py-4">
-                  <p className="text-sm text-muted-foreground">
-                    Mostrando <strong>{displayedCustomers.length}</strong> registro(s) de um total de <strong>{customers.length}</strong> cadastrados.
-                  </p>
-                </CardFooter>
+                <CardFooter className="justify-center border-t py-4"><p className="text-sm text-muted-foreground">Mostrando <strong>{displayedCustomers.length}</strong> registro(s) de um total de <strong>{customers.length}</strong> cadastrados.</p></CardFooter>
             </Card>
         </TabsContent>
       </Tabs>
     </div>
     </TooltipProvider>
 
-    <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
-        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
-            <AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.name}</span>.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteAction}>Excluir</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
+    <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.name}</span>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Converter Lead</AlertDialogTitle></AlertDialogHeader><div className="grid grid-cols-2 gap-4 py-4"><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('one_time')}><Users className="h-6 w-6" /><span>Avulso</span></Button><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('active_contract')}><File className="h-6 w-6" /><span>Contrato</span></Button></div><AlertDialogFooter><AlertDialogCancel onClick={() => setConvertingCustomer(null)}>Cancelar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent></AlertDialog>
 
-    <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}>
-        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
-            <AlertDialogHeader><AlertDialogTitle>Converter Lead</AlertDialogTitle></AlertDialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-4">
-                <Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('one_time')}><Users className="h-6 w-6" /><span>Avulso</span></Button>
-                <Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('active_contract')}><File className="h-6 w-6" /><span>Contrato</span></Button>
-            </div>
-            <AlertDialogFooter><AlertDialogCancel onClick={() => setConvertingCustomer(null)}>Cancelar</AlertDialogCancel></AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
+    <Dialog open={notificationState.isOpen} onOpenChange={(open) => setNotificationState(prev => ({ ...prev, isOpen: open }))}>
+        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                    {notificationState.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (notificationState.isSimulated ? <AlertTriangle className="h-5 w-5 text-yellow-500" /> : <CheckCircle2 className="h-5 w-5 text-green-500" />)}
+                    {notificationState.isLoading ? 'Processando Lembrete' : (notificationState.isSimulated ? 'Configuração Pendente' : 'Tudo Pronto!')}
+                </DialogTitle>
+                <DialogDescription>
+                    {notificationState.isLoading 
+                        ? 'Preparando a mensagem de retorno.' 
+                        : (notificationState.isSimulated 
+                            ? 'A API automática não está configurada. Por favor, envie a mensagem de retorno manualmente abaixo.' 
+                            : 'O lembrete de retorno foi enviado com sucesso via WhatsApp.')}
+                </DialogDescription>
+            </DialogHeader>
+            {notificationState.isLoading ? (
+                <div className="py-8 flex justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
+            ) : (
+                <ScrollArea className="max-h-[50vh] pr-4">
+                    <div className="space-y-3 py-2">
+                        {notificationState.details.map((detail, idx) => {
+                            const isSent = sentMessageIndexes.includes(idx);
+                            return (
+                                <div key={idx} className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30">
+                                    <div className="flex items-center justify-between"><span className="text-sm font-semibold">{detail.name}</span><Badge variant="outline" className="text-[10px] uppercase">Retorno</Badge></div>
+                                    <div className="text-xs text-muted-foreground line-clamp-2 italic">"{detail.message}"</div>
+                                    <Button size="sm" variant={isSent ? "outline" : (notificationState.isSimulated ? "default" : "outline")} className={cn("w-full h-8 gap-2", isSent && "text-green-500 border-green-500/30 bg-green-500/5 hover:bg-green-500/10")} onClick={() => sendManualWhatsApp(detail, idx)}>
+                                        {isSent ? <Check className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+                                        {isSent ? 'Lembrete Enviado' : (notificationState.isSimulated ? 'Enviar via WhatsApp' : 'Reenviar')}
+                                    </Button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </ScrollArea>
+            )}
+            <DialogFooter><Button variant="outline" onClick={() => setNotificationState(prev => ({ ...prev, isOpen: false }))}>Fechar</Button></DialogFooter>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }

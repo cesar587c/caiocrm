@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { isPast, isToday, parse } from 'date-fns';
 import { AlertTriangle, Clock, CalendarCheck } from 'lucide-react';
-import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
 
 type Notification = {
@@ -21,7 +19,6 @@ export function TaskNotificationPopup() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
-  // Use a state to track which user session we've shown the dialog for
   const [shownForUserId, setShownForUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,6 +29,34 @@ export function TaskNotificationPopup() {
     const newNotifications: Notification[] = [];
     const customerMap = new Map(customers.map(c => [c.id, c.name]));
 
+    // 1. Alertar sobre hoje para TODOS os usuários (Agenda e Retornos de CRM)
+    const myTodaysAppointments = appointments.filter(app => {
+      const isAssigned = Array.isArray(app.assignedTo) 
+          ? app.assignedTo.some(at => at.endsWith(currentUser.id))
+          : app.assignedTo.endsWith(currentUser.id);
+
+      if (!isAssigned || app.status !== 'scheduled') {
+        return false;
+      }
+      try {
+          const appDate = parse(app.date, 'yyyy-MM-dd', new Date());
+          return isToday(appDate);
+      } catch(e) {
+          return false;
+      }
+    });
+
+    myTodaysAppointments.forEach(app => {
+      newNotifications.push({
+          type: 'today_appointment',
+          message: app.summary?.startsWith('Retorno CRM') 
+              ? `Contato de Retorno às ${app.time}` 
+              : `Visita Técnica às ${app.time}`,
+          customerName: app.clientName
+      });
+    });
+
+    // 2. Alertar sobre atrasos (Admin vê geral, Técnicos veem os seus)
     if (currentUser.role === 'admin') {
       const overdueServiceOrders = serviceOrders.filter(os => {
         if (os.status === 'Finalizada' || os.status === 'Cancelada' || !os.deliveryDate) return false;
@@ -50,7 +75,6 @@ export function TaskNotificationPopup() {
             customerName: customerMap.get(os.clientId) || 'Cliente desconhecido'
         });
       });
-
     } else if (currentUser.role === 'technician') {
       const myOverdueServiceOrders = serviceOrders.filter(os => {
         if (os.technicianId !== currentUser.id || os.status === 'Finalizada' || os.status === 'Cancelada' || !os.deliveryDate) {
@@ -63,22 +87,6 @@ export function TaskNotificationPopup() {
           return false;
         }
       });
-      
-      const myTodaysAppointments = appointments.filter(app => {
-        const isAssigned = Array.isArray(app.assignedTo) 
-            ? app.assignedTo.some(at => at.endsWith(currentUser.id))
-            : app.assignedTo.endsWith(currentUser.id);
-
-        if (!isAssigned || app.status !== 'scheduled') {
-          return false;
-        }
-        try {
-            const appDate = parse(app.date, 'yyyy-MM-dd', new Date());
-            return isToday(appDate);
-        } catch(e) {
-            return false;
-        }
-      });
 
       myOverdueServiceOrders.forEach(os => {
         newNotifications.push({
@@ -87,19 +95,12 @@ export function TaskNotificationPopup() {
             customerName: customerMap.get(os.clientId) || 'Cliente desconhecido'
         });
       });
-      myTodaysAppointments.forEach(app => {
-        newNotifications.push({
-            type: 'today_appointment',
-            message: `Visita agendada para hoje às ${app.time}.`,
-            customerName: app.clientName
-        });
-      });
     }
 
     if (newNotifications.length > 0) {
       setNotifications(newNotifications);
       setIsDialogOpen(true);
-      setShownForUserId(currentUser.id); // Mark as shown for the current user
+      setShownForUserId(currentUser.id);
     }
   }, [currentUser, isLoaded, appointments, serviceOrders, shownForUserId, customers]);
 
@@ -117,14 +118,14 @@ export function TaskNotificationPopup() {
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      <DialogContent>
+      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="text-yellow-500 h-6 w-6" />
-            Alertas e Tarefas Pendentes
+            Agenda e Alertas do Dia
           </DialogTitle>
           <DialogDescription>
-            Olá, {currentUser?.name}! Você tem as seguintes tarefas que requerem sua atenção.
+            Olá, {currentUser?.name}! Você tem compromissos marcados para hoje.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] -mx-6 px-6">
@@ -143,7 +144,7 @@ export function TaskNotificationPopup() {
           </ul>
         </ScrollArea>
         <DialogFooter>
-          <Button onClick={() => setIsDialogOpen(false)}>Entendido</Button>
+          <Button onClick={() => setIsDialogOpen(false)}>Fechar Alertas</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
