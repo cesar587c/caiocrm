@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@radix-ui/resolvers/zod";
 import * as z from "zod";
 import * as XLSX from 'xlsx';
 import {
@@ -135,8 +135,8 @@ const SERVICE_CATEGORIES = [
 
 const formSchema = z.object({
   cnpj: z.string().optional(),
-  razaoSocial: z.string().min(1, "Razão Social é obrigatória."),
-  nomeFantasia: z.string().min(1, "O Nome Fantasia é obrigatório."),
+  razaoSocial: z.string().min(1, "O nome ou Razão Social é obrigatória."),
+  nomeFantasia: z.string().optional(),
   contactName: z.string().optional(),
   email: z.string().email({ message: "E-mail inválido." }).optional().or(z.literal('')),
   telefone: z.string().optional(),
@@ -523,7 +523,7 @@ export default function ClientesPage() {
       updateCustomer({
         ...editingCustomer,
         name: values.razaoSocial,
-        nomeFantasia: values.nomeFantasia,
+        nomeFantasia: values.nomeFantasia || "",
         contactName: values.contactName,
         cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
         email: values.email || '',
@@ -541,7 +541,7 @@ export default function ClientesPage() {
     } else {
       const newCustomerData: Omit<Customer, 'id'> = {
         name: values.razaoSocial,
-        nomeFantasia: values.nomeFantasia,
+        nomeFantasia: values.nomeFantasia || "",
         contactName: values.contactName,
         cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '',
         email: values.email || '',
@@ -608,7 +608,7 @@ export default function ClientesPage() {
                   <Alert variant="default" className="bg-primary/5 border-primary/20">
                     <div className="flex justify-between items-center w-full">
                       <AlertTitle className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" />Formato Aceito</AlertTitle>
-                      <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-8 gap-1"><Download className="h-3 w-3" />Modelo</Button>
+                      <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-8 gap-1"><Download className="h-3 v-3" />Modelo</Button>
                     </div>
                   </Alert>
                   <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-10 hover:bg-muted/50 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
@@ -759,78 +759,94 @@ export default function ClientesPage() {
                           />
                         </div>
 
-                        <div className="space-y-4 mt-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><Tags className="h-4 w-4" /> Serviços Contratados</h3>
-                          <Separator />
-                          <FormField
-                            control={form.control}
-                            name="serviceCategories"
-                            render={() => (
-                              <FormItem>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                  {SERVICE_CATEGORIES.map((category) => (
-                                    <FormField
-                                      key={category.id}
-                                      control={form.control}
-                                      name="serviceCategories"
-                                      render={({ field }) => {
-                                        return (
-                                          <FormItem
-                                            key={category.id}
-                                            className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-muted/20"
-                                          >
-                                            <FormControl>
-                                              <Checkbox
-                                                checked={field.value?.includes(category.id)}
-                                                onCheckedChange={(checked) => {
-                                                  return checked
-                                                    ? field.onChange([...field.value, category.id])
-                                                    : field.onChange(
-                                                        field.value?.filter(
-                                                          (value) => value !== category.id
-                                                        )
-                                                      )
-                                                }}
-                                              />
-                                            </FormControl>
-                                            <FormLabel className="font-normal cursor-pointer">
-                                              {category.label}
-                                            </FormLabel>
-                                          </FormItem>
-                                        )
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <div className="space-y-4 mt-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados Gerais</h3>
-                          <Separator />
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {!isLead && (
+                          <div className="space-y-4 mt-2">
+                            <h3 className="text-sm font-semibold flex items-center gap-2"><Tags className="h-4 w-4" /> Serviços Contratados</h3>
+                            <Separator />
                             <FormField
                               control={form.control}
-                              name="cnpj"
-                              render={({ field }) => (
+                              name="serviceCategories"
+                              render={() => (
                                 <FormItem>
-                                  <FormLabel>CNPJ/CPF</FormLabel>
-                                  <div className="flex items-center gap-2">
-                                    <FormControl><Input placeholder="00.000.000/0000-00" {...field} onChange={(e) => field.onChange(formatDocument(e.target.value))} /></FormControl>
-                                    <Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
-                                      {isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                                    </Button>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    {SERVICE_CATEGORIES.map((category) => (
+                                      <FormField
+                                        key={category.id}
+                                        control={form.control}
+                                        name="serviceCategories"
+                                        render={({ field }) => {
+                                          return (
+                                            <FormItem
+                                              key={category.id}
+                                              className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-muted/20"
+                                            >
+                                              <FormControl>
+                                                <Checkbox
+                                                  checked={field.value?.includes(category.id)}
+                                                  onCheckedChange={(checked) => {
+                                                    return checked
+                                                      ? field.onChange([...field.value, category.id])
+                                                      : field.onChange(
+                                                          field.value?.filter(
+                                                            (value) => value !== category.id
+                                                          )
+                                                        )
+                                                  }}
+                                                />
+                                              </FormControl>
+                                              <FormLabel className="font-normal cursor-pointer">
+                                                {category.label}
+                                              </FormLabel>
+                                            </FormItem>
+                                          )
+                                        }}
+                                      />
+                                    ))}
                                   </div>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
-                            <FormField control={form.control} name="razaoSocial" render={({ field }) => (<FormItem><FormLabel>Razão Social</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                            <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>Nome do Contato</FormLabel><FormControl><Input {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                          </div>
+                        )}
+
+                        <div className="space-y-4 mt-2">
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados {isLead ? 'do Lead' : 'Gerais'}</h3>
+                          <Separator />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {!isLead && (
+                              <FormField
+                                control={form.control}
+                                name="cnpj"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>CNPJ/CPF</FormLabel>
+                                    <div className="flex items-center gap-2">
+                                      <FormControl><Input placeholder="00.000.000/0000-00" {...field} onChange={(e) => field.onChange(formatDocument(e.target.value))} /></FormControl>
+                                      <Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>
+                                        {isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                      </Button>
+                                    </div>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                            <FormField 
+                              control={form.control} 
+                              name="razaoSocial" 
+                              render={({ field }) => (
+                                <FormItem className={cn(isLead && "md:col-span-2")}>
+                                  <FormLabel>{isLead ? 'Nome do Lead / Empresa' : 'Razão Social'}</FormLabel>
+                                  <FormControl><Input placeholder={isLead ? 'Ex: Tech Solutions' : ''} {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )} 
+                            />
+                            {!isLead && (
+                              <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl></FormItem>)} />
+                            )}
+                            <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>Nome do Contato</FormLabel><FormControl><Input placeholder="Pessoa principal de contato" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
                           </div>
                         </div>
 
@@ -838,12 +854,12 @@ export default function ClientesPage() {
                           <h3 className="text-sm font-semibold flex items-center gap-2"><Phone className="h-4 w-4" /> Comunicação</h3>
                           <Separator />
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="telefone" render={({ field }) => (<FormItem><FormLabel>Telefone</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" placeholder="contato@empresa.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="telefone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                           </div>
                         </div>
                         <div className="space-y-4 mt-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Localização</h3>
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Localização {isLead && '(Se houver)'}</h3>
                           <Separator />
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
