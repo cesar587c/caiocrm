@@ -94,10 +94,10 @@ export default function AgendaPage() {
   }>({ isOpen: false, isLoading: false, isSimulated: false, details: [] });
 
   const [searchTermAssignees, setSearchTermAssignees] = useState('');
-  const [searchTermCustomers, setSearchTermCustomers] = useState('');
   const [isJustificationDialogOpen, setIsJustificationDialogOpen] = useState(false);
   const [appointmentToProcess, setAppointmentToProcess] = useState<Appointment | null>(null);
   const [justification, setJustification] = useState('');
+  const [isCustomerSearchOpen, setIsCustomerSearchOpen] = useState(false);
 
   const { toast } = useToast();
   const { companyProfile, sectors, users, appointments, customers, addAppointment, updateAppointment, deleteAppointment, currentUser } = useSettings();
@@ -183,7 +183,6 @@ export default function AgendaPage() {
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
     setSearchTermAssignees('');
-    setSearchTermCustomers('');
     if(editingAppointment) {
       form.setValue('date', day);
     } else {
@@ -210,7 +209,6 @@ export default function AgendaPage() {
   const handleEditClick = (appointment: Appointment, day: Date) => {
     setEditingAppointment(appointment);
     setSearchTermAssignees('');
-    setSearchTermCustomers('');
     const assignedToArray = Array.isArray(appointment.assignedTo) ? appointment.assignedTo : [appointment.assignedTo];
     form.reset({
       date: parse(appointment.date, 'yyyy-MM-dd', new Date()),
@@ -230,6 +228,7 @@ export default function AgendaPage() {
     form.setValue('address', customer.endereco || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     form.setValue('phone', customer.telefone || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     form.setValue('contact', customer.contactName || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    setIsCustomerSearchOpen(false);
     toast({
         title: "Cliente Selecionado",
         description: `Os dados de ${customer.name} foram preenchidos.`
@@ -364,10 +363,15 @@ export default function AgendaPage() {
 
   const filteredSectors = sectors.filter(s => s.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
   const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(searchTermCustomers.toLowerCase()) || 
-    (c.nomeFantasia && c.nomeFantasia.toLowerCase().includes(searchTermCustomers.toLowerCase()))
-  );
+  
+  const clientNameValue = form.watch('clientName');
+  const suggestedCustomers = useMemo(() => {
+    if (!clientNameValue || clientNameValue.length < 2 || editingAppointment) return [];
+    return customers.filter(c => 
+      c.name.toLowerCase().includes(clientNameValue.toLowerCase()) || 
+      (c.nomeFantasia && c.nomeFantasia.toLowerCase().includes(clientNameValue.toLowerCase()))
+    ).slice(0, 5);
+  }, [clientNameValue, customers, editingAppointment]);
 
   return (
     <>
@@ -504,44 +508,6 @@ export default function AgendaPage() {
             <div>
                  <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold text-lg text-foreground">{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
-                    {isAdmin && !editingAppointment && (
-                        <Popover modal={false}>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
-                                    <UserPlus className="h-3 w-3" />
-                                    Selecionar Cliente
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[300px] p-0 pointer-events-auto" align="end" onWheel={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-                                <div className="p-2 border-b bg-background">
-                                    <div className="relative">
-                                        <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
-                                        <Input placeholder="Buscar cliente..." className="pl-7 h-8 text-xs" value={searchTermCustomers} onChange={(e) => setSearchTermCustomers(e.target.value)} />
-                                    </div>
-                                </div>
-                                <div className="max-h-64 overflow-y-auto overscroll-contain">
-                                    <div className="p-1">
-                                        {filteredCustomers.map(customer => (
-                                            <div 
-                                                key={customer.id} 
-                                                className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-muted/50 cursor-pointer text-left"
-                                                onClick={() => {
-                                                    handleCustomerSelect(customer);
-                                                    // O Popover fecha automaticamente
-                                                }}
-                                            >
-                                                <span className="text-sm font-medium">{customer.name}</span>
-                                                <span className="text-[10px] text-muted-foreground truncate">{customer.endereco || 'Sem endereço'}</span>
-                                            </div>
-                                        ))}
-                                        {filteredCustomers.length === 0 && (
-                                            <p className="text-xs text-center text-muted-foreground py-4">Nenhum cliente encontrado.</p>
-                                        )}
-                                    </div>
-                                </div>
-                            </PopoverContent>
-                        </Popover>
-                    )}
                  </div>
                  <Form {...form}>
                     <form id="appointment-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -572,7 +538,46 @@ export default function AgendaPage() {
                             )}
                         />
                         <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Horário</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Nome do Cliente</FormLabel><FormControl><Input placeholder="Ex: Tech Solutions Ltda." {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
+                        
+                        <FormField 
+                          control={form.control} 
+                          name="clientName" 
+                          render={({ field }) => (
+                            <FormItem className="relative">
+                                <FormLabel>Nome do Cliente</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <Input 
+                                      placeholder="Digite o nome do cliente..." 
+                                      {...field} 
+                                      autoComplete="off"
+                                      disabled={!isAdmin && !!editingAppointment}
+                                      onFocus={() => setIsCustomerSearchOpen(true)}
+                                    />
+                                    {isCustomerSearchOpen && suggestedCustomers.length > 0 && (
+                                      <div className="absolute z-50 mt-1 w-full bg-card border rounded-md shadow-lg overflow-hidden">
+                                        {suggestedCustomers.map(customer => (
+                                          <div 
+                                            key={customer.id} 
+                                            className="px-4 py-2 hover:bg-accent cursor-pointer transition-colors"
+                                            onMouseDown={(e) => {
+                                              e.preventDefault();
+                                              handleCustomerSelect(customer);
+                                            }}
+                                          >
+                                            <p className="text-sm font-semibold">{customer.name}</p>
+                                            <p className="text-[10px] text-muted-foreground truncate">{customer.endereco || 'Sem endereço'}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                          )} 
+                        />
+
                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Ex: Rua das Inovações, 123" {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="contact" render={({ field }) => (<FormItem><FormLabel>Contato na Visita</FormLabel><FormControl><Input placeholder="Ex: Sr. Carlos" {...field} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />
