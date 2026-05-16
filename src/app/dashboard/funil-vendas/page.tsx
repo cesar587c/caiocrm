@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
-import { Phone, User as UserIcon, CheckCircle2, FileText, Users, XCircle, DollarSign, Tag, Repeat } from "lucide-react";
+import { Phone, User as UserIcon, CheckCircle2, FileText, Users, XCircle, Tag, Repeat } from "lucide-react";
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/contexts/SettingsContext';
 import type { Customer, CustomerStatus } from '@/lib/types';
@@ -20,7 +20,6 @@ import { useToast } from '@/hooks/use-toast';
 
 const stages: { id: CustomerStatus; title: string; color: string }[] = [
   { id: "lead", title: "Lead", color: "bg-[#EAB308]" }, // Amarelo
-  { id: "opportunity", title: "Oportunidade", color: "bg-[#06B6D4]" }, // Ciano
   { id: "proposal", title: "Proposta Enviada", color: "bg-[#8B5CF6]" }, // Roxo
   { id: "negotiation", title: "Em Negociação", color: "bg-[#F43F5E]" }, // Rosa
   { id: "won", title: "Ganho", color: "bg-[#22C55E]" }, // Verde
@@ -124,7 +123,7 @@ export default function FunilVendasPage() {
     if (status === 'negotiation') return 'negotiation';
     if (status === 'won' || status === 'active') return 'won';
     if (status === 'lost' || status === 'discarded' || status === 'inactive') return 'lost';
-    if (status === 'opportunity' || status === 'new') return 'opportunity';
+    // Mapeia tudo que não for os acima para 'lead' (incluindo status antigos de 'opportunity')
     return 'lead';
   };
 
@@ -140,7 +139,7 @@ export default function FunilVendasPage() {
         </div>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {stages.map((stage) => {
           const stageCustomers = funnelLeads.filter(c => getCustomerStage(c.status) === stage.id);
           const totalOneTime = stageCustomers.reduce((acc, curr) => acc + (curr.oneTimeValue || 0), 0);
