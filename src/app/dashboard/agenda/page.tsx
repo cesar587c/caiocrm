@@ -272,7 +272,8 @@ export default function AgendaPage() {
     const cleanPhone = detail.phone.replace(/\D/g, '');
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
     const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(detail.message)}`;
-    window.open(url, '_blank');
+    // Usamos um nome fixo para a janela ('vendaspro_whatsapp') para que as mensagens seguintes reaproveitem a mesma aba.
+    window.open(url, 'vendaspro_whatsapp');
   };
 
   const handleMarkAsCompleted = () => {
@@ -514,7 +515,7 @@ export default function AgendaPage() {
                             )}
                         />
                         <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Horário</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Nome do Cliente</FormLabel><FormControl><Input placeholder="Ex: Tech Solutions Ltda." {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Nome do Cliente</FormLabel><FormControl><Input placeholder="Ex: Tech Solutions Ltda." {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormMessage></FormItem>)} />
                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Ex: Rua das Inovações, 123" {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="contact" render={({ field }) => (<FormItem><FormLabel>Contato na Visita</FormLabel><FormControl><Input placeholder="Ex: Sr. Carlos" {...field} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />

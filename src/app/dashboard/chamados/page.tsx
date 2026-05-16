@@ -403,7 +403,8 @@ export default function ChamadosPage() {
     const cleanPhone = customer.telefone.replace(/\D/g, '');
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
     const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    // Reutiliza a aba fixa vendaspro_whatsapp para maior fluidez
+    window.open(url, 'vendaspro_whatsapp');
   };
 
   const handleConfirmFinalization = () => {
