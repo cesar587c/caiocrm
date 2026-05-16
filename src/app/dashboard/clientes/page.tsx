@@ -433,7 +433,7 @@ export default function ClientesPage() {
       "Endereço": c.endereco || "",
       "CEP": c.cep || "",
       "Status": statusMap[c.status],
-      "Tipo": c.type === 'active_contract' ? 'Contrato Ativo' : (c.type === 'one_time' ? 'Avulso' : 'Lead'),
+      "Tipo": c.type === 'active_contract' ? 'Contrato' : (c.type === 'one_time' ? 'Avulso' : 'Lead'),
       "Valor Venda": c.oneTimeValue || 0,
       "Valor Mensal": c.monthlyValue || 0,
       "Categorias": (c.serviceCategories || []).map(catId => SERVICE_CATEGORIES.find(s => s.id === catId)?.label).join(", "),
@@ -583,7 +583,7 @@ export default function ClientesPage() {
         <div className="flex items-center">
           <TabsList>
             <TabsTrigger value="all">Clientes</TabsTrigger>
-            <TabsTrigger value="active_contract">Contratos Ativos</TabsTrigger>
+            <TabsTrigger value="active_contract">Contratos</TabsTrigger>
             <TabsTrigger value="one_time">Avulsos</TabsTrigger>
             <TabsTrigger value="leads">Leads / Funil</TabsTrigger>
             <TabsTrigger value="new">Novos</TabsTrigger>
@@ -721,7 +721,7 @@ export default function ClientesPage() {
                                                             <RadioGroupItem value="active_contract" />
                                                         </FormControl>
                                                         <FormLabel className="font-normal cursor-pointer">
-                                                            Contrato Ativo
+                                                            Contrato
                                                         </FormLabel>
                                                     </FormItem>
                                                 </RadioGroup>
@@ -990,7 +990,7 @@ export default function ClientesPage() {
                                 </div>
                                 {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && (
                                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
-                                        {customer.type === 'active_contract' ? 'Contrato Ativo' : 'Avulso'}
+                                        {customer.type === 'active_contract' ? 'Contrato' : 'Avulso'}
                                     </span>
                                 )}
                             </div>

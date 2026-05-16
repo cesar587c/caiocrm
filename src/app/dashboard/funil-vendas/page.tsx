@@ -238,7 +238,7 @@ export default function FunilVendasPage() {
                 >
                     <FileText className="h-8 w-8 text-purple-500" />
                     <div className="text-center">
-                        <p className="font-bold">Contrato Ativo</p>
+                        <p className="font-bold">Contrato</p>
                         <p className="text-[10px] text-muted-foreground">Faturamento recorrente</p>
                     </div>
                 </Button>

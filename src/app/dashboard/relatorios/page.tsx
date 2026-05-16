@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo } from 'react';
@@ -74,7 +73,7 @@ export default function RelatoriosPage() {
 
     // Dados para Gráfico de Tipo (Contrato vs Avulso)
     const typeData = [
-      { name: 'Contrato Ativo', value: contracts, fill: 'hsl(var(--primary))' },
+      { name: 'Contrato', value: contracts, fill: 'hsl(var(--primary))' },
       { name: 'Serviço Avulso', value: oneTime, fill: 'hsl(var(--secondary))' },
     ].filter(d => d.value > 0);
 
@@ -113,7 +112,7 @@ export default function RelatoriosPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contratos Ativos</CardTitle>
+            <CardTitle className="text-sm font-medium">Contratos</CardTitle>
             <FileText className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -220,7 +219,7 @@ export default function RelatoriosPage() {
             </ResponsiveContainer>
              <div className="mt-4 w-full space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground font-medium">Contratos Ativos</span>
+                    <span className="text-muted-foreground font-medium">Contratos</span>
                     <span className="font-bold">{stats.contracts}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
