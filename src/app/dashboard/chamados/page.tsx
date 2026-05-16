@@ -122,6 +122,23 @@ export default function ChamadosPage() {
   const [reassignmentState, setReassignmentState] = useState<{ isOpen: boolean; values: ServiceOrderFormValues | null; oldTechnicianName: string; newTechnicianName: string; }>({ isOpen: false, values: null, oldTechnicianName: '', newTechnicianName: '' });
   const [reassignmentJustification, setReassignmentJustification] = useState('');
 
+  // MECANISMO DE DESBLOQUEIO FORÇADO: Garante que o sistema nunca trave após fechar modais
+  useEffect(() => {
+    const isAnyBlockingElementOpen = isPreviewOpen || !!deletingOrder || finalizationState.isOpen || reassignmentState.isOpen;
+    
+    if (!isAnyBlockingElementOpen) {
+      const forceRelease = () => {
+        document.body.style.pointerEvents = 'auto';
+        document.body.style.overflow = 'auto';
+        document.documentElement.style.pointerEvents = 'auto';
+      };
+      
+      forceRelease();
+      const timer = setTimeout(forceRelease, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isPreviewOpen, deletingOrder, finalizationState.isOpen, reassignmentState.isOpen]);
+
   const form = useForm<ServiceOrderFormValues>({
     resolver: zodResolver(serviceOrderSchema),
     defaultValues: { 
@@ -846,7 +863,7 @@ export default function ChamadosPage() {
       </div>
       
       <AlertDialog open={!!deletingOrder} onOpenChange={(open) => !open && setDeletingOrder(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -861,7 +878,7 @@ export default function ChamadosPage() {
       </AlertDialog>
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="sm:max-w-3xl h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-3xl h-[90vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <DialogHeader className="print-hide">
             <DialogTitle>Ordem de Serviço #{selectedOrderForPreview?.number}</DialogTitle>
             <DialogDescription>
@@ -981,7 +998,7 @@ export default function ChamadosPage() {
       </Dialog>
       
       <Dialog open={finalizationState.isOpen} onOpenChange={(open) => !open && setFinalizationState({isOpen: false, values: null})}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <DialogHeader>
                 <DialogTitle>Finalizar Ordem de Serviço</DialogTitle>
                 <DialogDescription>
@@ -1004,7 +1021,7 @@ export default function ChamadosPage() {
       </Dialog>
 
       <Dialog open={reassignmentState.isOpen} onOpenChange={(open) => !open && setReassignmentState({ isOpen: false, values: null, oldTechnicianName: '', newTechnicianName: '' })}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
             <DialogHeader>
                 <DialogTitle>Justificar Reatribuição de Técnico</DialogTitle>
                 <DialogDescription>

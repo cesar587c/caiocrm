@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -101,13 +102,19 @@ export default function AgendaPage() {
 
   const isAdmin = currentUser?.role === 'admin';
 
+  // MECANISMO DE DESBLOQUEIO FORÇADO: Garante que o sistema nunca trave após fechar modais
   useEffect(() => {
-    const anyDialogOpen = isModalOpen || isDeleteDialogOpen || notificationState.isOpen || isJustificationDialogOpen;
-    if (!anyDialogOpen) {
-      const timer = setTimeout(() => {
+    const isAnyBlockingElementOpen = isModalOpen || isDeleteDialogOpen || notificationState.isOpen || isJustificationDialogOpen;
+    
+    if (!isAnyBlockingElementOpen) {
+      const forceRelease = () => {
         document.body.style.pointerEvents = 'auto';
         document.body.style.overflow = 'auto';
-      }, 100);
+        document.documentElement.style.pointerEvents = 'auto';
+      };
+      
+      forceRelease();
+      const timer = setTimeout(forceRelease, 300); // Segunda tentativa para garantir limpeza após animações
       return () => clearTimeout(timer);
     }
   }, [isModalOpen, isDeleteDialogOpen, notificationState.isOpen, isJustificationDialogOpen]);
@@ -215,6 +222,7 @@ export default function AgendaPage() {
   };
 
   const triggerNotifications = async (appointment: any) => {
+    // Timeout maior para garantir que o modal de edição fechou completamente
     setTimeout(async () => {
         setNotificationState(prev => ({ ...prev, isOpen: true, isLoading: true }));
         
@@ -257,10 +265,10 @@ export default function AgendaPage() {
                 description: "Não foi possível enviar os avisos agora.",
             });
         }
-    }, 300);
+    }, 400);
   };
 
-  const sendManualWhatsapp = (detail: any) => {
+  const sendManualWhatsApp = (detail: any) => {
     const cleanPhone = detail.phone.replace(/\D/g, '');
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
     const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(detail.message)}`;
@@ -651,7 +659,7 @@ export default function AgendaPage() {
                                     </Badge>
                                 </div>
                                 <div className="text-xs text-muted-foreground line-clamp-2 italic">"{detail.message}"</div>
-                                <Button size="sm" variant={notificationState.isSimulated ? "default" : "outline"} className="w-full h-8 gap-2" onClick={() => sendManualWhatsapp(detail)}>
+                                <Button size="sm" variant={notificationState.isSimulated ? "default" : "outline"} className="w-full h-8 gap-2" onClick={() => sendManualWhatsApp(detail)}>
                                     <Send className="h-3.5 w-3.5" />
                                     {notificationState.isSimulated ? 'Enviar via WhatsApp' : 'Reenviar'}
                                 </Button>
