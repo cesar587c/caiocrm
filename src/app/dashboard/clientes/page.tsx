@@ -195,12 +195,10 @@ export default function ClientesPage() {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // States para nova interação
   const [interactionSummary, setInteractionSummary] = useState("");
   const [interactionNextDate, setInteractionNextDate] = useState<string>("");
   const [interactionNextTime, setInteractionNextTime] = useState<string>("");
 
-  // States para notificação
   const [notificationState, setNotificationState] = useState<{
     isOpen: boolean;
     isLoading: boolean;
@@ -545,7 +543,11 @@ export default function ClientesPage() {
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (editingCustomer) {
       let nextStatus = editingCustomer.status;
-      if (values.isLead) { if (editingCustomer.status === "new" || editingCustomer.status === "active" || editingCustomer.status === "won") { nextStatus = "lead"; } } else { if (editingCustomer.status === "lead" || editingCustomer.status === "new" || editingCustomer.status === "opportunity" || editingCustomer.status === "proposal" || editingCustomer.status === "negotiation") { nextStatus = "won"; } }
+      if (values.isLead) { 
+          if (editingCustomer.status === "new" || editingCustomer.status === "active" || editingCustomer.status === "won") { nextStatus = "lead"; } 
+      } else { 
+          if (editingCustomer.status === "lead" || editingCustomer.status === "new" || editingCustomer.status === "opportunity" || editingCustomer.status === "proposal" || editingCustomer.status === "negotiation") { nextStatus = "won"; } 
+      }
       updateCustomer({ ...editingCustomer, name: values.razaoSocial, nomeFantasia: values.nomeFantasia || "", contactName: values.contactName, cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '', email: values.email || '', telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '', endereco: values.endereco, cep: values.cep, status: nextStatus, type: values.isLead ? "lead" : (values.tipoCliente as CustomerType), serviceCategories: values.serviceCategories, observations: values.observations, oneTimeValue: values.oneTimeValue, monthlyValue: values.monthlyValue });
       toast({ title: "Dados Atualizados!" });
     } else {
@@ -654,7 +656,7 @@ export default function ClientesPage() {
                                                 <FormLabel className="flex items-center gap-2">
                                                     <Tag className="h-3.5 w-3.5 text-primary" />
                                                     Valor de Venda (Única)
-                                                </Label>
+                                                </FormLabel>
                                                 <FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} /></FormControl>
                                                 <FormDescription>Peças ou serviço avulso.</FormDescription>
                                                 <FormMessage />
@@ -669,7 +671,7 @@ export default function ClientesPage() {
                                                 <FormLabel className="flex items-center gap-2">
                                                     <Repeat className="h-3.5 w-3.5 text-primary" />
                                                     Valor do Contrato (Mensal)
-                                                </Label>
+                                                </FormLabel>
                                                 <FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} /></FormControl>
                                                 <FormDescription>Recorrência mensal.</FormDescription>
                                                 <FormMessage />
@@ -906,7 +908,27 @@ export default function ClientesPage() {
     </TooltipProvider>
 
     <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.name}</span>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-    <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Converter Lead</AlertDialogTitle></AlertDialogHeader><div className="grid grid-cols-2 gap-4 py-4"><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('one_time')}><Users className="h-6 w-6" /><span>Avulso</span></Button><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('active_contract')}><File className="h-6 w-6" /><span>Contrato</span></Button></div><AlertDialogFooter><AlertDialogCancel onClick={() => setConvertingCustomer(null)}>Cancelar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent>
+    
+    <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}>
+        <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Converter Lead</AlertDialogTitle>
+            </AlertDialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+                <Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('one_time')}>
+                    <Users className="h-6 w-6" />
+                    <span>Avulso</span>
+                </Button>
+                <Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('active_contract')}>
+                    <File className="h-6 w-6" />
+                    <span>Contrato</span>
+                </Button>
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setConvertingCustomer(null)}>Cancelar</AlertDialogCancel>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
 
     <Dialog open={notificationState.isOpen} onOpenChange={(open) => setNotificationState(prev => ({ ...prev, isOpen: open }))}>
         <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
