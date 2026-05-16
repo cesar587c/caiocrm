@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -173,6 +172,7 @@ export default function PropostasPage() {
   });
   
   const watchInstallments = form.watch('installments');
+  const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
   const totals = useMemo(() => {
     return (watchItems || []).reduce(
@@ -261,6 +261,10 @@ export default function PropostasPage() {
       )
       .join('\n');
 
+    const installmentsDetail = proposal.installments > 1 && proposal.firstAsDownPayment 
+        ? ` (sendo a 1ª como entrada)` 
+        : '';
+
     const message = `Olá, ${proposal.clientName}! 👋
 Segue a sua proposta comercial da ${companyProfile.name}.
 
@@ -275,7 +279,7 @@ ${itemsText}
 
 *Condições de Pagamento (Valor Único):*
 - *Forma:* ${proposal.paymentMethod.replace('cartao', 'Cartão de Crédito').replace('boleto', 'Boleto Bancário').replace('pix', 'PIX')}
-- *Parcelas:* ${proposal.installments}x de ${(proposal.totalOneTime / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+- *Parcelas:* ${proposal.installments}x de ${(proposal.totalOneTime / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${installmentsDetail}
 
 Agradecemos a oportunidade e ficamos à disposição!
 
@@ -331,6 +335,13 @@ ${companyProfile.phone}`;
     setSavedProposals(prev => prev.filter(p => p.id !== deletingProposal.id));
     toast({ title: "Proposta Excluída" });
     setDeletingProposal(null);
+  };
+
+  const confirmDeleteProductAction = () => {
+    if (!deletingProduct) return;
+    deleteProduct(deletingProduct.id);
+    toast({ title: "Produto Removido" });
+    setDeletingProduct(null);
   };
   
   const handleAddProductFromList = (product: Product) => {
@@ -416,13 +427,6 @@ ${companyProfile.phone}`;
     setIsProductFormOpen(false);
     setEditingProduct(null);
     toast({ title: "Produto Atualizado" });
-  };
-
-  const confirmDeleteProductAction = () => {
-    if (!deletingProduct) return;
-    deleteProduct(deletingProduct.id);
-    toast({ title: "Produto Removido" });
-    setDeletingProduct(null);
   };
 
   return (
@@ -634,7 +638,9 @@ ${companyProfile.phone}`;
               <div className="space-y-1 text-sm">
                   <div className="flex justify-between font-bold"><span>Total Único:</span> <span className="text-primary">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
                   <div className="flex justify-between font-bold"><span>Total Mensal:</span> <span className="text-emerald-500">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                  <div className="flex justify-between text-xs text-muted-foreground italic"><span>({watchInstallments}x de { (totals.oneTime / watchInstallments || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) } no investimento)</span></div>
+                  <div className="flex justify-between text-xs text-muted-foreground italic">
+                      <span>({watchInstallments}x de { (totals.oneTime / watchInstallments || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) } no investimento{watchFirstAsDownPayment && watchInstallments > 1 ? ', sendo a 1ª como entrada' : ''})</span>
+                  </div>
               </div>
             </CardContent>
             <CardFooter><Button type="submit" form="proposal-form" className="w-full">{editingProposal ? 'Atualizar' : 'Salvar Proposta'}</Button></CardFooter>
@@ -739,7 +745,16 @@ ${companyProfile.phone}`;
                             ))}</tbody>
                         </table>
                         <div className="flex justify-end mb-8"><div className="w-1/2 space-y-1"><div className="flex justify-between text-sm"><span>Total Único:</span> <span className="font-bold">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div><div className="flex justify-between text-sm text-emerald-700 pt-1 border-t"><span>Total Mensal:</span> <span className="font-bold">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div></div></div>
-                        <div className="bg-gray-50 p-4 rounded text-sm"><h3 className="font-bold mb-1">Pagamento (Investimento Único)</h3><p>Forma: {selectedProposal.paymentMethod.toUpperCase()} | Parcelas: {selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></div>
+                        <div className="bg-gray-50 p-4 rounded text-sm">
+                            <h3 className="font-bold mb-1">Pagamento (Investimento Único)</h3>
+                            <p>
+                                Forma: {selectedProposal.paymentMethod.toUpperCase()} | 
+                                Parcelas: {selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                {selectedProposal.firstAsDownPayment && selectedProposal.installments > 1 && (
+                                    <span className="ml-1 font-semibold text-primary">(Sendo a 1ª como entrada)</span>
+                                )}
+                            </p>
+                        </div>
                         <div className="mt-12 text-center text-[10px] text-gray-400"><p>Atenciosamente, {companyProfile.name}</p></div>
                     </div>
                 </ScrollArea>
