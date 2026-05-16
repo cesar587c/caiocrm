@@ -114,6 +114,11 @@ const statusMap: Record<string, string> = {
   new: "Novo",
   lead: "Lead",
   discarded: "Descartado",
+  won: "Ganho",
+  lost: "Perdido",
+  opportunity: "Oportunidade",
+  proposal: "Proposta",
+  negotiation: "Negociação"
 };
 
 const SERVICE_CATEGORIES = [
@@ -229,25 +234,25 @@ export default function ClientesPage() {
 
     switch (activeTab) {
         case 'inactive':
-            filtered = filtered.filter(c => c.status === 'inactive' || c.status === 'discarded');
+            filtered = filtered.filter(c => c.status === 'inactive' || c.status === 'discarded' || c.status === 'lost');
             break;
         case 'all':
-            filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded' && c.status !== 'lead');
+            filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded' && c.status !== 'lead' && c.status !== 'lost');
             break;
         case 'active_contract':
-            filtered = filtered.filter(c => c.type === 'active_contract' && c.status !== 'lead' && c.status !== 'inactive');
+            filtered = filtered.filter(c => c.type === 'active_contract' && c.status !== 'lead' && c.status !== 'inactive' && c.status !== 'lost');
             break;
         case 'one_time':
-            filtered = filtered.filter(c => c.type === 'one_time' && c.status !== 'lead' && c.status !== 'inactive');
+            filtered = filtered.filter(c => c.type === 'one_time' && c.status !== 'lead' && c.status !== 'inactive' && c.status !== 'lost');
             break;
         case 'leads':
-            filtered = filtered.filter(c => c.status === 'lead' && c.status !== 'inactive');
+            filtered = filtered.filter(c => (c.status === 'lead' || c.status === 'opportunity' || c.status === 'proposal' || c.status === 'negotiation') && c.status !== 'inactive');
             break;
         case 'new':
             filtered = filtered.filter(c => c.status === 'new' && c.status !== 'inactive');
             break;
         default:
-            filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded');
+            filtered = filtered.filter(c => c.status !== 'inactive' && c.status !== 'discarded' && c.status !== 'lost');
     }
     
     if (date?.from) {
@@ -313,7 +318,7 @@ export default function ClientesPage() {
         nomeFantasia: customer.nomeFantasia || "",
         contactName: customer.contactName || "",
         email: customer.email,
-        isLead: customer.status === "lead",
+        isLead: customer.status === "lead" || customer.status === "opportunity" || customer.status === "proposal" || customer.status === "negotiation",
         tipoCliente: customer.type === "active_contract" ? "active_contract" : "one_time",
         cnpj: customer.cnpj ? formatDocument(customer.cnpj) : '', 
         telefone: customer.telefone ? formatPhoneNumber(customer.telefone) : '',
@@ -355,7 +360,7 @@ export default function ClientesPage() {
   };
 
   const handleDiscardClick = (customer: Customer) => {
-    updateCustomer({ ...customer, status: 'discarded' });
+    updateCustomer({ ...customer, status: 'lost' });
     toast({ title: "Lead Descartado", description: `${customer.name} foi movido para inativos.` });
   };
 
@@ -365,7 +370,7 @@ export default function ClientesPage() {
 
   const handleConfirmConvert = (type: "active_contract" | "one_time") => {
     if (!convertingCustomer) return;
-    updateCustomer({ ...convertingCustomer, status: 'new', type: type });
+    updateCustomer({ ...convertingCustomer, status: 'won', type: type });
     toast({ title: "Lead Convertido!", description: `${convertingCustomer.name} agora é um cliente.` });
     setConvertingCustomer(null);
   };
@@ -491,10 +496,12 @@ export default function ClientesPage() {
     if (editingCustomer) {
       let nextStatus = editingCustomer.status;
       if (values.isLead) {
-          nextStatus = "lead";
+          if (editingCustomer.status === "new" || editingCustomer.status === "active" || editingCustomer.status === "won") {
+            nextStatus = "lead";
+          }
       } else {
-          if (editingCustomer.status === "lead" || editingCustomer.status === "new") {
-              nextStatus = "active";
+          if (editingCustomer.status === "lead" || editingCustomer.status === "new" || editingCustomer.status === "opportunity") {
+              nextStatus = "won";
           }
       }
       updateCustomer({
@@ -558,7 +565,7 @@ export default function ClientesPage() {
             <TabsTrigger value="all">Clientes</TabsTrigger>
             <TabsTrigger value="active_contract">Contratos Ativos</TabsTrigger>
             <TabsTrigger value="one_time">Avulsos</TabsTrigger>
-            <TabsTrigger value="leads">Leads</TabsTrigger>
+            <TabsTrigger value="leads">Leads / Funil</TabsTrigger>
             <TabsTrigger value="new">Novos</TabsTrigger>
             <TabsTrigger value="inactive">Inativos</TabsTrigger>
           </TabsList>
@@ -891,8 +898,8 @@ export default function ClientesPage() {
                         </TableCell>
                         <TableCell>
                             <div className="flex flex-col gap-1">
-                                <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
-                                {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && (
+                                <Badge variant={customer.status === 'active' || customer.status === 'won' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge>
+                                {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && (
                                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
                                         {customer.type === 'active_contract' ? 'Contrato Ativo' : 'Avulso'}
                                     </span>
@@ -906,13 +913,13 @@ export default function ClientesPage() {
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleCloneClick(customer); }} title="Clonar Cliente"><Copy className="h-4 w-4" /></Button>
                                 
-                                {customer.status !== 'inactive' && customer.status !== 'discarded' ? (
+                                {customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' ? (
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={(e) => { e.stopPropagation(); handleInactivateClick(customer); }} title="Inativar Cliente"><Archive className="h-4 w-4" /></Button>
                                 ) : (
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={(e) => { e.stopPropagation(); handleReactivateClick(customer); }} title="Reativar Cliente"><RotateCcw className="h-4 w-4" /></Button>
                                 )}
 
-                                {customer.status === 'lead' && (
+                                {(customer.status === 'lead' || customer.status === 'opportunity' || customer.status === 'proposal' || customer.status === 'negotiation') && (
                                     <>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}><UserCheck className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDiscardClick(customer); }}><UserX className="h-4 w-4" /></Button>

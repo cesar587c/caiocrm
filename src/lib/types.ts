@@ -69,7 +69,7 @@ export type ServiceOrder = {
     history?: ServiceOrderHistoryEntry[];
 };
 
-export type CustomerStatus = "active" | "inactive" | "new" | "lead" | "discarded";
+export type CustomerStatus = "lead" | "opportunity" | "proposal" | "negotiation" | "won" | "lost" | "active" | "inactive" | "new" | "discarded";
 export type CustomerType = "active_contract" | "one_time" | "lead";
 
 export type Customer = {
