@@ -55,6 +55,7 @@ import {
   Repeat,
   Tag,
   XCircle,
+  Share2,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -128,6 +129,7 @@ export default function PropostasPage() {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -137,7 +139,27 @@ export default function PropostasPage() {
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
+    const saved = localStorage.getItem('vendaspro_proposals');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            const migrated = parsed.map((p: any) => ({
+                ...p,
+                proposalDate: new Date(p.proposalDate),
+                validityDate: new Date(p.validityDate),
+            }));
+            setSavedProposals(migrated);
+        } catch (e) {
+            console.error("Erro ao carregar propostas", e);
+        }
+    }
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+        localStorage.setItem('vendaspro_proposals', JSON.stringify(savedProposals));
+    }
+  }, [savedProposals, isClient]);
 
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
@@ -209,12 +231,9 @@ export default function PropostasPage() {
   };
   
   const handleQuickAddClient = () => {
-    form.reset({
-      ...form.getValues(),
-      clientId: undefined,
-      clientName: '',
-      clientPhone: '',
-    });
+    form.setValue('clientId', undefined);
+    form.setValue('clientName', '');
+    form.setValue('clientPhone', '');
     setIsQuickAddingClient(true);
   }
   
@@ -253,7 +272,7 @@ export default function PropostasPage() {
       }
   };
 
-  const handleSendWhatsApp = (proposal: Proposal) => {
+  const handleSendWhatsAppText = (proposal: Proposal) => {
     const itemsText = proposal.items
       .map(
         (item) =>
@@ -294,6 +313,62 @@ ${companyProfile.phone}`;
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
     const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
     window.open(url, 'vendaspro_whatsapp');
+  };
+
+  const handleSharePdf = async (proposal: Proposal) => {
+    const proposalElement = document.getElementById('proposal-preview');
+    if (!proposalElement) {
+        toast({ variant: 'destructive', title: 'Erro ao gerar documento' });
+        return;
+    }
+
+    setIsSharing(true);
+    try {
+        const canvas = await html2canvas(proposalElement, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const canvasAspectRatio = canvasWidth / canvasHeight;
+        
+        let finalPdfWidth = pdfWidth;
+        let finalPdfHeight = pdfWidth / canvasAspectRatio;
+        
+        if (finalPdfHeight > pdfHeight) {
+            finalPdfHeight = pdfHeight;
+            finalPdfWidth = pdfHeight * canvasAspectRatio;
+        }
+        
+        const xOffset = (pdfWidth - finalPdfWidth) / 2;
+        const yOffset = (pdfHeight - finalPdfHeight) / 2;
+        
+        pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalPdfWidth, finalPdfHeight);
+        
+        const pdfBlob = pdf.output('blob');
+        const file = new File([pdfBlob], `proposta-${proposal.id}.pdf`, { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                files: [file],
+                title: `Proposta Comercial #${proposal.id}`,
+                text: `Segue proposta da ${companyProfile.name} para ${proposal.clientName}.`,
+            });
+        } else {
+            // Fallback: Download automático se o navegador não suportar o Share API de arquivos
+            pdf.save(`proposta-${proposal.id}.pdf`);
+            toast({
+                title: "PDF Baixado",
+                description: "Seu navegador não suporta envio direto. O PDF foi baixado para que você possa anexar no WhatsApp manualmente.",
+            });
+        }
+    } catch (error) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Falha ao compartilhar proposta' });
+    } finally {
+        setIsSharing(false);
+    }
   };
 
   const handleDownloadPdf = async () => {
@@ -759,10 +834,16 @@ ${companyProfile.phone}`;
                     </div>
                 </ScrollArea>
                 )}
-                <DialogFooter className="print-hide border-t pt-4">
+                <DialogFooter className="print-hide border-t pt-4 flex-wrap gap-2">
                     <Button variant="outline" onClick={() => setSelectedProposal(null)}>Fechar</Button>
                     <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>{isDownloading ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4" />} PDF</Button>
-                    <Button onClick={() => handleSendWhatsApp(selectedProposal!)}><Send className="h-4 w-4" /> WhatsApp</Button>
+                    <Button variant="outline" className="gap-2" onClick={() => handleSendWhatsAppText(selectedProposal!)} title="Enviar resumo como texto">
+                        <Send className="h-4 w-4" /> WhatsApp (Texto)
+                    </Button>
+                    <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => handleSharePdf(selectedProposal!)} disabled={isSharing}>
+                        {isSharing ? <Loader2 className="animate-spin h-4 w-4" /> : <Share2 className="h-4 w-4" />} 
+                        Enviar PDF (WhatsApp)
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
