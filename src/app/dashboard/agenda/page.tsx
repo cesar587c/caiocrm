@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -19,7 +20,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing, Ban, ExternalLink, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing, Ban, ExternalLink, AlertTriangle, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -58,9 +59,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { Appointment } from '@/lib/types';
+import type { Appointment, Customer } from '@/lib/types';
 import { Calendar } from '@/components/ui/calendar';
 import { sendAppointmentNotifications } from '@/app/actions';
+import { Separator } from '@/components/ui/separator';
 
 const appointmentSchema = z.object({
   date: z.date({ required_error: 'A data é obrigatória.' }),
@@ -92,16 +94,17 @@ export default function AgendaPage() {
   }>({ isOpen: false, isLoading: false, isSimulated: false, details: [] });
 
   const [searchTermAssignees, setSearchTermAssignees] = useState('');
+  const [searchTermCustomers, setSearchTermCustomers] = useState('');
   const [isJustificationDialogOpen, setIsJustificationDialogOpen] = useState(false);
   const [appointmentToProcess, setAppointmentToProcess] = useState<Appointment | null>(null);
   const [justification, setJustification] = useState('');
 
   const { toast } = useToast();
-  const { companyProfile, sectors, users, appointments, addAppointment, updateAppointment, deleteAppointment, currentUser } = useSettings();
+  const { companyProfile, sectors, users, appointments, customers, addAppointment, updateAppointment, deleteAppointment, currentUser } = useSettings();
 
   const isAdmin = currentUser?.role === 'admin';
 
-  // MECANISMO DE DESBLOQUEIO FORÇADO: Garante que o sistema nunca trave após fechar modais
+  // MECANISMO DE DESBLOQUEIO FORÇADO
   useEffect(() => {
     const isAnyBlockingElementOpen = isModalOpen || isDeleteDialogOpen || notificationState.isOpen || isJustificationDialogOpen;
     
@@ -113,7 +116,7 @@ export default function AgendaPage() {
       };
       
       forceRelease();
-      const timer = setTimeout(forceRelease, 300); // Segunda tentativa para garantir limpeza após animações
+      const timer = setTimeout(forceRelease, 300);
       return () => clearTimeout(timer);
     }
   }, [isModalOpen, isDeleteDialogOpen, notificationState.isOpen, isJustificationDialogOpen]);
@@ -180,6 +183,7 @@ export default function AgendaPage() {
   const openModalForDay = (day: Date) => {
     setSelectedDate(day);
     setSearchTermAssignees('');
+    setSearchTermCustomers('');
     if(editingAppointment) {
       form.setValue('date', day);
     } else {
@@ -206,6 +210,7 @@ export default function AgendaPage() {
   const handleEditClick = (appointment: Appointment, day: Date) => {
     setEditingAppointment(appointment);
     setSearchTermAssignees('');
+    setSearchTermCustomers('');
     const assignedToArray = Array.isArray(appointment.assignedTo) ? appointment.assignedTo : [appointment.assignedTo];
     form.reset({
       date: parse(appointment.date, 'yyyy-MM-dd', new Date()),
@@ -220,8 +225,18 @@ export default function AgendaPage() {
     setIsModalOpen(true);
   };
 
+  const handleCustomerSelect = (customer: Customer) => {
+    form.setValue('clientName', customer.name, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    form.setValue('address', customer.endereco || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    form.setValue('phone', customer.telefone || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    form.setValue('contact', customer.contactName || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    toast({
+        title: "Cliente Selecionado",
+        description: `Os dados de ${customer.name} foram preenchidos.`
+    });
+  };
+
   const triggerNotifications = async (appointment: any) => {
-    // Timeout maior para garantir que o modal de edição fechou completamente
     setTimeout(async () => {
         setNotificationState(prev => ({ ...prev, isOpen: true, isLoading: true }));
         
@@ -271,7 +286,6 @@ export default function AgendaPage() {
     const cleanPhone = detail.phone.replace(/\D/g, '');
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
     const url = `https://web.whatsapp.com/send?phone=${phoneWithCountryCode}&text=${encodeURIComponent(detail.message)}`;
-    // Usamos um nome fixo para a janela ('vendaspro_whatsapp') para que as mensagens seguintes reaproveitem a mesma aba.
     window.open(url, 'vendaspro_whatsapp');
   };
 
@@ -350,6 +364,10 @@ export default function AgendaPage() {
 
   const filteredSectors = sectors.filter(s => s.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
   const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTermAssignees.toLowerCase()));
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(searchTermCustomers.toLowerCase()) || 
+    (c.nomeFantasia && c.nomeFantasia.toLowerCase().includes(searchTermCustomers.toLowerCase()))
+  );
 
   return (
     <>
@@ -484,7 +502,47 @@ export default function AgendaPage() {
                  </ScrollArea>
             </div>
             <div>
-                 <h3 className="font-semibold text-lg text-foreground mb-4">{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
+                 <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-lg text-foreground">{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</h3>
+                    {isAdmin && !editingAppointment && (
+                        <Popover modal={false}>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+                                    <UserPlus className="h-3 w-3" />
+                                    Selecionar Cliente
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[300px] p-0 pointer-events-auto" align="end" onWheel={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                                <div className="p-2 border-b bg-background">
+                                    <div className="relative">
+                                        <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
+                                        <Input placeholder="Buscar cliente..." className="pl-7 h-8 text-xs" value={searchTermCustomers} onChange={(e) => setSearchTermCustomers(e.target.value)} />
+                                    </div>
+                                </div>
+                                <div className="max-h-64 overflow-y-auto overscroll-contain">
+                                    <div className="p-1">
+                                        {filteredCustomers.map(customer => (
+                                            <div 
+                                                key={customer.id} 
+                                                className="flex flex-col gap-0.5 p-2 rounded-md hover:bg-muted/50 cursor-pointer text-left"
+                                                onClick={() => {
+                                                    handleCustomerSelect(customer);
+                                                    // O Popover fecha automaticamente
+                                                }}
+                                            >
+                                                <span className="text-sm font-medium">{customer.name}</span>
+                                                <span className="text-[10px] text-muted-foreground truncate">{customer.endereco || 'Sem endereço'}</span>
+                                            </div>
+                                        ))}
+                                        {filteredCustomers.length === 0 && (
+                                            <p className="text-xs text-center text-muted-foreground py-4">Nenhum cliente encontrado.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    )}
+                 </div>
                  <Form {...form}>
                     <form id="appointment-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
