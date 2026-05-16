@@ -478,6 +478,9 @@ export default function AgendaPage() {
                                             </FormControl>
                                         </DialogTrigger>
                                         <DialogContent className="w-auto" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+                                          <DialogHeader className="sr-only">
+                                            <DialogTitle>Selecionar Data</DialogTitle>
+                                          </DialogHeader>
                                           <Calendar mode="single" selected={field.value} onSelect={(date) => { if(date) { field.onChange(date); openModalForDay(date); } }} locale={ptBR} />
                                         </DialogContent>
                                     </Dialog>
@@ -639,4 +642,3 @@ export default function AgendaPage() {
     </>
   );
 }
-
