@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -166,7 +167,6 @@ export default function PropostasPage() {
     name: 'items',
   });
 
-  // Monitoramento reativo dos itens para cálculo de totais
   const watchItems = useWatch({
     control: form.control,
     name: "items",
@@ -251,59 +251,6 @@ export default function PropostasPage() {
               ),
           });
       }
-  };
-
-  const handleSendEmail = (proposal: Proposal) => {
-    const itemsText = proposal.items
-      .map(
-        (item) =>
-          `- ${item.name} ${item.isMonthly ? '(mensal)' : ''} (Qtd: ${item.quantity}, Valor Unit.: ${item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`
-      )
-      .join('\n');
-
-    const subject = `Proposta Comercial da ${companyProfile.name} - Nº ${proposal.id}`;
-    
-    const body = `Olá, ${proposal.clientName}!
-    
-Segue a sua proposta comercial da ${companyProfile.name}, conforme solicitado.
-
------------------------------------
-DETALHES DA PROPOSTA
------------------------------------
-Proposta: ${proposal.id}
-Data: ${format(proposal.proposalDate, 'dd/MM/yyyy')}
-Validade: ${format(proposal.validityDate, 'dd/MM/yyyy')}
-
------------------------------------
-ITENS
------------------------------------
-${itemsText}
-
------------------------------------
-TOTAIS
------------------------------------
-Total Único (Investimento): ${proposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-Total Mensal (Recorrente): ${proposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-
------------------------------------
-CONDIÇÕES DE PAGAMENTO (VALOR ÚNICO)
------------------------------------
-- Forma: ${proposal.paymentMethod.replace('cartao', 'Cartão de Crédito').replace('boleto', 'Boleto Bancário').replace('pix', 'PIX')}
-- Parcelas: ${proposal.installments}x de ${(proposal.totalOneTime / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-
-Agradecemos a oportunidade e ficamos à disposição para quaisquer esclarecimentos.
-
-Atenciosamente,
-${companyProfile.name}
-${companyProfile.phone}
-${companyProfile.email}
-    `;
-
-    const encodedSubject = encodeURIComponent(subject);
-    const encodedBody = encodeURIComponent(body);
-    const mailtoUrl = `mailto:?subject=${encodedSubject}&body=${encodedBody}`;
-    window.location.href = mailtoUrl;
-    toast({ title: "E-mail Pronto", description: "Seu cliente de e-mail foi aberto." });
   };
 
   const handleSendWhatsApp = (proposal: Proposal) => {
@@ -746,23 +693,45 @@ ${companyProfile.phone}`;
                 {selectedProposal && (
                 <ScrollArea className="flex-1 -mx-6 px-6">
                     <div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto font-sans my-8">
-                        <div className="flex justify-between items-start mb-8">
-                            <div><h1 className="text-2xl font-bold">{companyProfile.name}</h1>{ companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="mt-2 max-h-12" /> }</div>
-                            <div className="text-right text-xs"><p>{companyProfile.address}</p><p>{companyProfile.email}</p><p>{companyProfile.phone}</p></div>
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex items-center gap-4">
+                                {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="max-h-16 w-auto" />}
+                                <div>
+                                    <h1 className="text-2xl font-bold uppercase leading-tight">{companyProfile.name}</h1>
+                                </div>
+                            </div>
+                            <div className="text-right text-[10px] leading-relaxed">
+                                <p>{companyProfile.address}</p>
+                                <p>{companyProfile.email}</p>
+                                <p>{companyProfile.phone}</p>
+                            </div>
                         </div>
-                        <hr className="my-8" />
                         
-                        <div className="space-y-4 text-sm mb-8 leading-relaxed">
+                        <hr className="my-6 border-gray-300" />
+                        
+                        <div className="text-center mb-8">
+                            <h2 className="text-2xl font-bold uppercase tracking-widest border-b-2 border-black pb-2 inline-block">Proposta Comercial</h2>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
+                            <div>
+                                <p className="font-bold text-gray-500 uppercase text-xs mb-1">Para:</p>
+                                <p className="font-bold text-base">{selectedProposal.clientName}</p>
+                                <p className="text-gray-600">{selectedProposal.clientPhone}</p>
+                            </div>
+                            <div className="text-right flex flex-col justify-end">
+                                <p><span className="font-bold">Nº Proposta:</span> #{selectedProposal.id}</p>
+                                <p><span className="font-bold">Emissão:</span> {format(selectedProposal.proposalDate, 'dd/MM/yyyy')}</p>
+                                <p><span className="font-bold">Validade:</span> {format(selectedProposal.validityDate, 'dd/MM/yyyy')}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 text-sm mb-8 leading-relaxed text-justify">
                             <p>Com mais de 18 anos de experiência, somos a junção de Soluções especializada em tecnologia.</p>
                             <p>Na área de Consultoria da Tecnologia dispomos das mais modernas ferramentas e profissionais altamente qualificados.</p>
                             <p>A Active Representações conta hoje com a parceria de grandes empresas para atender seus clientes de forma ágil e com grande qualidade profissional no mínimo de tempo e passa por rigor de análise em vários critérios, a começar pelo atendimento ao cliente.</p>
                         </div>
 
-                        <h2 className="text-xl font-bold mb-4">Proposta Comercial #{selectedProposal.id}</h2>
-                        <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
-                            <div><p className="font-bold text-gray-500 uppercase text-xs">Para:</p><p className="font-bold">{selectedProposal.clientName}</p><p>{selectedProposal.clientPhone}</p></div>
-                            <div className="text-right"><p><span className="font-bold">Emissão:</span> {format(selectedProposal.proposalDate, 'dd/MM/yyyy')}</p><p><span className="font-bold">Validade:</span> {format(selectedProposal.validityDate, 'dd/MM/yyyy')}</p></div>
-                        </div>
                         <table className="w-full text-left text-sm mb-8">
                             <thead className="bg-gray-100"><tr><th className="p-2">Item</th><th className="p-2 text-center">Qtd.</th><th className="p-2 text-right">Preço Unit.</th><th className="p-2 text-right">Subtotal</th></tr></thead>
                             <tbody>{selectedProposal.items.map((it, i) => (
