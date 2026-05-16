@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -515,7 +514,7 @@ export default function AgendaPage() {
                             )}
                         />
                         <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Horário</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Nome do Cliente</FormLabel><FormControl><Input placeholder="Ex: Tech Solutions Ltda." {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormMessage></FormItem>)} />
+                        <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Nome do Cliente</FormLabel><FormControl><Input placeholder="Ex: Tech Solutions Ltda." {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Ex: Rua das Inovações, 123" {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="contact" render={({ field }) => (<FormItem><FormLabel>Contato na Visita</FormLabel><FormControl><Input placeholder="Ex: Sr. Carlos" {...field} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />
@@ -543,14 +542,14 @@ export default function AgendaPage() {
                                             </Button>
                                         </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 pointer-events-auto" align="start">
+                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 pointer-events-auto" align="start" onWheel={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                                         <div className="p-2 border-b bg-background">
                                             <div className="relative">
                                                 <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
                                                 <Input placeholder="Buscar por nome..." className="pl-7 h-8 text-xs" value={searchTermAssignees} onChange={(e) => setSearchTermAssignees(e.target.value)} />
                                             </div>
                                         </div>
-                                        <div className="max-h-80 overflow-y-auto overscroll-contain">
+                                        <div className="max-h-80 overflow-y-auto overscroll-contain" onWheel={(e) => e.stopPropagation()}>
                                             <div className="p-2 space-y-4">
                                                 <div>
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Setores</p>
