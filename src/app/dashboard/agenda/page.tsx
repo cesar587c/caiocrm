@@ -20,7 +20,7 @@ import {
   parse,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing, Ban, ExternalLink, AlertTriangle, UserPlus, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Phone, User, Plus, Pencil, Trash2, Briefcase, ClipboardList, Calendar as CalendarIcon, CheckCircle2, XCircle, Info, CalendarPlus, CalendarClock, Loader2, Users, Search, Send, UserCheck, MessageSquare, BellRing, Ban, ExternalLink, AlertTriangle, UserPlus, Check, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -235,6 +235,31 @@ export default function AgendaPage() {
     });
   };
 
+  const handleAddToGoogleCalendar = (app: Appointment) => {
+    const [year, month, day] = app.date.split('-').map(Number);
+    const [hour, minute] = app.time.split(':').map(Number);
+    
+    // Início do evento
+    const startDate = new Date(year, month - 1, day, hour, minute);
+    // Término (padrão 1 hora depois)
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+    
+    const formatGCalDate = (date: Date) => format(date, "yyyyMMdd'T'HHmmss");
+    
+    const title = encodeURIComponent(`Visita Técnica: ${app.clientName}`);
+    const dates = `${formatGCalDate(startDate)}/${formatGCalDate(endDate)}`;
+    const details = encodeURIComponent(`Contato: ${app.contact}\nTelefone: ${app.phone || 'N/A'}\nResumo: ${app.summary || ''}\n\nAgendado via VendasPro`);
+    const location = encodeURIComponent(app.address);
+    
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
+    window.open(url, '_blank');
+    
+    toast({
+        title: "Google Agenda",
+        description: "Abrindo o calendário para salvar o compromisso."
+    });
+  };
+
   const triggerNotifications = async (appointment: any) => {
     setTimeout(async () => {
         setNotificationState(prev => ({ ...prev, isOpen: true, isLoading: true }));
@@ -285,11 +310,8 @@ export default function AgendaPage() {
   const sendManualWhatsApp = (detail: any, index: number) => {
     const cleanPhone = detail.phone.replace(/\D/g, '');
     const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-    // wa.me é mais rápido e garante melhor reaproveitamento da aba se o alvo for o mesmo
     const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(detail.message)}`;
     window.open(url, 'vendaspro_whatsapp');
-    
-    // Marca como enviado visualmente
     setSentMessages(prev => prev.includes(index) ? prev : [...prev, index]);
   };
 
@@ -468,7 +490,7 @@ export default function AgendaPage() {
                                     onClick={() => !editingAppointment && setSelectedAppointment(app)}
                                 >
                                     <div className="flex justify-between items-start">
-                                        <p className="font-semibold text-base pr-16">{app.clientName}</p>
+                                        <p className="font-semibold text-base pr-20">{app.clientName}</p>
                                         <div className="flex items-center gap-2 text-primary font-bold">
                                             <Clock className="h-4 w-4"/>
                                             {app.time}
@@ -487,7 +509,10 @@ export default function AgendaPage() {
                                     </div>
                                     {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
 
-                                    <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md">
+                                    <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md shadow-sm border border-border/50">
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:text-emerald-700" onClick={(e) => { e.stopPropagation(); handleAddToGoogleCalendar(app); }} title="Adicionar ao Google Agenda">
+                                            <CalendarPlus className="h-4 w-4" />
+                                        </Button>
                                         <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={(e) => { e.stopPropagation(); triggerNotifications(app); }} title="Reenviar Notificações Automáticas">
                                             <BellRing className="h-4 w-4" />
                                         </Button>
@@ -679,6 +704,10 @@ export default function AgendaPage() {
                 <>
                     {selectedAppointment && !editingAppointment && (
                         <>
+                            <Button type="button" variant="outline" className="mr-auto gap-2" onClick={() => handleAddToGoogleCalendar(selectedAppointment)}>
+                                <CalendarPlus className="h-4 w-4 text-emerald-600" />
+                                Google Agenda
+                            </Button>
                             <Button type="button" variant="secondary" onClick={handleMarkAsCompleted}>Marcar Concluído</Button>
                             <Button type="button" onClick={() => handleEditClick(selectedAppointment, selectedDate)}>Reagendar</Button>
                             {isAdmin && (

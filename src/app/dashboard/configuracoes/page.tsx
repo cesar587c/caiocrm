@@ -19,7 +19,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup, Lock, ShieldCheck, Users } from 'lucide-react';
+import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup, Lock, ShieldCheck, Users, CalendarDays, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -38,7 +38,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MENU_ITEMS } from '@/components/layout/sidebar';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
@@ -128,7 +128,6 @@ export default function ConfiguracoesPage() {
   };
 
   const handleTogglePermission = (role: UserRole, path: string) => {
-    // Prevent blocking admin from configurations or users to avoid lockout
     if (role === 'admin' && (path === '/dashboard/configuracoes' || path === '/dashboard/usuarios')) {
         toast({
             variant: "destructive",
@@ -167,10 +166,11 @@ export default function ConfiguracoesPage() {
       </div>
       
       <Tabs defaultValue="company">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4">
+        <TabsList className="grid w-full max-w-4xl grid-cols-5">
           <TabsTrigger value="company">Dados da Empresa</TabsTrigger>
           <TabsTrigger value="sectors">Setores e Equipe</TabsTrigger>
           <TabsTrigger value="permissions">Controle de Acesso</TabsTrigger>
+          <TabsTrigger value="integrations">Integrações</TabsTrigger>
           <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
         
@@ -398,6 +398,49 @@ export default function ConfiguracoesPage() {
                     <ShieldAlert className="h-3.5 w-3.5" />
                     O cargo de Administrador possui acesso obrigatório às Configurações e Usuários para evitar bloqueios permanentes.
                 </p>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="integrations">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-emerald-500" />
+                Google Agenda
+              </CardTitle>
+              <CardDescription>Conecte sua agenda comercial para sincronizar visitas técnicas e reuniões.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 border rounded-lg bg-muted/20">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                            <CalendarDays className="h-6 w-6 text-emerald-600" />
+                        </div>
+                        <div>
+                            <h4 className="font-bold">Google Calendar</h4>
+                            <p className="text-sm text-muted-foreground">Exportação manual habilitada por padrão.</p>
+                        </div>
+                    </div>
+                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Conectado
+                    </Badge>
+                </div>
+
+                <div className="space-y-4">
+                    <h4 className="text-sm font-semibold">Como funciona a integração:</h4>
+                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                        <li>Ao agendar uma visita, você verá o ícone do Google Agenda para exportar o evento.</li>
+                        <li>O link de exportação preenche automaticamente o título, data, hora, endereço e notas da visita.</li>
+                        <li>Você pode salvar o evento em sua conta Google pessoal ou corporativa.</li>
+                        <li>A integração permite que você tenha alertas no celular através do app nativo do Google.</li>
+                    </ul>
+                </div>
+            </CardContent>
+            <CardFooter className="border-t pt-6">
+                <Button variant="outline" className="gap-2" onClick={() => window.open('https://calendar.google.com', '_blank')}>
+                    <ExternalLink className="h-4 w-4" /> Acessar Meu Google Agenda
+                </Button>
             </CardFooter>
           </Card>
         </TabsContent>
