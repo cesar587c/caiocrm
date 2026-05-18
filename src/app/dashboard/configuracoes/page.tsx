@@ -1,8 +1,6 @@
-
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,7 +17,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup, Lock, ShieldCheck, Users, CalendarDays, ExternalLink, CheckCircle2, Download, Upload } from 'lucide-react';
+import { Settings, Loader2, UploadCloud, Trash2, ShieldAlert, DatabaseBackup, Lock, ShieldCheck, CalendarDays, ExternalLink, CheckCircle2, Download, Upload, AlertTriangle, MonitorSmartphone } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -31,7 +29,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/AlertDialog";
+} from "@/components/ui/alert-dialog";
 import type { Sector, UserRole } from '@/lib/types';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -115,11 +113,7 @@ export default function ConfiguracoesPage() {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
-        toast({
-          variant: "destructive",
-          title: "Arquivo muito grande",
-          description: "Por favor, selecione um arquivo de imagem com menos de 2MB.",
-        });
+        toast({ variant: "destructive", title: "Arquivo muito grande", description: "Por favor, selecione uma imagem com menos de 2MB." });
         return;
       }
       const reader = new FileReader();
@@ -149,19 +143,11 @@ export default function ConfiguracoesPage() {
 
   const handleTogglePermission = (role: UserRole, path: string) => {
     if (role === 'admin' && (path === '/dashboard/configuracoes' || path === '/dashboard/usuarios')) {
-        toast({
-            variant: "destructive",
-            title: "Acesso Obrigatório",
-            description: "O Administrador deve sempre ter acesso às Configurações e Usuários.",
-        });
+        toast({ variant: "destructive", title: "Acesso Obrigatório", description: "O Administrador deve sempre ter acesso às Configurações e Usuários." });
         return;
     }
-
     const currentPaths = rolePermissions[role] || [];
-    const newPaths = currentPaths.includes(path)
-        ? currentPaths.filter(p => p !== path)
-        : [...currentPaths, path];
-    
+    const newPaths = currentPaths.includes(path) ? currentPaths.filter(p => p !== path) : [...currentPaths, path];
     updateRolePermissions(role, newPaths);
   };
 
@@ -172,11 +158,7 @@ export default function ConfiguracoesPage() {
   };
 
   if (!isLoaded) {
-    return (
-        <div className="flex h-full w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-    );
+    return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   return (
@@ -191,115 +173,31 @@ export default function ConfiguracoesPage() {
           <TabsTrigger value="sectors">Setores e Equipe</TabsTrigger>
           <TabsTrigger value="permissions">Controle de Acesso</TabsTrigger>
           <TabsTrigger value="integrations">Integrações</TabsTrigger>
-          <TabsTrigger value="system">Sistema</TabsTrigger>
+          <TabsTrigger value="system">Sincronização</TabsTrigger>
         </TabsList>
         
         <TabsContent value="company">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                <span>Dados da Sua Empresa</span>
-              </CardTitle>
-              <CardDescription>
-                Estas informações serão usadas nas propostas e em outros documentos gerados pelo sistema.
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" /><span>Dados da Sua Empresa</span></CardTitle>
+              <CardDescription>Estas informações serão usadas nas propostas e em outros documentos gerados pelo sistema.</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome da Empresa</FormLabel>
-                        <FormControl>
-                          <Input placeholder="O nome da sua empresa" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>E-mail de Contato</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="contato@suaempresa.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telefone</FormLabel>
-                        <FormControl>
-                          <Input placeholder="(00) 00000-0000" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Endereço</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Rua, número, cidade - UF" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="whatsappReminderMessage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mensagem de Lembrete (WhatsApp)</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Texto do lembrete para o cliente..."
-                            rows={5}
-                            {...field}
-                            value={field.value || ''}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Você pode usar as variáveis: {"{cliente}"}, {"{empresa}"}, {"{data}"}, e {"{hora}"}.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome da Empresa</FormLabel><FormControl><Input placeholder="O nome da sua empresa" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>E-mail de Contato</FormLabel><FormControl><Input type="email" placeholder="contato@suaempresa.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Textarea placeholder="Rua, número, cidade - UF" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="whatsappReminderMessage" render={({ field }) => (<FormItem><FormLabel>Mensagem de Lembrete (WhatsApp)</FormLabel><FormControl><Textarea placeholder="Texto do lembrete..." rows={5} {...field} value={field.value || ''} /></FormControl><FormDescription>Variáveis: {"{cliente}"}, {"{empresa}"}, {"{data}"}, e {"{hora}"}.</FormDescription><FormMessage /></FormItem>)} />
                   <FormItem>
                     <FormLabel>Logo da Empresa</FormLabel>
                     <div className="flex flex-col gap-4">
-                        <div
-                            className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                <UploadCloud className="w-8 h-8 mb-3 text-muted-foreground" />
-                                <p className="mb-2 text-sm text-muted-foreground">Clique para carregar o logo</p>
-                                <p className="text-xs text-muted-foreground">Máx. 2MB</p>
-                            </div>
+                        <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80" onClick={() => fileInputRef.current?.click()}>
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6"><UploadCloud className="w-8 h-8 mb-3 text-muted-foreground" /><p className="mb-2 text-sm text-muted-foreground">Clique para carregar o logo</p><p className="text-xs text-muted-foreground">Máx. 2MB</p></div>
                             <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                         </div>
-                        {currentLogoUrl && (
-                            <div className="p-4 border rounded-md flex items-center justify-center bg-muted/20">
-                                <img src={currentLogoUrl} alt="Logo Preview" className="max-h-24 w-auto object-contain" />
-                            </div>
-                        )}
+                        {currentLogoUrl && (<div className="p-4 border rounded-md flex items-center justify-center bg-muted/20"><img src={currentLogoUrl} alt="Logo Preview" className="max-h-24 w-auto object-contain" /></div>)}
                     </div>
                   </FormItem>
                   <Button type="submit">Salvar Alterações</Button>
@@ -311,202 +209,79 @@ export default function ConfiguracoesPage() {
         
         <TabsContent value="sectors">
           <Card>
-            <CardHeader>
-              <CardTitle>Gerenciar Setores</CardTitle>
-              <CardDescription>Defina os departamentos da sua empresa para organizar a equipe.</CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle>Gerenciar Setores</CardTitle><CardDescription>Defina os departamentos da sua empresa para organizar a equipe.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex gap-2">
-                <Input 
-                  value={newSectorName} 
-                  onChange={(e) => setNewSectorName(e.target.value)} 
-                  placeholder="Nome do novo setor" 
-                />
-                <Button onClick={handleAddSector}>Adicionar</Button>
-              </div>
-              <ul className="divide-y rounded-md border">
-                {sectors.map(sector => (
-                  <li key={sector.id} className="flex items-center justify-between p-3 pl-4">
-                    <span>{sector.name}</span>
-                    <Button variant="ghost" size="icon" onClick={() => setSectorToDelete(sector)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              <div className="flex gap-2"><Input value={newSectorName} onChange={(e) => setNewSectorName(e.target.value)} placeholder="Nome do novo setor" /><Button onClick={handleAddSector}>Adicionar</Button></div>
+              <ul className="divide-y rounded-md border">{sectors.map(sector => (<li key={sector.id} className="flex items-center justify-between p-3 pl-4"><span>{sector.name}</span><Button variant="ghost" size="icon" onClick={() => setSectorToDelete(sector)}><Trash2 className="h-4 w-4 text-destructive" /></Button></li>))}</ul>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="permissions">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5" />
-                <span>Gestão de Permissões por Cargo</span>
-              </CardTitle>
-              <CardDescription>
-                Defina quais módulos cada cargo pode acessar. As alterações são aplicadas a todos os usuários vinculados.
-              </CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Lock className="h-5 w-5" /><span>Gestão de Permissões por Cargo</span></CardTitle><CardDescription>Defina quais módulos cada cargo pode acessar.</CardDescription></CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="p-4 text-left font-semibold text-sm">Módulo / Tela</th>
-                      {roles.map(role => (
-                        <th key={role.id} className="p-4 text-center font-semibold text-sm min-w-[120px]">
-                          <div className="flex flex-col items-center gap-1">
-                            <div className="flex items-center gap-1.5">
-                                {role.id === 'admin' && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
-                                <span>{role.label}</span>
-                            </div>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Badge variant="outline" className="text-[10px] cursor-help">
-                                            {usersByRole[role.id]?.length || 0} usuários
-                                        </Badge>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <div className="text-xs space-y-1">
-                                            <p className="font-semibold border-b pb-1 mb-1">Pessoas vinculadas:</p>
-                                            {(usersByRole[role.id] || []).map(u => (
-                                                <p key={u.id}>{u.name}</p>
-                                            ))}
-                                            {(usersByRole[role.id]?.length || 0) === 0 && <p className="italic">Ninguém vinculado</p>}
-                                        </div>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {MENU_ITEMS.map((item) => (
-                      <tr key={item.href} className="border-b hover:bg-muted/30">
-                        <td className="p-4 flex items-center gap-3">
-                          <item.icon className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{item.label}</span>
-                        </td>
-                        {roles.map((role) => {
-                          const isChecked = rolePermissions[role.id]?.includes(item.href);
-                          const isDisabled = role.id === 'admin' && (item.href === '/dashboard/configuracoes' || item.href === '/dashboard/usuarios');
-
-                          return (
-                            <td key={role.id} className="p-4 text-center">
-                              <Checkbox 
-                                checked={isChecked}
-                                disabled={isDisabled}
-                                onCheckedChange={() => handleTogglePermission(role.id, item.href)}
-                                className={cn(role.id === 'admin' && "data-[state=checked]:bg-primary")}
-                              />
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
+                  <thead><tr className="border-b"><th className="p-4 text-left font-semibold text-sm">Módulo / Tela</th>{roles.map(role => (<th key={role.id} className="p-4 text-center font-semibold text-sm min-w-[120px]"><div className="flex flex-col items-center gap-1"><div className="flex items-center gap-1.5">{role.id === 'admin' && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}<span>{role.label}</span></div><TooltipProvider><Tooltip><TooltipTrigger asChild><Badge variant="outline" className="text-[10px] cursor-help">{usersByRole[role.id]?.length || 0} usuários</Badge></TooltipTrigger><TooltipContent><div className="text-xs space-y-1"><p className="font-semibold border-b pb-1 mb-1">Pessoas vinculadas:</p>{(usersByRole[role.id] || []).map(u => (<p key={u.id}>{u.name}</p>))}{(usersByRole[role.id]?.length || 0) === 0 && <p className="italic">Ninguém vinculado</p>}</div></TooltipContent></Tooltip></TooltipProvider></div></th>))}</tr></thead>
+                  <tbody>{MENU_ITEMS.map((item) => (<tr key={item.href} className="border-b hover:bg-muted/30"><td className="p-4 flex items-center gap-3"><item.icon className="h-4 w-4 text-muted-foreground" /><span className="text-sm">{item.label}</span></td>{roles.map((role) => { const isChecked = rolePermissions[role.id]?.includes(item.href); const isDisabled = role.id === 'admin' && (item.href === '/dashboard/configuracoes' || item.href === '/dashboard/usuarios'); return (<td key={role.id} className="p-4 text-center"><Checkbox checked={isChecked} disabled={isDisabled} onCheckedChange={() => handleTogglePermission(role.id, item.href)} className={cn(role.id === 'admin' && "data-[state=checked]:bg-primary")} /></td>); })}</tr>))}</tbody>
                 </table>
               </div>
             </CardContent>
-            <CardFooter>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <ShieldAlert className="h-3.5 w-3.5" />
-                    O cargo de Administrador possui acesso obrigatório às Configurações e Usuários para evitar bloqueios permanentes.
-                </p>
-            </CardFooter>
+            <CardFooter><p className="text-xs text-muted-foreground flex items-center gap-1.5"><ShieldAlert className="h-3.5 w-3.5" />O cargo de Administrador possui acesso obrigatório às Configurações e Usuários.</p></CardFooter>
           </Card>
         </TabsContent>
 
         <TabsContent value="integrations">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-emerald-500" />
-                Google Agenda
-              </CardTitle>
-              <CardDescription>Conecte sua agenda comercial para sincronizar visitas técnicas e reuniões.</CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-emerald-500" />Google Agenda</CardTitle><CardDescription>Conecte sua agenda comercial para sincronizar visitas técnicas e reuniões.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 border rounded-lg bg-muted/20">
-                    <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                            <CalendarDays className="h-6 w-6 text-emerald-600" />
-                        </div>
-                        <div>
-                            <h4 className="font-bold">Google Calendar</h4>
-                            <p className="text-sm text-muted-foreground">Exportação manual habilitada por padrão.</p>
-                        </div>
-                    </div>
-                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Conectado
-                    </Badge>
-                </div>
-
-                <div className="space-y-4">
-                    <h4 className="text-sm font-semibold">Como funciona a integração:</h4>
-                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
-                        <li>Ao agendar uma visita, você verá o ícone do Google Agenda para exportar o evento.</li>
-                        <li>O link de exportação preenche automaticamente o título, data, hora, endereço e notas da visita.</li>
-                        <li>Você pode salvar o evento em sua conta Google pessoal ou corporativa.</li>
-                        <li>A integração permite que você tenha alertas no celular através do app nativo do Google.</li>
-                    </ul>
+                    <div className="flex items-center gap-4"><div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center"><CalendarDays className="h-6 w-6 text-emerald-600" /></div><div><h4 className="font-bold">Google Calendar</h4><p className="text-sm text-muted-foreground">Exportação manual habilitada por padrão.</p></div></div>
+                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1"><CheckCircle2 className="h-3 w-3" /> Conectado</Badge>
                 </div>
             </CardContent>
-            <CardFooter className="border-t pt-6">
-                <Button variant="outline" className="gap-2" onClick={() => window.open('https://calendar.google.com', '_blank')}>
-                    <ExternalLink className="h-4 w-4" /> Acessar Meu Google Agenda
-                </Button>
-            </CardFooter>
+            <CardFooter className="border-t pt-6"><Button variant="outline" className="gap-2" onClick={() => window.open('https://calendar.google.com', '_blank')}><ExternalLink className="h-4 w-4" /> Acessar Meu Google Agenda</Button></CardFooter>
           </Card>
         </TabsContent>
 
         <TabsContent value="system">
           <Card className="border-border">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DatabaseBackup className="h-5 w-5 text-primary" />
-                Backup e Sincronização
-              </CardTitle>
-              <CardDescription>Mova seus dados entre diferentes computadores ou salve uma cópia de segurança.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><MonitorSmartphone className="h-5 w-5 text-primary" />Sincronização entre Computadores</CardTitle>
+              <CardDescription>Como seus dados estão salvos localmente neste navegador, use esta ferramenta para mover suas informações para outro PC ou celular.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+               <Alert className="bg-primary/5 border-primary/20">
+                 <AlertTriangle className="h-4 w-4 text-primary" />
+                 <AlertTitle className="font-bold">Atenção!</AlertTitle>
+                 <AlertDescription className="text-xs">
+                   O VendasPro salva tudo no seu navegador. Para ver os mesmos dados em outro computador, você deve <strong>Exportar</strong> aqui e <strong>Importar</strong> lá sempre que houver mudanças importantes.
+                 </AlertDescription>
+               </Alert>
+
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 border rounded-lg space-y-3">
-                        <h4 className="font-bold flex items-center gap-2"><Download className="h-4 w-4 text-primary" />Exportar Dados</h4>
-                        <p className="text-xs text-muted-foreground">Baixa um arquivo com todos os clientes, propostas e configurações atuais.</p>
-                        <Button variant="outline" className="w-full gap-2" onClick={exportAllData}>
-                            Salvar Backup (.json)
+                    <div className="p-4 border rounded-lg space-y-3 bg-card">
+                        <h4 className="font-bold flex items-center gap-2"><Download className="h-4 w-4 text-primary" />1. Exportar Dados</h4>
+                        <p className="text-xs text-muted-foreground">Gera um arquivo com todos os clientes, propostas, agendas e configurações atuais.</p>
+                        <Button variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10" onClick={exportAllData}>
+                            Salvar Backup Atual (.json)
                         </Button>
                     </div>
-                    <div className="p-4 border rounded-lg space-y-3">
-                        <h4 className="font-bold flex items-center gap-2"><Upload className="h-4 w-4 text-emerald-500" />Importar Dados</h4>
-                        <p className="text-xs text-muted-foreground">Carrega um arquivo de backup para restaurar suas informações neste computador.</p>
+                    <div className="p-4 border rounded-lg space-y-3 bg-card">
+                        <h4 className="font-bold flex items-center gap-2"><Upload className="h-4 w-4 text-emerald-500" />2. Importar em outro PC</h4>
+                        <p className="text-xs text-muted-foreground">Carrega um arquivo de backup para restaurar ou atualizar suas informações nesta máquina.</p>
                         <input type="file" ref={importInputRef} className="hidden" accept=".json" onChange={handleImportFile} />
-                        <Button variant="outline" className="w-full gap-2 text-emerald-500 hover:text-emerald-600 border-emerald-500/30" onClick={() => importInputRef.current?.click()}>
+                        <Button variant="outline" className="w-full gap-2 text-emerald-500 hover:text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10" onClick={() => importInputRef.current?.click()}>
                             Carregar Backup
                         </Button>
                     </div>
                </div>
 
               <div className="mt-8 pt-8 border-t">
-                  <h3 className="text-destructive font-bold flex items-center gap-2 mb-4">
-                    <ShieldAlert className="h-5 w-5" />
-                    Zona de Perigo
-                  </h3>
-                  <Alert variant="destructive" className="bg-destructive/5">
-                    <AlertTitle>Limpar Base de Dados</AlertTitle>
-                    <AlertDescription>
-                      Isso apagará permanentemente todos os clientes, OS, agendamentos e propostas.
-                    </AlertDescription>
-                  </Alert>
-                  <Button variant="destructive" className="mt-4" onClick={() => setIsResetDialogOpen(true)}>
-                    Limpar Tudo
-                  </Button>
+                  <h3 className="text-destructive font-bold flex items-center gap-2 mb-4"><ShieldAlert className="h-5 w-5" />Zona de Perigo</h3>
+                  <Alert variant="destructive" className="bg-destructive/5"><AlertTitle>Limpar Base de Dados</AlertTitle><AlertDescription>Isso apagará permanentemente todos os registros deste computador.</AlertDescription></Alert>
+                  <Button variant="destructive" className="mt-4" onClick={() => setIsResetDialogOpen(true)}>Limpar Tudo</Button>
               </div>
             </CardContent>
           </Card>
@@ -514,29 +289,11 @@ export default function ConfiguracoesPage() {
       </Tabs>
 
       <AlertDialog open={!!sectorToDelete} onOpenChange={(isOpen) => !isOpen && setSectorToDelete(null)}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Setor?</AlertDialogTitle>
-            <AlertDialogDescription>O setor "{sectorToDelete?.name}" será removido.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { deleteSector(sectorToDelete!.id); setSectorToDelete(null); }}>Confirmar</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir Setor?</AlertDialogTitle><AlertDialogDescription>O setor "{sectorToDelete?.name}" será removido.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => { deleteSector(sectorToDelete!.id); setSectorToDelete(null); }}>Confirmar</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
 
       <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Limpeza Total?</AlertDialogTitle>
-            <AlertDialogDescription>Essa ação não pode ser desfeita e removerá todos os seus dados operacionais.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={clearAllData} className="bg-destructive hover:bg-destructive/90">Limpar Tudo</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Confirmar Limpeza Total?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita e removerá todos os seus dados operacionais.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={clearAllData} className="bg-destructive hover:bg-destructive/90">Limpar Tudo</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
     </div>
   );

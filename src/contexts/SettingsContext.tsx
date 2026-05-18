@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer, Product, UserRole, RolePermissions, CustomerStatus } from '@/lib/types';
+import type { CompanyProfile, Sector, User, Appointment, ServiceOrder, Customer, Product, UserRole, RolePermissions, CustomerStatus, Proposal } from '@/lib/types';
 import { companyProfile as initialCompanyProfileData } from '@/lib/company-profile';
 import { initialServiceOrders, initialCustomers, initialProducts } from '@/lib/mock-data';
 
@@ -54,6 +53,10 @@ interface SettingsContextType {
   addProduct: (productData: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => Product;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
+  proposals: Proposal[];
+  addProposal: (proposal: Proposal) => void;
+  updateProposal: (proposal: Proposal) => void;
+  deleteProposal: (id: string) => void;
   rolePermissions: RolePermissions;
   updateRolePermissions: (role: UserRole, paths: string[]) => void;
   currentUser: User | null;
@@ -78,6 +81,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(initialServiceOrders);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermissions>(initialRolePermissions);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -95,27 +99,22 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     try {
-      const isDemoCleaned = localStorage.getItem('vendaspro_demo_cleaned_v3');
+      const isDemoCleaned = localStorage.getItem('vendaspro_demo_cleaned_v4');
       if (!isDemoCleaned) {
           localStorage.removeItem('appointments');
           localStorage.removeItem('serviceOrders');
           localStorage.removeItem('customers');
           localStorage.removeItem('products');
-          localStorage.setItem('vendaspro_demo_cleaned_v3', 'true');
+          localStorage.removeItem('proposals');
+          localStorage.setItem('vendaspro_demo_cleaned_v4', 'true');
           setAppointments(initialAppointments);
           setServiceOrders(initialServiceOrders);
           setCustomers(initialCustomers);
           setProducts(initialProducts);
+          setProposals([]);
       } else {
           const savedAppointments = localStorage.getItem('appointments');
-          if(savedAppointments) {
-              const parsed = JSON.parse(savedAppointments);
-              const migrated = parsed.map((app: any) => ({
-                  ...app,
-                  assignedTo: Array.isArray(app.assignedTo) ? app.assignedTo : [app.assignedTo]
-              }));
-              setAppointments(migrated);
-          }
+          if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
 
           const savedServiceOrders = localStorage.getItem('serviceOrders');
           if(savedServiceOrders) setServiceOrders(JSON.parse(savedServiceOrders));
@@ -125,6 +124,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
           const savedProducts = localStorage.getItem('products');
           if (savedProducts) setProducts(JSON.parse(savedProducts));
+
+          const savedProposals = localStorage.getItem('proposals');
+          if (savedProposals) setProposals(JSON.parse(savedProposals));
       }
 
       const savedProfile = localStorage.getItem('companyProfile');
@@ -133,28 +135,18 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       }
       
       const savedSectors = localStorage.getItem('sectors');
-      if (savedSectors) {
-        const parsed = JSON.parse(savedSectors);
-        if (parsed.length > 0) setSectors(parsed);
-      }
+      if (savedSectors) setSectors(JSON.parse(savedSectors));
       
       const savedUsers = localStorage.getItem('users');
-      let finalUsers = initialUsers;
-      if (savedUsers) {
-        const parsed = JSON.parse(savedUsers);
-        if (parsed.length > 0) finalUsers = parsed;
-      }
-      setUsers(finalUsers);
+      if (savedUsers) setUsers(JSON.parse(savedUsers));
 
       const savedPermissions = localStorage.getItem('rolePermissions');
-      if (savedPermissions) {
-          setRolePermissions({ ...initialRolePermissions, ...JSON.parse(savedPermissions) });
-      }
+      if (savedPermissions) setRolePermissions(JSON.parse(savedPermissions));
 
       const savedCurrentUserId = localStorage.getItem('currentUserId');
       if (savedCurrentUserId) {
         const id = JSON.parse(savedCurrentUserId);
-        const foundUser = finalUsers.find(u => u.id === id);
+        const foundUser = (savedUsers ? JSON.parse(savedUsers) : initialUsers).find((u: User) => u.id === id);
         setCurrentUser(foundUser || null);
       }
     } catch (error) {
@@ -181,9 +173,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         serviceOrders,
         customers,
         products,
+        proposals,
         rolePermissions,
-        proposals: JSON.parse(localStorage.getItem('vendaspro_proposals') || '[]'),
-        version: '1.0'
+        timestamp: new Date().toISOString(),
+        version: '1.1'
     };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
     const downloadAnchorNode = document.createElement('a');
@@ -192,29 +185,20 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
-  }, [companyProfile, sectors, users, appointments, serviceOrders, customers, products, rolePermissions]);
+  }, [companyProfile, sectors, users, appointments, serviceOrders, customers, products, proposals, rolePermissions]);
 
   const importAllData = useCallback((jsonData: string) => {
     try {
         const backup = JSON.parse(jsonData);
-        if (backup.companyProfile) setCompanyProfile(backup.companyProfile);
-        if (backup.sectors) setSectors(backup.sectors);
-        if (backup.users) setUsers(backup.users);
-        if (backup.appointments) setAppointments(backup.appointments);
-        if (backup.serviceOrders) setServiceOrders(backup.serviceOrders);
-        if (backup.customers) setCustomers(backup.customers);
-        if (backup.products) setProducts(backup.products);
-        if (backup.rolePermissions) setRolePermissions(backup.rolePermissions);
-        if (backup.proposals) localStorage.setItem('vendaspro_proposals', JSON.stringify(backup.proposals));
-
-        saveData('companyProfile', backup.companyProfile);
-        saveData('sectors', backup.sectors);
-        saveData('users', backup.users);
-        saveData('appointments', backup.appointments);
-        saveData('serviceOrders', backup.serviceOrders);
-        saveData('customers', backup.customers);
-        saveData('products', backup.products);
-        saveData('rolePermissions', backup.rolePermissions);
+        if (backup.companyProfile) saveData('companyProfile', backup.companyProfile);
+        if (backup.sectors) saveData('sectors', backup.sectors);
+        if (backup.users) saveData('users', backup.users);
+        if (backup.appointments) saveData('appointments', backup.appointments);
+        if (backup.serviceOrders) saveData('serviceOrders', backup.serviceOrders);
+        if (backup.customers) saveData('customers', backup.customers);
+        if (backup.products) saveData('products', backup.products);
+        if (backup.proposals) saveData('proposals', backup.proposals);
+        if (backup.rolePermissions) saveData('rolePermissions', backup.rolePermissions);
         
         window.location.reload();
         return true;
@@ -225,15 +209,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, [saveData]);
 
   const clearAllData = useCallback(() => {
-    setAppointments([]);
-    setServiceOrders([]);
-    setCustomers([]);
-    setProducts([]);
-    localStorage.removeItem('appointments');
-    localStorage.removeItem('serviceOrders');
-    localStorage.removeItem('customers');
-    localStorage.removeItem('products');
-    localStorage.removeItem('vendaspro_proposals');
+    const keys = ['appointments', 'serviceOrders', 'customers', 'products', 'proposals', 'companyProfile', 'sectors', 'users', 'rolePermissions', 'currentUserId'];
+    keys.forEach(k => localStorage.removeItem(k));
     window.location.reload();
   }, []);
 
@@ -258,19 +235,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const handleSetProfile = useCallback((profile: CompanyProfile) => {
     setCompanyProfile(profile);
     saveData('companyProfile', profile);
-  }, [saveData]);
-
-  const triggerCustomerActivation = useCallback((customerId: string) => {
-      setCustomers(prev => {
-          const updated = prev.map(c => {
-              if (c.id === customerId && c.status === 'new') {
-                  return { ...c, status: 'active' as CustomerStatus };
-              }
-              return c;
-          });
-          saveData('customers', updated);
-          return updated;
-      });
   }, [saveData]);
 
   const addSector = useCallback((name: string) => {
@@ -330,9 +294,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           saveData('appointments', updated);
           return updated;
       });
-      const customer = customers.find(c => c.name === data.clientName);
-      if (customer) triggerCustomerActivation(customer.id);
-  }, [saveData, customers, triggerCustomerActivation]);
+  }, [saveData]);
 
   const updateAppointment = useCallback((updated: Appointment) => {
       setAppointments(prev => {
@@ -364,8 +326,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         saveData('serviceOrders', updated);
         return updated;
     });
-    triggerCustomerActivation(data.clientId);
-  }, [saveData, triggerCustomerActivation]);
+  }, [saveData]);
 
   const updateServiceOrder = useCallback((updated: ServiceOrder) => {
     setServiceOrders(prev => {
@@ -451,6 +412,30 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [saveData]);
 
+  const addProposal = useCallback((proposal: Proposal) => {
+    setProposals(prev => {
+        const updated = [proposal, ...prev];
+        saveData('proposals', updated);
+        return updated;
+    });
+  }, [saveData]);
+
+  const updateProposal = useCallback((updated: Proposal) => {
+    setProposals(prev => {
+        const newState = prev.map(p => p.id === updated.id ? updated : p);
+        saveData('proposals', newState);
+        return newState;
+    });
+  }, [saveData]);
+
+  const deleteProposal = useCallback((id: string) => {
+    setProposals(prev => {
+        const updated = prev.filter(p => p.id !== id);
+        saveData('proposals', updated);
+        return updated;
+    });
+  }, [saveData]);
+
   const updateRolePermissions = useCallback((role: UserRole, paths: string[]) => {
     const newPermissions = { ...rolePermissions, [role]: paths };
     setRolePermissions(newPermissions);
@@ -465,6 +450,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         serviceOrders, addServiceOrder, updateServiceOrder, deleteServiceOrder,
         customers, addCustomer, addCustomers, updateCustomer, deleteCustomer,
         products, addProduct, updateProduct, deleteProduct,
+        proposals, addProposal, updateProposal, deleteProposal,
         rolePermissions, updateRolePermissions,
         currentUser, 
         login,
@@ -478,8 +464,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       companyProfile, handleSetProfile, sectors, addSector, deleteSector, users, addUser, updateUser, deleteUser, 
       appointments, addAppointment, updateAppointment, deleteAppointment, serviceOrders, addServiceOrder, 
       updateServiceOrder, deleteServiceOrder, customers, addCustomer, addCustomers, updateCustomer, deleteCustomer, 
-      products, addProduct, updateProduct, deleteProduct, rolePermissions, updateRolePermissions, currentUser, 
-      login, logout, clearAllData, exportAllData, importAllData, isAuthenticated, isLoaded
+      products, addProduct, updateProduct, deleteProduct, proposals, addProposal, updateProposal, deleteProposal,
+      rolePermissions, updateRolePermissions, currentUser, login, logout, clearAllData, exportAllData, importAllData, 
+      isAuthenticated, isLoaded
     ]);
 
   return (

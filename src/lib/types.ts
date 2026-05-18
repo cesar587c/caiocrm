@@ -113,4 +113,26 @@ export type Product = {
   priceHistory: number[];
 };
 
+export type ProposalItem = {
+  name: string;
+  quantity: number;
+  price: number;
+  isMonthly: boolean;
+};
+
+export type Proposal = {
+  id: string;
+  clientId?: string;
+  clientName: string;
+  clientPhone?: string;
+  proposalDate: string; // ISO string
+  validityDate: string; // ISO string
+  items: ProposalItem[];
+  paymentMethod: string;
+  installments: number;
+  firstAsDownPayment: boolean;
+  totalOneTime: number;
+  totalMonthly: number;
+};
+
 export type RolePermissions = Record<UserRole, string[]>;

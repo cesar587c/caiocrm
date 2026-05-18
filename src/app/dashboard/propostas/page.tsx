@@ -4,9 +4,9 @@ import { useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addDays, format } from 'date-fns';
+import { addDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import jspdf from 'jspdf';
+import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -83,7 +83,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import type { Product } from '@/lib/types';
+import type { Product, Proposal } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 const proposalItemSchema = z.object({
@@ -106,11 +106,6 @@ const proposalSchema = z.object({
 });
 
 type ProposalFormValues = z.infer<typeof proposalSchema>;
-type Proposal = ProposalFormValues & { 
-    id: string; 
-    totalOneTime: number;
-    totalMonthly: number;
-};
 
 const productFormSchema = z.object({
   id: z.string().optional(),
@@ -121,11 +116,10 @@ const productFormSchema = z.object({
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 export default function PropostasPage() {
-  const { companyProfile, customers, products, addProduct, updateProduct, deleteProduct } = useSettings();
+  const { companyProfile, customers, products, addProduct, updateProduct, deleteProduct, proposals, addProposal, updateProposal, deleteProposal } = useSettings();
   const { toast } = useToast();
   const [productSearch, setProductSearch] = useState('');
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
-  const [savedProposals, setSavedProposals] = useState<Proposal[]>([]);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -136,31 +130,6 @@ export default function PropostasPage() {
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   
-  const [isClient, setIsClient] = useState(false);
-  useEffect(() => {
-    setIsClient(true);
-    const saved = localStorage.getItem('vendaspro_proposals');
-    if (saved) {
-        try {
-            const parsed = JSON.parse(saved);
-            const migrated = parsed.map((p: any) => ({
-                ...p,
-                proposalDate: new Date(p.proposalDate),
-                validityDate: new Date(p.validityDate),
-            }));
-            setSavedProposals(migrated);
-        } catch (e) {
-            console.error("Erro ao carregar propostas", e);
-        }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isClient) {
-        localStorage.setItem('vendaspro_proposals', JSON.stringify(savedProposals));
-    }
-  }, [savedProposals, isClient]);
-
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
     defaultValues: {
@@ -288,7 +257,7 @@ export default function PropostasPage() {
 Segue a sua proposta comercial da ${companyProfile.name}.
 
 *Proposta:* ${proposal.id}
-*Data:* ${format(proposal.proposalDate, 'dd/MM/yyyy')}
+*Data:* ${format(parseISO(proposal.proposalDate), 'dd/MM/yyyy')}
 
 *Itens:*
 ${itemsText}
@@ -326,7 +295,7 @@ ${companyProfile.phone}`;
     try {
         const canvas = await html2canvas(proposalElement, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const canvasWidth = canvas.width;
@@ -356,7 +325,6 @@ ${companyProfile.phone}`;
                 text: `Segue proposta da ${companyProfile.name} para ${proposal.clientName}.`,
             });
         } else {
-            // Fallback: Download automático se o navegador não suportar o Share API de arquivos
             pdf.save(`proposta-${proposal.id}.pdf`);
             toast({
                 title: "PDF Baixado",
@@ -381,7 +349,7 @@ ${companyProfile.phone}`;
     try {
         const canvas = await html2canvas(proposalElement, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const canvasWidth = canvas.width;
@@ -407,7 +375,7 @@ ${companyProfile.phone}`;
 
   const confirmDeleteAction = () => {
     if (!deletingProposal) return;
-    setSavedProposals(prev => prev.filter(p => p.id !== deletingProposal.id));
+    deleteProposal(deletingProposal.id);
     toast({ title: "Proposta Excluída" });
     setDeletingProposal(null);
   };
@@ -430,8 +398,8 @@ ${companyProfile.phone}`;
       clientId: proposal.clientId,
       clientName: proposal.clientName,
       clientPhone: proposal.clientPhone,
-      proposalDate: proposal.proposalDate,
-      validityDate: proposal.validityDate,
+      proposalDate: new Date(proposal.proposalDate),
+      validityDate: new Date(proposal.validityDate),
       items: proposal.items,
       paymentMethod: proposal.paymentMethod,
       installments: proposal.installments,
@@ -468,23 +436,27 @@ ${companyProfile.phone}`;
     );
     
     if (editingProposal) {
-      const updatedProposal: Proposal = {
+      const updatedP: Proposal = {
         ...data,
         id: editingProposal.id,
+        proposalDate: data.proposalDate.toISOString(),
+        validityDate: data.validityDate.toISOString(),
         totalOneTime: currentTotals.oneTime,
         totalMonthly: currentTotals.monthly,
       };
-      setSavedProposals(prev => prev.map(p => p.id === editingProposal.id ? updatedProposal : p));
+      updateProposal(updatedP);
       toast({ title: 'Proposta Atualizada!' });
     } else {
-      const newId = savedProposals.length > 0 ? Math.max(0, ...savedProposals.map(p => Number(p.id))) + 1 : 1;
-      const newProposal: Proposal = {
+      const newId = proposals.length > 0 ? Math.max(0, ...proposals.map(p => Number(p.id))) + 1 : 1;
+      const newP: Proposal = {
         ...data,
         id: String(newId),
+        proposalDate: data.proposalDate.toISOString(),
+        validityDate: data.validityDate.toISOString(),
         totalOneTime: currentTotals.oneTime,
         totalMonthly: currentTotals.monthly,
       };
-      setSavedProposals(prev => [newProposal, ...prev]);
+      addProposal(newP);
       toast({ title: 'Proposta Salva!' });
     }
 
@@ -535,7 +507,7 @@ ${companyProfile.phone}`;
                                                 <PopoverTrigger asChild>
                                                 <Button type="button" variant="outline" className={cn("w-[140px] justify-start text-left font-normal h-8 text-xs", !field.value && "text-muted-foreground")}>
                                                     <CalendarIcon className="mr-2 h-3 w-3" />
-                                                    {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Data</span>}
+                                                    {field.value ? format(field.value, "dd/MM/yyyy") : <span>Data</span>}
                                                 </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={ptBR}/></PopoverContent>
@@ -553,7 +525,7 @@ ${companyProfile.phone}`;
                                                 <PopoverTrigger asChild>
                                                 <Button type="button" variant="outline" className={cn("w-[140px] justify-start text-left font-normal h-8 text-xs", !field.value && "text-muted-foreground")}>
                                                     <CalendarIcon className="mr-2 h-3 w-3" />
-                                                    {isClient && field.value ? format(field.value, "dd/MM/yyyy") : <span>Data</span>}
+                                                    {field.value ? format(field.value, "dd/MM/yyyy") : <span>Data</span>}
                                                 </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={ptBR}/></PopoverContent>
@@ -747,11 +719,11 @@ ${companyProfile.phone}`;
             <Table>
                 <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Investimento</TableHead><TableHead>Mensal</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                 <TableBody>
-                    {savedProposals.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-20 text-muted-foreground">Vazio</TableCell></TableRow> : savedProposals.map(p => (
+                    {proposals.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-20 text-muted-foreground">Vazio</TableCell></TableRow> : proposals.map(p => (
                         <TableRow key={p.id}>
                             <TableCell className="font-bold">#{p.id}</TableCell>
                             <TableCell>{p.clientName}</TableCell>
-                            <TableCell>{format(p.proposalDate, 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell>
                             <TableCell className="text-primary font-medium">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                             <TableCell className="text-emerald-500 font-medium">{p.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                             <TableCell className="text-right">
@@ -802,8 +774,8 @@ ${companyProfile.phone}`;
                             </div>
                             <div className="text-right flex flex-col justify-end">
                                 <p><span className="font-bold">Nº Proposta:</span> #{selectedProposal.id}</p>
-                                <p><span className="font-bold">Emissão:</span> {format(selectedProposal.proposalDate, 'dd/MM/yyyy')}</p>
-                                <p><span className="font-bold">Validade:</span> {format(selectedProposal.validityDate, 'dd/MM/yyyy')}</p>
+                                <p><span className="font-bold">Emissão:</span> {format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                                <p><span className="font-bold">Validade:</span> {format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
                             </div>
                         </div>
 
