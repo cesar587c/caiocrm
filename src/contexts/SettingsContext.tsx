@@ -104,15 +104,14 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       }
   }, []);
 
-  // Carregamento Seguro dos Dados e Migração de Chaves Antigas
+  // Carregamento Seguro e Migração
   useEffect(() => {
     try {
-      // Migração de propostas (chave antiga 'propostas' para 'proposals')
+      // Migração de propostas
       const legacyProposals = localStorage.getItem('propostas');
       const currentProposals = localStorage.getItem('proposals');
       
       if (legacyProposals && !currentProposals) {
-          console.log("Migrando propostas da chave antiga...");
           localStorage.setItem('proposals', legacyProposals);
           setProposals(JSON.parse(legacyProposals));
           localStorage.removeItem('propostas');
@@ -186,7 +185,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const importAllData = useCallback((jsonData: string) => {
     try {
         const backup = JSON.parse(jsonData);
-        // Usamos as chaves corretas para o salvamento
         if (backup.companyProfile) saveData('companyProfile', backup.companyProfile);
         if (backup.sectors) saveData('sectors', backup.sectors);
         if (backup.users) saveData('users', backup.users);
@@ -206,7 +204,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, [saveData]);
 
   const clearAllData = useCallback(() => {
-    const keys = ['appointments', 'serviceOrders', 'customers', 'products', 'proposals', 'propostas', 'companyProfile', 'sectors', 'users', 'rolePermissions', 'currentUserId'];
+    const keys = ['appointments', 'serviceOrders', 'customers', 'products', 'proposals', 'companyProfile', 'sectors', 'users', 'rolePermissions', 'currentUserId'];
     keys.forEach(k => localStorage.removeItem(k));
     window.location.reload();
   }, []);

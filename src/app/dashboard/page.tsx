@@ -1,6 +1,8 @@
+
 "use client";
 
 import {
+  AlertTriangle,
   Anchor,
   ArrowDown,
   ArrowUp,
@@ -11,6 +13,7 @@ import {
   CalendarPlus,
   Clock,
   DollarSign,
+  Download,
   FileCog,
   Lightbulb,
   Percent,
@@ -50,6 +53,8 @@ import React, { useMemo } from "react";
 import { useSettings } from "@/contexts/SettingsContext";
 import { startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 // Mock Data Zered (Waiting for real data)
 const salesKpis = [
@@ -72,16 +77,6 @@ const technicalSalesKpis = [
     { title: "Leads Gerados (Téc.)", value: "0", change: 0, icon: Lightbulb, tooltip: "Novas oportunidades de negócio identificadas e registradas pela equipe técnica." },
     { title: "Upsell/Cross-sell (Téc.)", value: "R$ 0", change: 0, icon: ArrowUpCircle, tooltip: "Valor adicional em vendas gerado por sugestões técnicas durante o atendimento." },
 ];
-
-const funnelData = [
-  { name: "Visitantes", value: 0, fill: "hsl(var(--chart-5))" },
-  { name: "Leads", value: 0, fill: "hsl(var(--chart-4))" },
-  { name: "Oportunidades", value: 0, fill: "hsl(var(--chart-3))" },
-  { name: "Negociações", value: 0, fill: "hsl(var(--chart-2))" },
-  { name: "Vendas", value: 0, fill: "hsl(var(--chart-1))" },
-].reverse();
-
-const teamRankingData: any[] = [];
 
 const channelData = [
     { name: "Telefone", value: 0, fill: "hsl(var(--chart-1))" },
@@ -136,7 +131,7 @@ const KpiCard = ({ kpi }: { kpi: Kpi }) => {
 
 
 export default function DashboardPage() {
-  const { appointments } = useSettings();
+  const { appointments, exportAllData } = useSettings();
 
   const agendaKpis = useMemo(() => {
     const now = new Date();
@@ -169,6 +164,22 @@ export default function DashboardPage() {
           Dashboard
         </h1>
       </div>
+
+      <Alert className="bg-amber-500/10 border-amber-500/30 text-amber-500">
+        <AlertTriangle className="h-4 w-4 text-amber-500" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+            <div>
+                <AlertTitle className="font-bold">Lembrete de Segurança</AlertTitle>
+                <AlertDescription className="text-xs text-amber-500/80">
+                    Seus dados estão salvos <strong>apenas neste computador</strong>. Para não perdê-los ao trocar de máquina ou limpar o navegador, faça um backup regularmente.
+                </AlertDescription>
+            </div>
+            <Button variant="outline" size="sm" className="h-8 gap-2 border-amber-500/30 hover:bg-amber-500/20 text-amber-500" onClick={exportAllData}>
+                <Download className="h-3.5 w-3.5" />
+                Baixar Backup Agora
+            </Button>
+        </div>
+      </Alert>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -226,26 +237,8 @@ export default function DashboardPage() {
                 <CardTitle className="font-headline text-lg">Ranking de Equipes</CardTitle>
                 <CardDescription>Performance de vendas por equipe.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 -ml-4 flex items-center justify-center">
-                {teamRankingData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                    <BarChart
-                        data={teamRankingData}
-                        layout="vertical"
-                        margin={{ top: 5, right: 50, left: 10, bottom: 5 }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="team" type="category" axisLine={false} tickLine={false} width={80} />
-                        <RechartsTooltip />
-                        <Bar dataKey="salesValue" fill="hsl(var(--primary))" background={{ fill: 'hsl(var(--muted))', radius: 4 }}>
-                            <LabelList dataKey="sales" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                        </Bar>
-                    </BarChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <p className="text-sm text-muted-foreground italic">Nenhum dado de vendas registrado.</p>
-                )}
+              <CardContent className="flex-1 flex items-center justify-center">
+                 <p className="text-sm text-muted-foreground italic">Nenhum dado de vendas registrado.</p>
               </CardContent>
             </Card>
 
