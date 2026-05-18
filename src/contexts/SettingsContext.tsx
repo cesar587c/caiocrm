@@ -60,6 +60,8 @@ interface SettingsContextType {
   login: (name: string, password: string) => Promise<boolean>;
   logout: () => void;
   clearAllData: () => void;
+  exportAllData: () => void;
+  importAllData: (jsonData: string) => boolean;
   isAuthenticated: boolean;
   isLoaded: boolean;
 }
@@ -108,7 +110,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           const savedAppointments = localStorage.getItem('appointments');
           if(savedAppointments) {
               const parsed = JSON.parse(savedAppointments);
-              // Migrate assignedTo from string to string[] if needed
               const migrated = parsed.map((app: any) => ({
                   ...app,
                   assignedTo: Array.isArray(app.assignedTo) ? app.assignedTo : [app.assignedTo]
@@ -171,6 +172,58 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       }
   }, []);
 
+  const exportAllData = useCallback(() => {
+    const backup = {
+        companyProfile,
+        sectors,
+        users,
+        appointments,
+        serviceOrders,
+        customers,
+        products,
+        rolePermissions,
+        proposals: JSON.parse(localStorage.getItem('vendaspro_proposals') || '[]'),
+        version: '1.0'
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href",     dataStr);
+    downloadAnchorNode.setAttribute("download", `vendaspro_backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  }, [companyProfile, sectors, users, appointments, serviceOrders, customers, products, rolePermissions]);
+
+  const importAllData = useCallback((jsonData: string) => {
+    try {
+        const backup = JSON.parse(jsonData);
+        if (backup.companyProfile) setCompanyProfile(backup.companyProfile);
+        if (backup.sectors) setSectors(backup.sectors);
+        if (backup.users) setUsers(backup.users);
+        if (backup.appointments) setAppointments(backup.appointments);
+        if (backup.serviceOrders) setServiceOrders(backup.serviceOrders);
+        if (backup.customers) setCustomers(backup.customers);
+        if (backup.products) setProducts(backup.products);
+        if (backup.rolePermissions) setRolePermissions(backup.rolePermissions);
+        if (backup.proposals) localStorage.setItem('vendaspro_proposals', JSON.stringify(backup.proposals));
+
+        saveData('companyProfile', backup.companyProfile);
+        saveData('sectors', backup.sectors);
+        saveData('users', backup.users);
+        saveData('appointments', backup.appointments);
+        saveData('serviceOrders', backup.serviceOrders);
+        saveData('customers', backup.customers);
+        saveData('products', backup.products);
+        saveData('rolePermissions', backup.rolePermissions);
+        
+        window.location.reload();
+        return true;
+    } catch (e) {
+        console.error("Erro na importação:", e);
+        return false;
+    }
+  }, [saveData]);
+
   const clearAllData = useCallback(() => {
     setAppointments([]);
     setServiceOrders([]);
@@ -180,6 +233,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('serviceOrders');
     localStorage.removeItem('customers');
     localStorage.removeItem('products');
+    localStorage.removeItem('vendaspro_proposals');
     window.location.reload();
   }, []);
 
@@ -276,7 +330,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           saveData('appointments', updated);
           return updated;
       });
-      // Interaction triggers customer activation if they are 'new'
       const customer = customers.find(c => c.name === data.clientName);
       if (customer) triggerCustomerActivation(customer.id);
   }, [saveData, customers, triggerCustomerActivation]);
@@ -311,7 +364,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         saveData('serviceOrders', updated);
         return updated;
     });
-    // OS creation is a strong interaction, activate customer
     triggerCustomerActivation(data.clientId);
   }, [saveData, triggerCustomerActivation]);
 
@@ -418,6 +470,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         login,
         logout,
         clearAllData,
+        exportAllData,
+        importAllData,
         isAuthenticated,
         isLoaded 
     }), [
@@ -425,7 +479,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       appointments, addAppointment, updateAppointment, deleteAppointment, serviceOrders, addServiceOrder, 
       updateServiceOrder, deleteServiceOrder, customers, addCustomer, addCustomers, updateCustomer, deleteCustomer, 
       products, addProduct, updateProduct, deleteProduct, rolePermissions, updateRolePermissions, currentUser, 
-      login, logout, clearAllData, isAuthenticated, isLoaded
+      login, logout, clearAllData, exportAllData, importAllData, isAuthenticated, isLoaded
     ]);
 
   return (

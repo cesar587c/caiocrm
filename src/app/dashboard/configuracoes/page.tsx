@@ -19,7 +19,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup, Lock, ShieldCheck, Users, CalendarDays, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Settings, Loader2, UploadCloud, Link as LinkIcon, Trash2, ShieldAlert, DatabaseBackup, Lock, ShieldCheck, Users, CalendarDays, ExternalLink, CheckCircle2, Download, Upload } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -31,7 +31,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/AlertDialog";
 import type { Sector, UserRole } from '@/lib/types';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -68,12 +68,15 @@ export default function ConfiguracoesPage() {
     addSector, 
     deleteSector, 
     clearAllData, 
+    exportAllData,
+    importAllData,
     isLoaded, 
     rolePermissions, 
     updateRolePermissions,
     users 
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   
   const [newSectorName, setNewSectorName] = useState('');
   const [sectorToDelete, setSectorToDelete] = useState<Sector | null>(null);
@@ -111,7 +114,7 @@ export default function ConfiguracoesPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      if (file.size > 2 * 1024 * 1024) {
         toast({
           variant: "destructive",
           title: "Arquivo muito grande",
@@ -124,6 +127,23 @@ export default function ConfiguracoesPage() {
         form.setValue('logoUrl', reader.result as string, { shouldDirty: true });
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        const success = importAllData(content);
+        if (success) {
+            toast({ title: "Backup Restaurado!", description: "Seus dados foram importados com sucesso." });
+        } else {
+            toast({ variant: "destructive", title: "Erro na Importação", description: "O arquivo selecionado é inválido." });
+        }
+      };
+      reader.readAsText(file);
     }
   };
 
@@ -446,23 +466,48 @@ export default function ConfiguracoesPage() {
         </TabsContent>
 
         <TabsContent value="system">
-          <Card className="border-destructive/20">
+          <Card className="border-border">
             <CardHeader>
-              <CardTitle className="text-destructive flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5" />
-                Zona de Perigo
+              <CardTitle className="flex items-center gap-2">
+                <DatabaseBackup className="h-5 w-5 text-primary" />
+                Backup e Sincronização
               </CardTitle>
+              <CardDescription>Mova seus dados entre diferentes computadores ou salve uma cópia de segurança.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert variant="destructive" className="bg-destructive/5">
-                <AlertTitle>Limpar Base de Dados</AlertTitle>
-                <AlertDescription>
-                  Isso apagará todos os clientes, OS, agendamentos e propostas deste navegador. Apenas usuários e permissões serão mantidos.
-                </AlertDescription>
-              </Alert>
-              <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)}>
-                Limpar Tudo
-              </Button>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 border rounded-lg space-y-3">
+                        <h4 className="font-bold flex items-center gap-2"><Download className="h-4 w-4 text-primary" />Exportar Dados</h4>
+                        <p className="text-xs text-muted-foreground">Baixa um arquivo com todos os clientes, propostas e configurações atuais.</p>
+                        <Button variant="outline" className="w-full gap-2" onClick={exportAllData}>
+                            Salvar Backup (.json)
+                        </Button>
+                    </div>
+                    <div className="p-4 border rounded-lg space-y-3">
+                        <h4 className="font-bold flex items-center gap-2"><Upload className="h-4 w-4 text-emerald-500" />Importar Dados</h4>
+                        <p className="text-xs text-muted-foreground">Carrega um arquivo de backup para restaurar suas informações neste computador.</p>
+                        <input type="file" ref={importInputRef} className="hidden" accept=".json" onChange={handleImportFile} />
+                        <Button variant="outline" className="w-full gap-2 text-emerald-500 hover:text-emerald-600 border-emerald-500/30" onClick={() => importInputRef.current?.click()}>
+                            Carregar Backup
+                        </Button>
+                    </div>
+               </div>
+
+              <div className="mt-8 pt-8 border-t">
+                  <h3 className="text-destructive font-bold flex items-center gap-2 mb-4">
+                    <ShieldAlert className="h-5 w-5" />
+                    Zona de Perigo
+                  </h3>
+                  <Alert variant="destructive" className="bg-destructive/5">
+                    <AlertTitle>Limpar Base de Dados</AlertTitle>
+                    <AlertDescription>
+                      Isso apagará permanentemente todos os clientes, OS, agendamentos e propostas.
+                    </AlertDescription>
+                  </Alert>
+                  <Button variant="destructive" className="mt-4" onClick={() => setIsResetDialogOpen(true)}>
+                    Limpar Tudo
+                  </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
