@@ -96,9 +96,30 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Carregamento Seguro dos Dados
+  const saveData = useCallback((key: string, data: any) => {
+      try {
+          localStorage.setItem(key, JSON.stringify(data));
+      } catch (error) {
+          console.error(`Failed to save ${key}`, error);
+      }
+  }, []);
+
+  // Carregamento Seguro dos Dados e Migração de Chaves Antigas
   useEffect(() => {
     try {
+      // Migração de propostas (chave antiga 'propostas' para 'proposals')
+      const legacyProposals = localStorage.getItem('propostas');
+      const currentProposals = localStorage.getItem('proposals');
+      
+      if (legacyProposals && !currentProposals) {
+          console.log("Migrando propostas da chave antiga...");
+          localStorage.setItem('proposals', legacyProposals);
+          setProposals(JSON.parse(legacyProposals));
+          localStorage.removeItem('propostas');
+      } else if (currentProposals) {
+          setProposals(JSON.parse(currentProposals));
+      }
+
       const savedAppointments = localStorage.getItem('appointments');
       if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
 
@@ -110,9 +131,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
       const savedProducts = localStorage.getItem('products');
       if (savedProducts) setProducts(JSON.parse(savedProducts));
-
-      const savedProposals = localStorage.getItem('proposals');
-      if (savedProposals) setProposals(JSON.parse(savedProposals));
 
       const savedProfile = localStorage.getItem('companyProfile');
       if (savedProfile) {
@@ -131,8 +149,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       const savedCurrentUserId = localStorage.getItem('currentUserId');
       if (savedCurrentUserId) {
         const id = JSON.parse(savedCurrentUserId);
-        const usersToSearch = savedUsers ? JSON.parse(savedUsers) : initialUsers;
-        const foundUser = usersToSearch.find((u: User) => u.id === id);
+        const usersToLoad = savedUsers ? JSON.parse(savedUsers) : initialUsers;
+        const foundUser = usersToLoad.find((u: User) => u.id === id);
         setCurrentUser(foundUser || null);
       }
     } catch (error) {
@@ -142,14 +160,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
   
-  const saveData = useCallback((key: string, data: any) => {
-      try {
-          localStorage.setItem(key, JSON.stringify(data));
-      } catch (error) {
-          console.error(`Failed to save ${key}`, error);
-      }
-  }, []);
-
   const exportAllData = useCallback(() => {
     const backup = {
         companyProfile,
@@ -176,6 +186,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const importAllData = useCallback((jsonData: string) => {
     try {
         const backup = JSON.parse(jsonData);
+        // Usamos as chaves corretas para o salvamento
         if (backup.companyProfile) saveData('companyProfile', backup.companyProfile);
         if (backup.sectors) saveData('sectors', backup.sectors);
         if (backup.users) saveData('users', backup.users);
@@ -183,11 +194,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         if (backup.serviceOrders) saveData('serviceOrders', backup.serviceOrders);
         if (backup.customers) saveData('customers', backup.customers);
         if (backup.products) saveData('products', backup.products);
-        if (backup.proposals) saveData('propostas', backup.proposals); // Chave corrigida para propostas se necessário
+        if (backup.proposals) saveData('proposals', backup.proposals);
         if (backup.rolePermissions) saveData('rolePermissions', backup.rolePermissions);
-        
-        // Persistência adicional para garantir o load imediato
-        localStorage.setItem('proposals', JSON.stringify(backup.proposals || []));
         
         window.location.reload();
         return true;
@@ -198,7 +206,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, [saveData]);
 
   const clearAllData = useCallback(() => {
-    const keys = ['appointments', 'serviceOrders', 'customers', 'products', 'proposals', 'companyProfile', 'sectors', 'users', 'rolePermissions', 'currentUserId'];
+    const keys = ['appointments', 'serviceOrders', 'customers', 'products', 'proposals', 'propostas', 'companyProfile', 'sectors', 'users', 'rolePermissions', 'currentUserId'];
     keys.forEach(k => localStorage.removeItem(k));
     window.location.reload();
   }, []);
