@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -16,8 +17,6 @@ const initialUsers: User[] = [
     { id: 'user_1', name: 'admin', email: 'admin@vendaspro.com', whatsapp: '5511999999999', sectorIds: ['sec_1', 'sec_2', 'sec_3', 'sec_4'], role: 'admin', password: 'AdmPwd20' },
     { id: 'user_2', name: 'Carlos Pereira', email: 'carlos@vendaspro.com', whatsapp: '5521988888888', sectorIds: ['sec_3'], role: 'technician', password: 'password123' }
 ];
-
-const initialAppointments: Appointment[] = [];
 
 const initialRolePermissions: RolePermissions = {
     admin: ['/dashboard', '/dashboard/clientes', '/dashboard/funil-vendas', '/dashboard/propostas', '/dashboard/agenda', '/dashboard/chamados', '/dashboard/relatorios', '/dashboard/configuracoes', '/dashboard/usuarios'],
@@ -77,7 +76,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile>(initialCompanyProfileData);
   const [sectors, setSectors] = useState<Sector[]>(initialSectors);
   const [users, setUsers] = useState<User[]>(initialUsers);
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>(initialServiceOrders);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -97,37 +96,23 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  // Carregamento Seguro dos Dados
   useEffect(() => {
     try {
-      const isDemoCleaned = localStorage.getItem('vendaspro_demo_cleaned_v4');
-      if (!isDemoCleaned) {
-          localStorage.removeItem('appointments');
-          localStorage.removeItem('serviceOrders');
-          localStorage.removeItem('customers');
-          localStorage.removeItem('products');
-          localStorage.removeItem('proposals');
-          localStorage.setItem('vendaspro_demo_cleaned_v4', 'true');
-          setAppointments(initialAppointments);
-          setServiceOrders(initialServiceOrders);
-          setCustomers(initialCustomers);
-          setProducts(initialProducts);
-          setProposals([]);
-      } else {
-          const savedAppointments = localStorage.getItem('appointments');
-          if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
+      const savedAppointments = localStorage.getItem('appointments');
+      if(savedAppointments) setAppointments(JSON.parse(savedAppointments));
 
-          const savedServiceOrders = localStorage.getItem('serviceOrders');
-          if(savedServiceOrders) setServiceOrders(JSON.parse(savedServiceOrders));
+      const savedServiceOrders = localStorage.getItem('serviceOrders');
+      if(savedServiceOrders) setServiceOrders(JSON.parse(savedServiceOrders));
 
-          const savedCustomers = localStorage.getItem('customers');
-          if(savedCustomers) setCustomers(JSON.parse(savedCustomers));
+      const savedCustomers = localStorage.getItem('customers');
+      if(savedCustomers) setCustomers(JSON.parse(savedCustomers));
 
-          const savedProducts = localStorage.getItem('products');
-          if (savedProducts) setProducts(JSON.parse(savedProducts));
+      const savedProducts = localStorage.getItem('products');
+      if (savedProducts) setProducts(JSON.parse(savedProducts));
 
-          const savedProposals = localStorage.getItem('proposals');
-          if (savedProposals) setProposals(JSON.parse(savedProposals));
-      }
+      const savedProposals = localStorage.getItem('proposals');
+      if (savedProposals) setProposals(JSON.parse(savedProposals));
 
       const savedProfile = localStorage.getItem('companyProfile');
       if (savedProfile) {
@@ -146,7 +131,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       const savedCurrentUserId = localStorage.getItem('currentUserId');
       if (savedCurrentUserId) {
         const id = JSON.parse(savedCurrentUserId);
-        const foundUser = (savedUsers ? JSON.parse(savedUsers) : initialUsers).find((u: User) => u.id === id);
+        const usersToSearch = savedUsers ? JSON.parse(savedUsers) : initialUsers;
+        const foundUser = usersToSearch.find((u: User) => u.id === id);
         setCurrentUser(foundUser || null);
       }
     } catch (error) {
@@ -176,7 +162,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         proposals,
         rolePermissions,
         timestamp: new Date().toISOString(),
-        version: '1.1'
+        version: '1.2'
     };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
     const downloadAnchorNode = document.createElement('a');
@@ -197,8 +183,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         if (backup.serviceOrders) saveData('serviceOrders', backup.serviceOrders);
         if (backup.customers) saveData('customers', backup.customers);
         if (backup.products) saveData('products', backup.products);
-        if (backup.proposals) saveData('proposals', backup.proposals);
+        if (backup.proposals) saveData('propostas', backup.proposals); // Chave corrigida para propostas se necessário
         if (backup.rolePermissions) saveData('rolePermissions', backup.rolePermissions);
+        
+        // Persistência adicional para garantir o load imediato
+        localStorage.setItem('proposals', JSON.stringify(backup.proposals || []));
         
         window.location.reload();
         return true;
