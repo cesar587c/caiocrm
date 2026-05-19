@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -213,11 +214,20 @@ export default function ClientesPage() {
 
   const { toast } = useToast();
 
+  // MECANISMO DE DESBLOQUEIO DE CLIQUES (Pointer-events fix)
   useEffect(() => {
-    const anyModalOpen = isFormDialogOpen || isImportDialogOpen || !!deletingCustomer || !!convertingCustomer || notificationState.isOpen;
-    if (!anyModalOpen) {
-      document.body.style.pointerEvents = 'auto';
-      document.body.style.overflow = 'auto';
+    const isAnyBlockingElementOpen = isFormDialogOpen || isImportDialogOpen || !!deletingCustomer || !!convertingCustomer || notificationState.isOpen;
+    
+    if (!isAnyBlockingElementOpen) {
+      const forceRelease = () => {
+        document.body.style.pointerEvents = 'auto';
+        document.body.style.overflow = 'auto';
+        document.documentElement.style.pointerEvents = 'auto';
+      };
+      
+      forceRelease();
+      const timer = setTimeout(forceRelease, 300);
+      return () => clearTimeout(timer);
     }
   }, [isFormDialogOpen, isImportDialogOpen, deletingCustomer, convertingCustomer, notificationState.isOpen]);
 
@@ -363,6 +373,7 @@ export default function ClientesPage() {
   const handleAddNewClick = () => {
     setEditingCustomer(null);
     form.reset(defaultFormValues);
+    form.clearErrors();
     setInteractionSummary("");
     setInteractionNextDate("");
     setInteractionNextTime("");
@@ -1095,7 +1106,7 @@ export default function ClientesPage() {
     </div>
     </TooltipProvider>
 
-    <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.nomeFantasia || deletingCustomer?.name}</span>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.nomeFantasia || deletingCustomer?.name}</span>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     
     <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}>
         <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>

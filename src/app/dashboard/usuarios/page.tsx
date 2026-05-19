@@ -37,7 +37,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle, ShieldCheck, User as UserIcon, Search } from "lucide-react";
+import { UserCog, PlusCircle, Eye, EyeOff, Trash2, XCircle, ShieldCheck, User as UserIcon, Search, UserPlus } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -90,23 +90,24 @@ export default function UsuariosPage() {
     confirmPassword: false,
   });
 
+  // MECANISMO DE DESBLOQUEIO DE CLIQUES (Pointer-events fix)
+  useEffect(() => {
+    const forceRelease = () => {
+      document.body.style.pointerEvents = 'auto';
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.pointerEvents = 'auto';
+    };
+    
+    forceRelease();
+    const timer = setTimeout(forceRelease, 300);
+    return () => clearTimeout(timer);
+  }, [deletingUser, selectedUser]);
+  
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues,
   });
 
-  // Fix para sistema "lock" de clique preso no body
-  useEffect(() => {
-    const anyDialogOpen = !!deletingUser;
-    if (!anyDialogOpen) {
-      const timer = setTimeout(() => {
-        document.body.style.pointerEvents = 'auto';
-        document.body.style.overflow = 'auto';
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [deletingUser]);
-  
   useEffect(() => {
     if (selectedUser) {
         form.reset({
@@ -133,6 +134,8 @@ export default function UsuariosPage() {
   const handleAddNew = () => {
     setSelectedUser(null);
     form.reset(defaultValues);
+    form.clearErrors();
+    toast({ title: "Modo de Cadastro Ativo", description: "O formulário foi limpo para um novo usuário." });
   };
 
   const handleSelectUser = (user: User) => {
@@ -147,10 +150,6 @@ export default function UsuariosPage() {
     setDeletingUser(user);
   };
   
-  const handleCancelEdit = () => {
-      setSelectedUser(null);
-  }
-
   const confirmDelete = () => {
     if (!deletingUser) return;
     if (selectedUser?.id === deletingUser.id) {
@@ -199,6 +198,10 @@ export default function UsuariosPage() {
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight font-headline">Usuários e Equipe</h2>
+          <Button onClick={handleAddNew} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Novo Usuário
+          </Button>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -231,7 +234,7 @@ export default function UsuariosPage() {
                                 >
                                 <TableCell className="font-medium">
                                     <div className="flex flex-col">
-                                        <span className="flex items-center gap-1.5">
+                                        <span className="flex items-center gap-1.5 text-base font-bold">
                                             {user.name}
                                             {user.role === 'admin' && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
                                         </span>
@@ -283,21 +286,20 @@ export default function UsuariosPage() {
             </div>
 
             <div className="lg:col-span-1 sticky top-4">
-                 <Card className="flex flex-col max-h-[calc(100vh-5rem)]">
-                     <Form {...form} key={selectedUser ? selectedUser.id : 'new'}>
+                 <Card className="flex flex-col max-h-[calc(100vh-5rem)] shadow-lg border-primary/20">
+                     <Form {...form} key={selectedUser ? selectedUser.id : 'new-form'}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col min-h-0">
-                             <CardHeader className="flex flex-row items-start justify-between">
+                             <CardHeader className="flex flex-row items-start justify-between bg-primary/5">
                                  <div>
-                                     <CardTitle>{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</CardTitle>
-                                     <CardDescription>{selectedUser ? `Alterando dados de ${selectedUser.name}.` : 'Preencha para cadastrar.'}</CardDescription>
+                                     <CardTitle className="text-lg">{selectedUser ? 'Editar Usuário' : 'Cadastrar Novo'}</CardTitle>
+                                     <CardDescription className="text-xs">{selectedUser ? `Alterando dados de ${selectedUser.name}.` : 'Preencha para cadastrar.'}</CardDescription>
                                  </div>
-                                <Button type="button" size="sm" variant={selectedUser ? "ghost" : "default"} onClick={handleAddNew}>
-                                    {selectedUser ? <XCircle className="h-4 w-4 mr-2" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                                    {selectedUser ? "Cancelar" : "Novo"}
+                                <Button type="button" size="icon" variant="ghost" onClick={handleAddNew} title="Limpar e Criar Novo">
+                                    {selectedUser ? <XCircle className="h-5 w-5 text-muted-foreground" /> : <PlusCircle className="h-5 w-5 text-primary" />}
                                 </Button>
                              </CardHeader>
-                             <CardContent className="flex-1 overflow-y-auto">
-                                <div className="space-y-4 pr-4">
+                             <CardContent className="flex-1 overflow-y-auto pt-6">
+                                <div className="space-y-4 pr-2">
                                      <FormField
                                      control={form.control}
                                      name="name"
@@ -350,8 +352,8 @@ export default function UsuariosPage() {
                                                         <SelectItem value="service">Atendimento</SelectItem>
                                                     </SelectContent>
                                                 </Select>
-                                                <FormDescription>
-                                                    {field.value === 'admin' ? "Acesso total a todas as configurações e dados." : "Acesso restrito conforme definido nas configurações de permissões."}
+                                                <FormDescription className="text-[10px]">
+                                                    {field.value === 'admin' ? "Acesso total a todas as configurações e dados." : "Acesso restrito conforme definido nas configurações."}
                                                 </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
@@ -367,7 +369,7 @@ export default function UsuariosPage() {
                                              <FormControl>
                                              <Input 
                                                  type={showPasswords.password ? 'text' : 'password'} 
-                                                 placeholder={selectedUser ? 'Deixe em branco para manter a atual' : 'Mínimo 8 caracteres'} 
+                                                 placeholder={selectedUser ? 'Em branco para não alterar' : 'Mínimo 8 caracteres'} 
                                                  className="pr-10"
                                                  {...field} 
                                              />
@@ -428,7 +430,7 @@ export default function UsuariosPage() {
                                                          {field.value?.length > 0 ? (
                                                              <div className="flex flex-wrap gap-1">
                                                                  {field.value.map(id => (
-                                                                     <Badge key={id} variant="secondary">{sectorMap.get(id) || 'N/A'}</Badge>
+                                                                     <Badge key={id} variant="secondary" className="text-[10px]">{sectorMap.get(id) || 'N/A'}</Badge>
                                                                  ))}
                                                              </div>
                                                          ) : (
@@ -482,8 +484,8 @@ export default function UsuariosPage() {
                                      />
                                 </div>
                              </CardContent>
-                            <CardFooter>
-                                <Button type="submit" className="w-full">
+                            <CardFooter className="bg-muted/10 pt-4">
+                                <Button type="submit" className="w-full font-bold">
                                     {selectedUser ? 'Salvar Alterações' : 'Cadastrar Usuário'}
                                 </Button>
                             </CardFooter>
@@ -504,7 +506,7 @@ export default function UsuariosPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Confirmar Exclusão</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Confirmar Exclusão</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
