@@ -80,13 +80,20 @@ export async function sendAppointmentNotifications(params: {
 export async function lookupCnpj(cnpj: string) {
     try {
         const cleanedCnpj = cnpj.replace(/\D/g, "");
+        
+        // Adicionando headers para evitar erro 403 (Forbidden)
         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanedCnpj}`, {
-            next: { revalidate: 3600 } // Cache de 1 hora
+            headers: {
+                'User-Agent': 'VendasPro/1.0 (CRM System; contact@vendaspro.com)',
+                'Accept': 'application/json'
+            },
+            next: { revalidate: 3600 } // Cache de 1 hora para economizar requisições
         });
         
         if (!response.ok) {
             if (response.status === 404) return { error: 'CNPJ não encontrado na base de dados.' };
             if (response.status === 429) return { error: 'Muitas consultas em pouco tempo. Tente novamente mais tarde.' };
+            if (response.status === 403) return { error: 'O serviço de consulta bloqueou o acesso temporariamente. Tente em alguns minutos.' };
             return { error: `Erro na consulta (Código ${response.status}).` };
         }
 
@@ -94,6 +101,6 @@ export async function lookupCnpj(cnpj: string) {
         return { success: data };
     } catch (error) {
         console.error("CNPJ Lookup Error:", error);
-        return { error: "Não foi possível conectar ao serviço de consulta de CNPJ." };
+        return { error: "Não foi possível conectar ao serviço de consulta de CNPJ. Verifique sua conexão." };
     }
 }
