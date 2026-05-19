@@ -529,11 +529,26 @@ export default function ClientesPage() {
   };
 
   const handleDownloadTemplate = () => {
-    const data = [{ "Razão Social": "Exemplo Empresa LTDA", "Nome Fantasia": "Exemplo Fantasia", "CNPJ/CPF": "00.000.000/0000-00", "Contato 1": "João Silva", "Telefone 1": "11999999999", "Contato 2": "Maria Souza", "Telefone 2": "11988888888", "E-mail": "contato@exemplo.com", "Endereço": "Rua das Flores, 123", "CEP": "01001-000", "Tipo": "Contrato", "Valor Venda": 500, "Valor Mensal": 150.50, "Observações": "Descreva detalhes técnicos aqui..." }];
+    const data = [{ 
+        "Nome": "Exemplo Empresa LTDA", 
+        "CPF/CNPJ": "00.000.000/0000-00", 
+        "E-mail": "contato@exemplo.com", 
+        "Telefone": "11999999999", 
+        "Celular": "11988888888", 
+        "Endereço": "Rua das Flores", 
+        "Número": "123", 
+        "Bairro": "Centro", 
+        "Cidade": "São Paulo", 
+        "UF": "SP", 
+        "CEP": "01001-000",
+        "Valor Venda": 500, 
+        "Valor Mensal": 150.50, 
+        "Observações": "Descreva detalhes técnicos aqui..." 
+    }];
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.book_append_sheet(workbook, worksheet, "Importação");
-    XLSX.writeFile(workbook, "modelo_importacao.xlsx");
+    XLSX.writeFile(workbook, "modelo_importacao_vendaspro.xlsx");
   };
 
   const handleExportExcel = () => {
@@ -574,22 +589,42 @@ export default function ClientesPage() {
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const rawData = XLSX.utils.sheet_to_json<any>(worksheet);
             if (rawData.length === 0) { toast({ variant: 'destructive', title: 'Arquivo Vazio' }); return; }
+            
             const importedCustomers: Omit<Customer, 'id'>[] = [];
+            
             rawData.forEach((row: any) => {
-                const findValue = (keys: string[]) => { const key = Object.keys(row).find(k => keys.some(sk => k.trim().toLowerCase().includes(sk))); return key ? String(row[key]).trim() : ''; };
-                const razaoSocial = findValue(['razão social', 'razao social', 'nome', 'empresa', 'cliente']);
+                const findValue = (keys: string[]) => { 
+                    const key = Object.keys(row).find(k => keys.some(sk => k.trim().toLowerCase() === sk.toLowerCase() || k.trim().toLowerCase().includes(sk.toLowerCase()))); 
+                    return key ? String(row[key]).trim() : ''; 
+                };
+
+                const razaoSocial = findValue(['nome', 'razão social', 'razao social', 'empresa', 'cliente']);
                 if (!razaoSocial) return;
+
+                // Construção inteligente do endereço
+                const rua = findValue(['endereço', 'endereco', 'logradouro', 'rua']);
+                const numero = findValue(['número', 'numero', 'nº', 'num']);
+                const bairro = findValue(['bairro']);
+                const cidade = findValue(['cidade', 'município', 'municipio']);
+                const uf = findValue(['uf', 'estado']);
+                
+                let compositeAddress = rua;
+                if (numero && !rua.includes(numero)) compositeAddress += `, ${numero}`;
+                if (bairro) compositeAddress += ` - ${bairro}`;
+                if (cidade) compositeAddress += `, ${cidade}`;
+                if (uf) compositeAddress += `/${uf}`;
+
                 importedCustomers.push({ 
                   name: razaoSocial, 
                   nomeFantasia: findValue(['nome fantasia', 'fantasia']) || razaoSocial, 
-                  contactName: findValue(['contato 1', 'contato', 'responsável']), 
-                  telefone: findValue(['telefone 1', 'telefone', 'celular', 'whatsapp']),
+                  contactName: findValue(['contato 1', 'contato', 'responsável', 'responsavel']), 
+                  telefone: findValue(['telefone 1', 'telefone', 'fone', 'tel']).replace(/\D/g, ''),
                   contactName2: findValue(['contato 2']),
-                  phone2: findValue(['telefone 2']),
+                  phone2: findValue(['celular', 'whatsapp', 'telefone 2']).replace(/\D/g, ''),
                   email: findValue(['e-mail', 'email']), 
-                  cnpj: findValue(['cnpj', 'cpf', 'documento', 'identificação', 'cadastro', 'cnpj/cpf']).replace(/\D/g, ''), 
-                  endereco: findValue(['endereço', 'endereco', 'rua', 'logradouro']), 
-                  cep: findValue(['cep', 'postal', 'código postal']), 
+                  cnpj: findValue(['cpf/cnpj', 'cnpj', 'cpf', 'documento', 'identificação', 'identificacao', 'cadastro']).replace(/\D/g, ''), 
+                  endereco: compositeAddress, 
+                  cep: findValue(['cep', 'postal', 'código postal', 'codigo postal']).replace(/\D/g, ''), 
                   status: 'new', 
                   responsible: currentUser?.name || "Admin", 
                   potential: "medium", 
@@ -598,13 +633,21 @@ export default function ClientesPage() {
                   type: findValue(['tipo']).toLowerCase().includes('contrato') ? 'active_contract' : 'one_time', 
                   serviceCategories: [], 
                   observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']), 
-                  oneTimeValue: Number(findValue(['valor venda', 'venda'])) || 0, 
-                  monthlyValue: Number(findValue(['valor mensal', 'mensal'])) || 0, 
+                  oneTimeValue: Number(findValue(['valor venda', 'venda', 'investimento'])) || 0, 
+                  monthlyValue: Number(findValue(['valor mensal', 'mensal', 'recorrência', 'recorrencia'])) || 0, 
                   interactions: [] 
                 });
             });
-            if (importedCustomers.length > 0) { addCustomers(importedCustomers); toast({ title: "Importação Concluída!", description: `${importedCustomers.length} registros importados.` }); setIsImportDialogOpen(false); }
-        } catch (error) { toast({ variant: 'destructive', title: 'Erro no Processamento' }); }
+
+            if (importedCustomers.length > 0) { 
+                addCustomers(importedCustomers); 
+                toast({ title: "Importação Concluída!", description: `${importedCustomers.length} registros importados com sucesso.` }); 
+                setIsImportDialogOpen(false); 
+            }
+        } catch (error) { 
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Erro no Processamento', description: 'Verifique se o arquivo está no formato correto.' }); 
+        }
     };
     reader.readAsArrayBuffer(file);
   };
@@ -852,7 +895,7 @@ export default function ClientesPage() {
                               <Separator />
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField control={form.control} name="contactName2" render={({ field }) => (<FormItem><FormLabel>Nome do Contato 2</FormLabel><FormControl><Input placeholder="Pessoa reserva" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                                <FormField control={form.control} name="phone2" render={({ field }) => (<FormItem><FormLabel>Telefone / WhatsApp 2</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="phone2" render={({ field }) => (<FormItem><FormLabel>Telefone / WhatsApp 2</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                               </div>
                             </div>
 
