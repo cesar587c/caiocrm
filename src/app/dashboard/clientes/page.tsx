@@ -299,12 +299,12 @@ export default function ClientesPage() {
 
 
   const handleCnpjLookup = async () => {
-    const cnpj = form.getValues("cnpj");
-    if (!cnpj) {
+    const cnpjValue = form.getValues("cnpj");
+    if (!cnpjValue) {
       toast({ variant: "destructive", title: "CNPJ Inválido", description: "Por favor, insira um CNPJ para consultar." });
       return;
     }
-    const cleanedCnpj = cnpj.replace(/\D/g, "");
+    const cleanedCnpj = cnpjValue.replace(/\D/g, "");
     if (cleanedCnpj.length !== 14) {
         toast({ variant: "destructive", title: "CNPJ Inválido", description: "O CNPJ deve conter 14 dígitos." });
         return;
@@ -313,22 +313,44 @@ export default function ClientesPage() {
     try {
         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanedCnpj}`);
         if (!response.ok) {
-            if (response.status === 404) throw new Error('CNPJ não encontrado.');
-            throw new Error(`A consulta falhou.`);
+            if (response.status === 404) throw new Error('CNPJ não encontrado na base de dados.');
+            if (response.status === 429) throw new Error('Muitas consultas em pouco tempo. Tente novamente mais tarde.');
+            throw new Error(`A consulta falhou (Erro ${response.status}).`);
         }
         const data = await response.json();
+        
+        // Prioriza Nome Fantasia se disponível, senão usa Razão Social
         form.setValue("razaoSocial", data.razao_social || "");
         form.setValue("nomeFantasia", data.nome_fantasia || data.razao_social || "");
         form.setValue("email", data.email || "");
-        form.setValue("telefone", data.ddd_telefone_1 || data.ddd_telefone_2 || "");
+        
+        const phone = data.ddd_telefone_1 || data.ddd_telefone_2 || "";
+        if (phone) {
+            form.setValue("telefone", formatPhoneNumber(phone));
+        }
+
         if (data.logradouro) {
-          const fullAddress = `${data.logradouro}${data.numero ? `, ${data.numero}` : ''}${data.complemento ? ` - ${data.complemento}` : ''} - ${data.bairro}, ${data.municipio} - ${data.uf}`;
-          form.setValue("endereco", fullAddress);
+          const addressParts = [
+              data.logradouro,
+              data.numero ? data.numero : 'S/N',
+              data.complemento,
+              data.bairro,
+              data.municipio,
+              data.uf
+          ].filter(Boolean);
+          
+          form.setValue("endereco", addressParts.join(', '));
           form.setValue("cep", data.cep || "");
         }
-        toast({ title: "CNPJ Consultado!", description: "Os dados foram preenchidos." });
-    } catch (error) {
-        toast({ variant: "destructive", title: "Erro na Consulta", description: "Não foi possível obter os dados do CNPJ." });
+        
+        toast({ title: "CNPJ Consultado!", description: "Os dados foram preenchidos automaticamente." });
+    } catch (error: any) {
+        console.error("Erro na consulta de CNPJ:", error);
+        toast({ 
+            variant: "destructive", 
+            title: "Erro na Consulta", 
+            description: error.message || "Não foi possível obter os dados do CNPJ no momento." 
+        });
     } finally {
         setIsCnpjLoading(false);
     }
