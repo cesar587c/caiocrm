@@ -38,6 +38,7 @@ import { MENU_ITEMS } from '@/components/layout/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 const formSchema = z.object({
   name: z.string().min(1, 'O nome da empresa é obrigatório.'),
