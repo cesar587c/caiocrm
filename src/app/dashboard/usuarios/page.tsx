@@ -113,7 +113,7 @@ export default function UsuariosPage() {
         form.reset({
             name: selectedUser.name,
             email: selectedUser.email || '',
-            whatsapp: selectedUser.whatsapp || '',
+            whatsapp: selectedUser.whatsapp ? formatPhoneNumber(selectedUser.whatsapp) : '',
             role: selectedUser.role,
             sectorIds: selectedUser.sectorIds || [],
             password: '',
@@ -130,6 +130,16 @@ export default function UsuariosPage() {
   const sectorMap = useMemo(() => {
     return new Map(sectors.map(s => [s.id, s.name]));
   }, [sectors]);
+
+  const formatPhoneNumber = (value: string) => {
+    if (!value) return "";
+    const cleaned = value.replace(/\D/g, "").slice(0, 11);
+    const length = cleaned.length;
+    if (length <= 2) return cleaned;
+    if (length <= 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    if (length <= 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+  }
 
   const handleAddNew = () => {
     setSelectedUser(null);
@@ -165,6 +175,11 @@ export default function UsuariosPage() {
   };
 
   function onSubmit(values: UserFormValues) {
+    const dataToSave = {
+      ...values,
+      whatsapp: values.whatsapp ? values.whatsapp.replace(/\D/g, '') : '',
+    };
+
     if (selectedUser) {
       if (values.password && values.password.length < 8) {
         form.setError('password', { type: 'manual', message: 'A senha deve ter no mínimo 8 caracteres.' });
@@ -172,7 +187,7 @@ export default function UsuariosPage() {
       }
       const userToUpdate: User = { 
         ...selectedUser, 
-        ...values,
+        ...dataToSave,
       };
       if (!values.password) {
         delete userToUpdate.password;
@@ -184,7 +199,7 @@ export default function UsuariosPage() {
         form.setError('password', { type: 'manual', message: 'A senha é obrigatória e precisa de no mínimo 8 caracteres.' });
         return;
       }
-      addUser(values as Omit<User, 'id'>);
+      addUser(dataToSave as Omit<User, 'id'>);
       toast({ title: 'Usuário Adicionado!', description: `${values.name} foi adicionado à equipe.` });
     }
     setSelectedUser(null);
@@ -328,7 +343,14 @@ export default function UsuariosPage() {
                                      render={({ field }) => (
                                          <FormItem>
                                          <FormLabel>WhatsApp</FormLabel>
-                                         <FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} /></FormControl>
+                                         <FormControl>
+                                           <Input 
+                                            placeholder="(00) 00000-0000" 
+                                            {...field} 
+                                            value={field.value || ''} 
+                                            onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                                           />
+                                         </FormControl>
                                          <FormMessage />
                                          </FormItem>
                                      )}

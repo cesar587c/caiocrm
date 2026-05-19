@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -145,6 +146,16 @@ export default function AgendaPage() {
     },
   });
   
+  const formatPhoneNumber = (value: string) => {
+    if (!value) return "";
+    const cleaned = value.replace(/\D/g, "").slice(0, 11);
+    const length = cleaned.length;
+    if (length <= 2) return cleaned;
+    if (length <= 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    if (length <= 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+  }
+
   const getAssignedToNameSingle = (assignedToStr: string) => {
     if (!assignedToStr) return 'N/A';
     const [type, id] = assignedToStr.split(':');
@@ -213,7 +224,7 @@ export default function AgendaPage() {
       date: parse(appointment.date, 'yyyy-MM-dd', new Date()),
       clientName: appointment.clientName,
       address: appointment.address,
-      phone: appointment.phone || '',
+      phone: appointment.phone ? formatPhoneNumber(appointment.phone) : '',
       contact: appointment.contact,
       time: appointment.time,
       assignedTo: assignedToArray,
@@ -226,7 +237,8 @@ export default function AgendaPage() {
     const mainName = customer.nomeFantasia || customer.name;
     form.setValue('clientName', mainName, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     form.setValue('address', customer.endereco || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-    form.setValue('phone', customer.telefone || customer.phone2 || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    const rawPhone = customer.telefone || customer.phone2 || '';
+    form.setValue('phone', formatPhoneNumber(rawPhone), { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     form.setValue('contact', customer.contactName || customer.contactName2 || mainName, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     setIsCustomerSearchOpen(false);
     toast({
@@ -367,7 +379,7 @@ export default function AgendaPage() {
         time: values.time,
         clientName: values.clientName,
         address: values.address,
-        phone: values.phone,
+        phone: values.phone ? values.phone.replace(/\D/g, '') : '',
         contact: values.contact,
         assignedTo: values.assignedTo,
         summary: values.summary,
@@ -516,7 +528,7 @@ export default function AgendaPage() {
                                             ))}
                                         </div>
                                     </div>
-                                    {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{app.phone}</p>}
+                                    {app.phone && <p className="text-muted-foreground flex items-center gap-2"><Phone className="h-4 w-4"/>{formatPhoneNumber(app.phone)}</p>}
 
                                     <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-muted/80 rounded-md shadow-sm border border-border/50">
                                         <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:text-emerald-700" onClick={(e) => { e.stopPropagation(); handleAddToGoogleCalendar(app); }} title="Adicionar ao Google Agenda">
@@ -621,7 +633,21 @@ export default function AgendaPage() {
                         />
 
                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Ex: Rua das Inovações, 123" {...field} disabled={!isAdmin && !!editingAppointment} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value || ''} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="phone" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefone (WhatsApp)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="(00) 00000-0000" 
+                                {...field} 
+                                value={field.value || ''} 
+                                disabled={!isAdmin && !!editingAppointment}
+                                onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
                         <FormField control={form.control} name="contact" render={({ field }) => (<FormItem><FormLabel>Contato na Visita</FormLabel><FormControl><Input placeholder="Ex: Sr. Carlos" {...field} disabled={!isAdmin && !!editingAppointment}/></FormControl><FormMessage /></FormItem>)} />
                         <FormField
                             control={form.control}
