@@ -193,8 +193,8 @@ export default function PropostasPage() {
     const client = customers.find(c => c.id === clientId);
     if (client) {
       form.setValue('clientId', client.id);
-      form.setValue('clientName', client.name);
-      form.setValue('clientPhone', client.telefone);
+      form.setValue('clientName', client.nomeFantasia || client.name);
+      form.setValue('clientPhone', client.telefone || client.phone2 || '');
       setIsQuickAddingClient(false);
     }
   };
@@ -556,7 +556,7 @@ ${companyProfile.phone}`;
                                         <div className="flex-1">
                                             <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
                                                 <SelectTrigger><SelectValue placeholder="Selecione um cliente..." /></SelectTrigger>
-                                                <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                                <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </div>
                                         <Button type="button" variant="outline" onClick={handleQuickAddClient}><PlusCircle className="mr-2 h-4 w-4" />Avulso</Button>

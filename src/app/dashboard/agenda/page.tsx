@@ -226,8 +226,8 @@ export default function AgendaPage() {
     const mainName = customer.nomeFantasia || customer.name;
     form.setValue('clientName', mainName, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     form.setValue('address', customer.endereco || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-    form.setValue('phone', customer.telefone || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-    form.setValue('contact', customer.contactName || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    form.setValue('phone', customer.telefone || customer.phone2 || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    form.setValue('contact', customer.contactName || customer.contactName2 || mainName, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     setIsCustomerSearchOpen(false);
     toast({
         title: "Cliente Selecionado",

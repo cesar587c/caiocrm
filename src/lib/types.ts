@@ -87,9 +87,11 @@ export type Customer = {
     name: string;
     nomeFantasia?: string;
     contactName?: string;
+    telefone?: string;
+    contactName2?: string;
+    phone2?: string;
     cnpj?: string;
     email: string;
-    telefone?: string;
     endereco?: string;
     cep?: string;
     status: CustomerStatus;

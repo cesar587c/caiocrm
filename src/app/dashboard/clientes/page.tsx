@@ -147,8 +147,10 @@ const formSchema = z.object({
   razaoSocial: z.string().min(1, "O nome ou Razão Social é obrigatória."),
   nomeFantasia: z.string().optional(),
   contactName: z.string().optional(),
-  email: z.string().email({ message: "E-mail inválido." }).optional().or(z.literal('')),
   telefone: z.string().optional(),
+  contactName2: z.string().optional(),
+  phone2: z.string().optional(),
+  email: z.string().email({ message: "E-mail inválido." }).optional().or(z.literal('')),
   endereco: z.string().optional(),
   cep: z.string().optional(),
   inscricaoEstadual: z.string().optional(),
@@ -158,8 +160,8 @@ const formSchema = z.object({
   observations: z.string().optional(),
   oneTimeValue: z.coerce.number().optional().default(0),
   monthlyValue: z.coerce.number().optional().default(0),
-}).refine((data) => data.isLead || !!data.email || !!data.telefone, {
-    message: "Para clientes, é obrigatório informar um e-mail ou telefone.",
+}).refine((data) => data.isLead || !!data.email || !!data.telefone || !!data.phone2, {
+    message: "É obrigatório informar pelo menos um telefone ou e-mail.",
     path: ["telefone"],
 });
 
@@ -168,8 +170,10 @@ const defaultFormValues = {
   razaoSocial: "",
   nomeFantasia: "",
   contactName: "",
-  email: "",
   telefone: "",
+  contactName2: "",
+  phone2: "",
+  email: "",
   endereco: "",
   cep: "",
   inscricaoEstadual: "",
@@ -251,6 +255,7 @@ export default function ClientesPage() {
         c.name.toLowerCase().includes(lowercasedSearchTerm) ||
         (c.nomeFantasia && c.nomeFantasia.toLowerCase().includes(lowercasedSearchTerm)) ||
         (c.contactName && c.contactName.toLowerCase().includes(lowercasedSearchTerm)) ||
+        (c.contactName2 && c.contactName2.toLowerCase().includes(lowercasedSearchTerm)) ||
         c.email.toLowerCase().includes(lowercasedSearchTerm) ||
         (c.cnpj && c.cnpj.replace(/\D/g, "").includes(lowercasedSearchTerm))
     );
@@ -320,7 +325,6 @@ export default function ClientesPage() {
 
         const data = result.success;
         
-        // Prioriza Nome Fantasia se disponível, senão usa Razão Social
         form.setValue("razaoSocial", data.razao_social || "");
         form.setValue("nomeFantasia", data.nome_fantasia || data.razao_social || "");
         form.setValue("email", data.email || "");
@@ -371,11 +375,13 @@ export default function ClientesPage() {
         razaoSocial: customer.name,
         nomeFantasia: customer.nomeFantasia || "",
         contactName: customer.contactName || "",
+        telefone: customer.telefone ? formatPhoneNumber(customer.telefone) : '',
+        contactName2: customer.contactName2 || "",
+        phone2: customer.phone2 ? formatPhoneNumber(customer.phone2) : '',
         email: customer.email,
         isLead: customer.type === "lead" || customer.status === "lead" || customer.status === "opportunity" || customer.status === "proposal" || customer.status === "negotiation",
         tipoCliente: customer.type === "active_contract" ? "active_contract" : "one_time",
         cnpj: customer.cnpj ? formatDocument(customer.cnpj) : '', 
-        telefone: customer.telefone ? formatPhoneNumber(customer.telefone) : '',
         endereco: customer.endereco || '',
         cep: customer.cep || '',
         inscricaoEstadual: '',
@@ -523,7 +529,7 @@ export default function ClientesPage() {
   };
 
   const handleDownloadTemplate = () => {
-    const data = [{ "Razão Social": "Exemplo Empresa LTDA", "Nome Fantasia": "Exemplo Fantasia", "CNPJ/CPF": "00.000.000/0000-00", "Contato": "João Silva", "E-mail": "contato@exemplo.com", "Telefone": "11999999999", "Endereço": "Rua das Flores, 123", "CEP": "01001-000", "Tipo": "Contrato", "Valor Venda": 500, "Valor Mensal": 150.50, "Observações": "Descreva detalhes técnicos aqui..." }];
+    const data = [{ "Razão Social": "Exemplo Empresa LTDA", "Nome Fantasia": "Exemplo Fantasia", "CNPJ/CPF": "00.000.000/0000-00", "Contato 1": "João Silva", "Telefone 1": "11999999999", "Contato 2": "Maria Souza", "Telefone 2": "11988888888", "E-mail": "contato@exemplo.com", "Endereço": "Rua das Flores, 123", "CEP": "01001-000", "Tipo": "Contrato", "Valor Venda": 500, "Valor Mensal": 150.50, "Observações": "Descreva detalhes técnicos aqui..." }];
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.book_append_sheet(workbook, worksheet, "Importação");
@@ -531,7 +537,25 @@ export default function ClientesPage() {
   };
 
   const handleExportExcel = () => {
-    const dataToExport = displayedCustomers.map(c => ({ "Razão Social": c.name, "Nome Fantasia": c.nomeFantasia || "", "CNPJ/CPF": c.cnpj ? formatDocument(c.cnpj) : "", "Contato": c.contactName || "", "E-mail": c.email, "Telefone": c.telefone ? formatPhoneNumber(c.telefone) : "", "Endereço": c.endereco || "", "CEP": c.cep || "", "Status": statusMap[c.status], "Tipo": c.type === 'active_contract' ? 'Contrato' : (c.type === 'one_time' ? 'Avulso' : 'Lead'), "Valor Venda": c.oneTimeValue || 0, "Valor Mensal": c.monthlyValue || 0, "Categorias": (c.serviceCategories || []).map(catId => SERVICE_CATEGORIES.find(s => s.id === catId)?.label).join(", "), "Observações": c.observations || "", "Data de Cadastro": format(new Date(c.createdAt), 'dd/MM/yyyy HH:mm') }));
+    const dataToExport = displayedCustomers.map(c => ({ 
+      "Razão Social": c.name, 
+      "Nome Fantasia": c.nomeFantasia || "", 
+      "CNPJ/CPF": c.cnpj ? formatDocument(c.cnpj) : "", 
+      "Contato 1": c.contactName || "", 
+      "Telefone 1": c.telefone ? formatPhoneNumber(c.telefone) : "", 
+      "Contato 2": c.contactName2 || "", 
+      "Telefone 2": c.phone2 ? formatPhoneNumber(c.phone2) : "", 
+      "E-mail": c.email, 
+      "Endereço": c.endereco || "", 
+      "CEP": c.cep || "", 
+      "Status": statusMap[c.status], 
+      "Tipo": c.type === 'active_contract' ? 'Contrato' : (c.type === 'one_time' ? 'Avulso' : 'Lead'), 
+      "Valor Venda": c.oneTimeValue || 0, 
+      "Valor Mensal": c.monthlyValue || 0, 
+      "Categorias": (c.serviceCategories || []).map(catId => SERVICE_CATEGORIES.find(s => s.id === catId)?.label).join(", "), 
+      "Observações": c.observations || "", 
+      "Data de Cadastro": format(new Date(c.createdAt), 'dd/MM/yyyy HH:mm') 
+    }));
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.book_append_sheet(workbook, worksheet, "Clientes");
@@ -555,7 +579,29 @@ export default function ClientesPage() {
                 const findValue = (keys: string[]) => { const key = Object.keys(row).find(k => keys.some(sk => k.trim().toLowerCase().includes(sk))); return key ? String(row[key]).trim() : ''; };
                 const razaoSocial = findValue(['razão social', 'razao social', 'nome', 'empresa', 'cliente']);
                 if (!razaoSocial) return;
-                importedCustomers.push({ name: razaoSocial, nomeFantasia: findValue(['nome fantasia', 'fantasia']) || razaoSocial, contactName: findValue(['contato', 'responsável']), email: findValue(['e-mail', 'email']), telefone: findValue(['telefone', 'celular', 'whatsapp']), cnpj: findValue(['cnpj', 'cpf', 'documento', 'identificação', 'cadastro', 'cnpj/cpf']).replace(/\D/g, ''), endereco: findValue(['endereço', 'endereco', 'rua', 'logradouro']), cep: findValue(['cep', 'postal', 'código postal']), status: 'new', responsible: currentUser?.name || "Admin", potential: "medium", lastContact: new Date().toISOString(), createdAt: new Date().toISOString(), type: findValue(['tipo']).toLowerCase().includes('contrato') ? 'active_contract' : 'one_time', serviceCategories: [], observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']), oneTimeValue: Number(findValue(['valor venda', 'venda'])) || 0, monthlyValue: Number(findValue(['valor mensal', 'mensal'])) || 0, interactions: [] });
+                importedCustomers.push({ 
+                  name: razaoSocial, 
+                  nomeFantasia: findValue(['nome fantasia', 'fantasia']) || razaoSocial, 
+                  contactName: findValue(['contato 1', 'contato', 'responsável']), 
+                  telefone: findValue(['telefone 1', 'telefone', 'celular', 'whatsapp']),
+                  contactName2: findValue(['contato 2']),
+                  phone2: findValue(['telefone 2']),
+                  email: findValue(['e-mail', 'email']), 
+                  cnpj: findValue(['cnpj', 'cpf', 'documento', 'identificação', 'cadastro', 'cnpj/cpf']).replace(/\D/g, ''), 
+                  endereco: findValue(['endereço', 'endereco', 'rua', 'logradouro']), 
+                  cep: findValue(['cep', 'postal', 'código postal']), 
+                  status: 'new', 
+                  responsible: currentUser?.name || "Admin", 
+                  potential: "medium", 
+                  lastContact: new Date().toISOString(), 
+                  createdAt: new Date().toISOString(), 
+                  type: findValue(['tipo']).toLowerCase().includes('contrato') ? 'active_contract' : 'one_time', 
+                  serviceCategories: [], 
+                  observations: findValue(['observações', 'observacoes', 'obs', 'detalhes']), 
+                  oneTimeValue: Number(findValue(['valor venda', 'venda'])) || 0, 
+                  monthlyValue: Number(findValue(['valor mensal', 'mensal'])) || 0, 
+                  interactions: [] 
+                });
             });
             if (importedCustomers.length > 0) { addCustomers(importedCustomers); toast({ title: "Importação Concluída!", description: `${importedCustomers.length} registros importados.` }); setIsImportDialogOpen(false); }
         } catch (error) { toast({ variant: 'destructive', title: 'Erro no Processamento' }); }
@@ -571,10 +617,50 @@ export default function ClientesPage() {
       } else { 
           if (editingCustomer.status === "lead" || editingCustomer.status === "new" || editingCustomer.status === "opportunity" || editingCustomer.status === "proposal" || editingCustomer.status === "negotiation") { nextStatus = "won"; } 
       }
-      updateCustomer({ ...editingCustomer, name: values.razaoSocial, nomeFantasia: values.nomeFantasia || "", contactName: values.contactName, cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '', email: values.email || '', telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '', endereco: values.endereco, cep: values.cep, status: nextStatus, type: values.isLead ? "lead" : (values.tipoCliente as CustomerType), serviceCategories: values.serviceCategories, observations: values.observations, oneTimeValue: values.oneTimeValue, monthlyValue: values.monthlyValue });
+      updateCustomer({ 
+        ...editingCustomer, 
+        name: values.razaoSocial, 
+        nomeFantasia: values.nomeFantasia || "", 
+        contactName: values.contactName, 
+        telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '', 
+        contactName2: values.contactName2,
+        phone2: values.phone2 ? values.phone2.replace(/\D/g, '') : '',
+        cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '', 
+        email: values.email || '', 
+        endereco: values.endereco, 
+        cep: values.cep, 
+        status: nextStatus, 
+        type: values.isLead ? "lead" : (values.tipoCliente as CustomerType), 
+        serviceCategories: values.serviceCategories, 
+        observations: values.observations, 
+        oneTimeValue: values.oneTimeValue, 
+        monthlyValue: values.monthlyValue 
+      });
       toast({ title: "Dados Atualizados!" });
     } else {
-      const newCustomerData: Omit<Customer, 'id'> = { name: values.razaoSocial, nomeFantasia: values.nomeFantasia || "", contactName: values.contactName, cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '', email: values.email || '', telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '', endereco: values.endereco, cep: values.cep, status: values.isLead ? "lead" : "new", responsible: currentUser?.name || "Admin", potential: "medium", lastContact: new Date().toISOString(), createdAt: new Date().toISOString(), type: values.isLead ? "lead" : (values.tipoCliente as CustomerType), serviceCategories: values.serviceCategories, observations: values.observations, oneTimeValue: values.oneTimeValue, monthlyValue: values.monthlyValue, interactions: [] };
+      const newCustomerData: Omit<Customer, 'id'> = { 
+        name: values.razaoSocial, 
+        nomeFantasia: values.nomeFantasia || "", 
+        contactName: values.contactName, 
+        telefone: values.telefone ? values.telefone.replace(/\D/g, '') : '', 
+        contactName2: values.contactName2,
+        phone2: values.phone2 ? values.phone2.replace(/\D/g, '') : '',
+        cnpj: values.cnpj ? values.cnpj.replace(/\D/g, '') : '', 
+        email: values.email || '', 
+        endereco: values.endereco, 
+        cep: values.cep, 
+        status: values.isLead ? "lead" : "new", 
+        responsible: currentUser?.name || "Admin", 
+        potential: "medium", 
+        lastContact: new Date().toISOString(), 
+        createdAt: new Date().toISOString(), 
+        type: values.isLead ? "lead" : (values.tipoCliente as CustomerType), 
+        serviceCategories: values.serviceCategories, 
+        observations: values.observations, 
+        oneTimeValue: values.oneTimeValue, 
+        monthlyValue: values.monthlyValue, 
+        interactions: [] 
+      };
       addCustomer(newCustomerData);
       toast({ title: "Cliente Salvo!" });
     }
@@ -748,19 +834,30 @@ export default function ClientesPage() {
                                 {!isLead && (
                                   <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl></FormItem>)} />
                                 )}
-                                <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>Nome do Contato</FormLabel><FormControl><Input placeholder="Pessoa principal de contato" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="email" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>E-mail Corporativo</FormLabel><FormControl><Input type="email" placeholder="contato@empresa.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
                               </div>
                             </div>
+                            
                             <div className="space-y-4 mt-2">
-                              <h3 className="text-sm font-semibold flex items-center gap-2"><Phone className="h-4 w-4" /> Comunicação</h3>
+                              <h3 className="text-sm font-semibold flex items-center gap-2 text-primary"><User className="h-4 w-4" /> Contato 1 (Principal)</h3>
                               <Separator />
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" placeholder="contato@empresa.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="telefone" render={({ field }) => (<FormItem><FormLabel>Telefone (WhatsApp)</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>Nome do Contato</FormLabel><FormControl><Input placeholder="Pessoa principal" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="telefone" render={({ field }) => (<FormItem><FormLabel>Telefone / WhatsApp</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                               </div>
                             </div>
+
                             <div className="space-y-4 mt-2">
-                              <h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Localização {isLead && '(Se houver)'}</h3>
+                              <h3 className="text-sm font-semibold flex items-center gap-2"><User className="h-4 w-4" /> Contato 2 (Secundário)</h3>
+                              <Separator />
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="contactName2" render={({ field }) => (<FormItem><FormLabel>Nome do Contato 2</FormLabel><FormControl><Input placeholder="Pessoa reserva" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="phone2" render={({ field }) => (<FormItem><FormLabel>Telefone / WhatsApp 2</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl></FormItem>)} />
+                              </div>
+                            </div>
+
+                            <div className="space-y-4 mt-2">
+                              <h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Localização</h3>
                               <Separator />
                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
@@ -851,7 +948,7 @@ export default function ClientesPage() {
             <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row gap-4">
-                      <div className="relative flex-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar cliente..." className="pl-8" value={searchTermTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                      <div className="relative flex-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar cliente por nome, fantasia, contato ou e-mail..." className="pl-8" value={searchTermTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="outline" className="gap-2"><Filter className="h-4 w-4" />Serviços {selectedServices.length > 0 && `(${selectedServices.length})`}</Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
@@ -874,7 +971,8 @@ export default function ClientesPage() {
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead>Nome / Contato</TableHead>
+                        <TableHead>Cliente / Nome Fantasia</TableHead>
+                        <TableHead>Contatos</TableHead>
                         <TableHead>Status / Valores</TableHead>
                         <TableHead className="hidden md:table-cell">Último Contato</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
@@ -898,10 +996,23 @@ export default function ClientesPage() {
                                     </div>
                                 )}
                                 <div className="text-xs text-muted-foreground">{customer.email}</div>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {customer.cnpj && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Building2 className="h-3 w-3" /><span>{formatDocument(customer.cnpj)}</span></div>}
-                                    {customer.telefone && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Phone className="h-3 w-3" /><span>{formatPhoneNumber(customer.telefone)}</span></div>}
-                                </div>
+                                {customer.cnpj && <div className="text-[10px] bg-muted w-fit mt-1 px-1.5 py-0.5 rounded flex items-center gap-1 border"><Building2 className="h-3 w-3" /><span>{formatDocument(customer.cnpj)}</span></div>}
+                            </div>
+                        </TableCell>
+                        <TableCell>
+                            <div className="flex flex-col gap-2">
+                                {customer.contactName && (
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-semibold">{customer.contactName}</span>
+                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{formatPhoneNumber(customer.telefone || '')}</span>
+                                    </div>
+                                )}
+                                {customer.contactName2 && (
+                                    <div className="flex flex-col border-t pt-1 border-border/50">
+                                        <span className="text-xs font-semibold">{customer.contactName2}</span>
+                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{formatPhoneNumber(customer.phone2 || '')}</span>
+                                    </div>
+                                )}
                             </div>
                         </TableCell>
                         <TableCell>
@@ -929,7 +1040,7 @@ export default function ClientesPage() {
                         </TableCell>
                         </TableRow>
                     ))
-                    ) : ( <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow> )}
+                    ) : ( <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow> )}
                     </TableBody>
                 </Table>
                 </CardContent>
