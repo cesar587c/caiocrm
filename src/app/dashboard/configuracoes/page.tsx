@@ -165,6 +165,14 @@ export default function ConfiguracoesPage() {
     setNewSectorName('');
   };
 
+  const handleOpenGoogleCalendar = () => {
+    let url = 'https://calendar.google.com/calendar/render';
+    if (companyProfile.googleCalendarEmail) {
+      url += `?authuser=${encodeURIComponent(companyProfile.googleCalendarEmail)}`;
+    }
+    window.open(url, '_blank');
+  };
+
   if (!isLoaded) {
     return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -284,7 +292,7 @@ export default function ConfiguracoesPage() {
                                 </div>
                             </div>
                         </div>
-                        <Button type="button" variant="outline" className="gap-2" onClick={() => window.open('https://calendar.google.com', '_blank')}>
+                        <Button type="button" variant="outline" className="gap-2" onClick={handleOpenGoogleCalendar}>
                             <ExternalLink className="h-4 w-4" /> 
                             Ver Minha Agenda Google
                         </Button>
