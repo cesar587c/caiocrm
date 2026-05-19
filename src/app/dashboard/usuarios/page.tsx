@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -90,7 +89,6 @@ export default function UsuariosPage() {
     confirmPassword: false,
   });
 
-  // MECANISMO DE DESBLOQUEIO DE CLIQUES (Pointer-events fix)
   useEffect(() => {
     const forceRelease = () => {
       document.body.style.pointerEvents = 'auto';
@@ -301,7 +299,7 @@ export default function UsuariosPage() {
             </div>
 
             <div className="lg:col-span-1 sticky top-4">
-                 <Card className="flex flex-col max-h-[calc(100vh-5rem)] shadow-lg border-primary/20">
+                 <Card className="flex flex-col max-h-[85vh] shadow-lg border-primary/20">
                      <Form {...form} key={selectedUser ? selectedUser.id : 'new-form'}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col min-h-0">
                              <CardHeader className="flex flex-row items-start justify-between bg-primary/5">
@@ -464,6 +462,8 @@ export default function UsuariosPage() {
                                              <PopoverContent 
                                                 className="w-[var(--radix-popover-trigger-width)] p-0 pointer-events-auto" 
                                                 align="start"
+                                                side="bottom"
+                                                collisionPadding={10}
                                                 onWheel={(e) => e.stopPropagation()}
                                                 onPointerDown={(e) => e.stopPropagation()}
                                              >
@@ -478,10 +478,7 @@ export default function UsuariosPage() {
                                                          />
                                                      </div>
                                                  </div>
-                                                 <div 
-                                                    className="max-h-60 overflow-y-auto overscroll-contain"
-                                                    onWheel={(e) => e.stopPropagation()}
-                                                 >
+                                                 <ScrollArea className="h-[200px]">
                                                      <div className="p-2">
                                                          {filteredSectors.map(sector => (
                                                              <div key={sector.id} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={(e) => {
@@ -497,7 +494,7 @@ export default function UsuariosPage() {
                                                          ))}
                                                          {filteredSectors.length === 0 && <p className="text-[10px] text-center text-muted-foreground py-4">Nenhum setor encontrado.</p>}
                                                      </div>
-                                                 </div>
+                                                 </ScrollArea>
                                              </PopoverContent>
                                          </Popover>
                                          <FormMessage />

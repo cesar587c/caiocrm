@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -251,9 +250,7 @@ export default function AgendaPage() {
     const [year, month, day] = app.date.split('-').map(Number);
     const [hour, minute] = app.time.split(':').map(Number);
     
-    // Início do evento
     const startDate = new Date(year, month - 1, day, hour, minute);
-    // Término (padrão 1 hora depois)
     const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
     
     const formatGCalDate = (date: Date) => format(date, "yyyyMMdd'T'HHmmss");
@@ -263,7 +260,6 @@ export default function AgendaPage() {
     const details = encodeURIComponent(`Contato: ${app.contact}\nTelefone: ${app.phone || 'N/A'}\nResumo: ${app.summary || ''}\n\nAgendado via VendasPro`);
     const location = encodeURIComponent(app.address);
     
-    // Usamos o parâmetro authuser para garantir que o Google tente usar o e-mail específico se houver várias contas logadas
     const baseUrl = "https://calendar.google.com/calendar/render";
     let url = `${baseUrl}?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
     
@@ -272,13 +268,6 @@ export default function AgendaPage() {
     }
 
     window.open(url, '_blank');
-    
-    toast({
-        title: "Google Agenda",
-        description: companyProfile.googleCalendarEmail 
-            ? `Enviando para a agenda de ${companyProfile.googleCalendarEmail}`
-            : "Abrindo o calendário para salvar o compromisso."
-    });
   };
 
   const triggerNotifications = async (appointment: any) => {
@@ -311,7 +300,7 @@ export default function AgendaPage() {
                 if (!response.isSimulated) {
                     toast({
                         title: "Notificações Enviadas",
-                        description: "O cliente e os técnicos foram avisados via WhatsApp (Automático).",
+                        description: "O cliente e os técnicos foram avisados via WhatsApp.",
                     });
                 }
             } else {
@@ -486,7 +475,7 @@ export default function AgendaPage() {
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={(isOpen) => { if (!isOpen) { setEditingAppointment(null); setSelectedAppointment(null); } setIsModalOpen(isOpen); }}>
-        <DialogContent className="sm:max-w-[425px] md:max-w-3xl flex flex-col h-[90vh]" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-3xl flex flex-col h-[85vh]" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader className='flex-none'>
             <DialogTitle>
               Agenda para {format(selectedDate, 'dd/MM/yyyy', { locale: ptBR })}
@@ -673,14 +662,21 @@ export default function AgendaPage() {
                                             </Button>
                                         </FormControl>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 pointer-events-auto" align="start" onWheel={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                                    <PopoverContent 
+                                        className="w-[var(--radix-popover-trigger-width)] p-0 pointer-events-auto" 
+                                        align="start" 
+                                        side="bottom"
+                                        collisionPadding={10}
+                                        onWheel={(e) => e.stopPropagation()} 
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                    >
                                         <div className="p-2 border-b bg-background">
                                             <div className="relative">
                                                 <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
                                                 <Input placeholder="Buscar por nome..." className="pl-7 h-8 text-xs" value={searchTermAssignees} onChange={(e) => setSearchTermAssignees(e.target.value)} />
                                             </div>
                                         </div>
-                                        <div className="max-h-80 overflow-y-auto overscroll-contain" onWheel={(e) => e.stopPropagation()}>
+                                        <ScrollArea className="h-[250px]">
                                             <div className="p-2 space-y-4">
                                                 <div>
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Setores</p>
@@ -700,7 +696,7 @@ export default function AgendaPage() {
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Técnicos</p>
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 mb-2">Colaboradores</p>
                                                     <div className="space-y-1">
                                                         {filteredUsers.map(user => (
                                                             <div key={`user-${user.id}`} className="flex items-center space-x-2 rounded-md p-2 hover:bg-muted/50 cursor-pointer" onClick={(e) => {
@@ -717,7 +713,7 @@ export default function AgendaPage() {
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </ScrollArea>
                                     </PopoverContent>
                                 </Popover>
                                 <FormMessage />
