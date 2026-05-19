@@ -251,12 +251,19 @@ export default function AgendaPage() {
     const details = encodeURIComponent(`Contato: ${app.contact}\nTelefone: ${app.phone || 'N/A'}\nResumo: ${app.summary || ''}\n\nAgendado via VendasPro`);
     const location = encodeURIComponent(app.address);
     
-    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
+    // Se o e-mail estiver configurado, usamos o redirecionador de conta do Google
+    const baseUrl = companyProfile.googleCalendarEmail 
+        ? `https://calendar.google.com/calendar/u/${companyProfile.googleCalendarEmail}/r/eventreq`
+        : `https://www.google.com/calendar/render`;
+
+    const url = `${baseUrl}?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
     window.open(url, '_blank');
     
     toast({
         title: "Google Agenda",
-        description: "Abrindo o calendário para salvar o compromisso."
+        description: companyProfile.googleCalendarEmail 
+            ? `Direcionando para a agenda de ${companyProfile.googleCalendarEmail}`
+            : "Abrindo o calendário para salvar o compromisso."
     });
   };
 

@@ -5,6 +5,7 @@ export type CompanyProfile = {
   address: string;
   logoUrl?: string;
   whatsappReminderMessage?: string;
+  googleCalendarEmail?: string;
 };
 
 export type Sector = {
