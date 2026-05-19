@@ -234,14 +234,47 @@ export default function ConfiguracoesPage() {
 
         <TabsContent value="integrations">
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-emerald-500" />Google Agenda</CardTitle><CardDescription>Conecte sua agenda comercial para sincronizar visitas técnicas e reuniões.</CardDescription></CardHeader>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-emerald-500" />Google Agenda</CardTitle>
+              <CardDescription>O VendasPro sincroniza seus agendamentos diretamente com a conta Google logada neste navegador.</CardDescription>
+            </CardHeader>
             <CardContent className="space-y-6">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 border rounded-lg bg-muted/20">
-                    <div className="flex items-center gap-4"><div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center"><CalendarDays className="h-6 w-6 text-emerald-600" /></div><div><h4 className="font-bold">Google Calendar</h4><p className="text-sm text-muted-foreground">Exportação manual habilitada por padrão.</p></div></div>
-                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1"><CheckCircle2 className="h-3 w-3" /> Conectado</Badge>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 border rounded-lg bg-muted/20">
+                    <div className="flex items-center gap-4">
+                        <div className="h-14 w-14 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                            <CalendarDays className="h-8 w-8 text-emerald-600" />
+                        </div>
+                        <div className="space-y-1">
+                            <h4 className="font-bold text-lg">Google Calendar (Navegador)</h4>
+                            <p className="text-sm text-muted-foreground">Conectado via sessão ativa do Google.</p>
+                            <div className="flex items-center gap-2 text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
+                                <CheckCircle2 className="h-3 w-3" /> 
+                                Sincronização Manual Habilitada
+                            </div>
+                        </div>
+                    </div>
+                    <Button variant="outline" className="gap-2" onClick={() => window.open('https://calendar.google.com', '_blank')}>
+                        <ExternalLink className="h-4 w-4" /> 
+                        Ver Minha Agenda Google
+                    </Button>
+                </div>
+
+                <div className="p-4 border border-dashed rounded-lg bg-background/50">
+                    <h5 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                        <MonitorSmartphone className="h-4 w-4 text-primary" />
+                        Como funciona?
+                    </h5>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        Ao clicar no ícone do <strong>Google Agenda</strong> em qualquer compromisso da sua tela de <strong>Agenda</strong>, o VendasPro abrirá uma nova aba no seu Google Calendar. Se você estiver logado em mais de uma conta Google, ele usará a sua conta principal do navegador. Os dados de cliente, endereço e horário serão preenchidos automaticamente.
+                    </p>
                 </div>
             </CardContent>
-            <CardFooter className="border-t pt-6"><Button variant="outline" className="gap-2" onClick={() => window.open('https://calendar.google.com', '_blank')}><ExternalLink className="h-4 w-4" /> Acessar Meu Google Agenda</Button></CardFooter>
+            <CardFooter className="border-t pt-6 bg-muted/5">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                    Seus dados de agenda permanecem privados e vinculados à sua conta Google pessoal.
+                </div>
+            </CardFooter>
           </Card>
         </TabsContent>
 
