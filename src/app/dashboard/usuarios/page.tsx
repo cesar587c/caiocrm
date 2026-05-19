@@ -68,6 +68,16 @@ const roleMap: Record<string, string> = {
     service: 'Atendimento',
 };
 
+const defaultValues: UserFormValues = { 
+  name: '', 
+  email: '', 
+  whatsapp: '', 
+  role: 'technician', 
+  sectorIds: [], 
+  password: '', 
+  confirmPassword: '' 
+};
+
 export default function UsuariosPage() {
   const { users, sectors, addUser, updateUser, deleteUser, currentUser } = useSettings();
   const { toast } = useToast();
@@ -78,6 +88,11 @@ export default function UsuariosPage() {
   const [showPasswords, setShowPasswords] = useState({
     password: false,
     confirmPassword: false,
+  });
+
+  const form = useForm<UserFormValues>({
+    resolver: zodResolver(userFormSchema),
+    defaultValues,
   });
 
   // Fix para sistema "lock" de clique preso no body
@@ -91,11 +106,6 @@ export default function UsuariosPage() {
       return () => clearTimeout(timer);
     }
   }, [deletingUser]);
-
-  const form = useForm<UserFormValues>({
-    resolver: zodResolver(userFormSchema),
-    defaultValues: { name: '', email: '', whatsapp: '', role: 'technician', sectorIds: [], password: '', confirmPassword: '' },
-  });
   
   useEffect(() => {
     if (selectedUser) {
@@ -109,7 +119,7 @@ export default function UsuariosPage() {
             confirmPassword: '',
         });
     } else {
-        form.reset({ name: '', email: '', whatsapp: '', role: 'technician', sectorIds: [], password: '', confirmPassword: '' });
+        form.reset(defaultValues);
     }
      setShowPasswords({ password: false, confirmPassword: false });
      setSearchTermSectors('');
@@ -122,6 +132,7 @@ export default function UsuariosPage() {
 
   const handleAddNew = () => {
     setSelectedUser(null);
+    form.reset(defaultValues);
   };
 
   const handleSelectUser = (user: User) => {
@@ -178,6 +189,7 @@ export default function UsuariosPage() {
       toast({ title: 'Usuário Adicionado!', description: `${values.name} foi adicionado à equipe.` });
     }
     setSelectedUser(null);
+    form.reset(defaultValues);
   }
 
   const filteredSectors = sectors.filter(s => s.name.toLowerCase().includes(searchTermSectors.toLowerCase()));
@@ -279,16 +291,10 @@ export default function UsuariosPage() {
                                      <CardTitle>{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</CardTitle>
                                      <CardDescription>{selectedUser ? `Alterando dados de ${selectedUser.name}.` : 'Preencha para cadastrar.'}</CardDescription>
                                  </div>
-                                {selectedUser ? (
-                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancelEdit}>
-                                        <XCircle className="h-5 w-5" />
-                                    </Button>
-                                ) : (
-                                    <Button type="button" size="sm" onClick={handleAddNew}>
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Novo
-                                    </Button>
-                                )}
+                                <Button type="button" size="sm" variant={selectedUser ? "ghost" : "default"} onClick={handleAddNew}>
+                                    {selectedUser ? <XCircle className="h-4 w-4 mr-2" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                                    {selectedUser ? "Cancelar" : "Novo"}
+                                </Button>
                              </CardHeader>
                              <CardContent className="flex-1 overflow-y-auto">
                                 <div className="space-y-4 pr-4">
@@ -477,7 +483,9 @@ export default function UsuariosPage() {
                                 </div>
                              </CardContent>
                             <CardFooter>
-                                <Button type="submit" className="w-full">Salvar Alterações</Button>
+                                <Button type="submit" className="w-full">
+                                    {selectedUser ? 'Salvar Alterações' : 'Cadastrar Usuário'}
+                                </Button>
                             </CardFooter>
                          </form>
                      </Form>
@@ -503,4 +511,3 @@ export default function UsuariosPage() {
     </>
   );
 }
-
