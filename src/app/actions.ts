@@ -76,3 +76,24 @@ export async function sendAppointmentNotifications(params: {
         return { success: false, error: "Erro interno no servidor de notificações." };
     }
 }
+
+export async function lookupCnpj(cnpj: string) {
+    try {
+        const cleanedCnpj = cnpj.replace(/\D/g, "");
+        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanedCnpj}`, {
+            next: { revalidate: 3600 } // Cache de 1 hora
+        });
+        
+        if (!response.ok) {
+            if (response.status === 404) return { error: 'CNPJ não encontrado na base de dados.' };
+            if (response.status === 429) return { error: 'Muitas consultas em pouco tempo. Tente novamente mais tarde.' };
+            return { error: `Erro na consulta (Código ${response.status}).` };
+        }
+
+        const data = await response.json();
+        return { success: data };
+    } catch (error) {
+        console.error("CNPJ Lookup Error:", error);
+        return { error: "Não foi possível conectar ao serviço de consulta de CNPJ." };
+    }
+}

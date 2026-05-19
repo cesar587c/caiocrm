@@ -119,7 +119,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { sendAppointmentNotifications } from "@/app/actions";
+import { sendAppointmentNotifications, lookupCnpj } from "@/app/actions";
 
 const statusMap: Record<string, string> = {
   active: "Ativo",
@@ -309,15 +309,16 @@ export default function ClientesPage() {
         toast({ variant: "destructive", title: "CNPJ Inválido", description: "O CNPJ deve conter 14 dígitos." });
         return;
     }
+    
     setIsCnpjLoading(true);
     try {
-        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanedCnpj}`);
-        if (!response.ok) {
-            if (response.status === 404) throw new Error('CNPJ não encontrado na base de dados.');
-            if (response.status === 429) throw new Error('Muitas consultas em pouco tempo. Tente novamente mais tarde.');
-            throw new Error(`A consulta falhou (Erro ${response.status}).`);
+        const result = await lookupCnpj(cleanedCnpj);
+        
+        if (result.error) {
+            throw new Error(result.error);
         }
-        const data = await response.json();
+
+        const data = result.success;
         
         // Prioriza Nome Fantasia se disponível, senão usa Razão Social
         form.setValue("razaoSocial", data.razao_social || "");
@@ -345,7 +346,6 @@ export default function ClientesPage() {
         
         toast({ title: "CNPJ Consultado!", description: "Os dados foram preenchidos automaticamente." });
     } catch (error: any) {
-        console.error("Erro na consulta de CNPJ:", error);
         toast({ 
             variant: "destructive", 
             title: "Erro na Consulta", 
