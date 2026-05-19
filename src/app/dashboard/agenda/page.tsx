@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -224,14 +223,15 @@ export default function AgendaPage() {
   };
 
   const handleCustomerSelect = (customer: Customer) => {
-    form.setValue('clientName', customer.name, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    const mainName = customer.nomeFantasia || customer.name;
+    form.setValue('clientName', mainName, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     form.setValue('address', customer.endereco || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     form.setValue('phone', customer.telefone || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     form.setValue('contact', customer.contactName || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     setIsCustomerSearchOpen(false);
     toast({
         title: "Cliente Selecionado",
-        description: `Os dados de ${customer.name} foram preenchidos.`
+        description: `Os dados de ${mainName} foram preenchidos.`
     });
   };
 
@@ -595,7 +595,10 @@ export default function AgendaPage() {
                                               handleCustomerSelect(customer);
                                             }}
                                           >
-                                            <p className="text-sm font-semibold">{customer.name}</p>
+                                            <p className="text-sm font-semibold">{customer.nomeFantasia || customer.name}</p>
+                                            {(customer.nomeFantasia && customer.nomeFantasia !== customer.name) && (
+                                                <p className="text-[9px] text-muted-foreground uppercase">{customer.name}</p>
+                                            )}
                                             <p className="text-[10px] text-muted-foreground truncate">{customer.endereco || 'Sem endereço'}</p>
                                           </div>
                                         ))}

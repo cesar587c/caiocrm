@@ -117,7 +117,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { sendAppointmentNotifications } from "@/app/actions";
 
@@ -293,7 +293,7 @@ export default function ClientesPage() {
       });
     }
 
-    return filtered.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    return filtered.sort((a, b) => (a.nomeFantasia || a.name).localeCompare((b.nomeFantasia || b.name), 'pt-BR'));
 
   }, [customers, searchTermTerm, activeTab, selectedServices, date]);
 
@@ -376,6 +376,7 @@ export default function ClientesPage() {
       ...rest,
       status: clonedStatus,
       name: `${customer.name} (Cópia)`,
+      nomeFantasia: customer.nomeFantasia ? `${customer.nomeFantasia} (Cópia)` : undefined,
       createdAt: new Date().toISOString(),
       lastContact: new Date().toISOString(),
       serviceCategories: customer.serviceCategories ? [...customer.serviceCategories] : [],
@@ -383,22 +384,22 @@ export default function ClientesPage() {
       interactions: [],
     };
     addCustomer(clonedCustomer);
-    toast({ title: "Registro Clonado!", description: `O registro de "${customer.name}" foi duplicado com sucesso.` });
+    toast({ title: "Registro Clonado!", description: `O registro de "${customer.nomeFantasia || customer.name}" foi duplicado com sucesso.` });
   };
 
   const handleInactivateClick = (customer: Customer) => {
     updateCustomer({ ...customer, status: 'inactive' });
-    toast({ title: "Cliente Inativado", description: `${customer.name} foi movido para a aba de Inativos.` });
+    toast({ title: "Cliente Inativado", description: `${customer.nomeFantasia || customer.name} foi movido para a aba de Inativos.` });
   };
 
   const handleReactivateClick = (customer: Customer) => {
     updateCustomer({ ...customer, status: 'new' });
-    toast({ title: "Cliente Reativado!", description: `${customer.name} retornou à carteira ativa.` });
+    toast({ title: "Cliente Reativado!", description: `${customer.nomeFantasia || customer.name} retornou à carteira ativa.` });
   };
 
   const handleDiscardClick = (customer: Customer) => {
     updateCustomer({ ...customer, status: 'lost' });
-    toast({ title: "Lead Descartado", description: `${customer.name} foi movido para inativos.` });
+    toast({ title: "Lead Descartado", description: `${customer.nomeFantasia || customer.name} foi movido para inativos.` });
   };
 
   const handleOpenConvertDialog = (customer: Customer) => {
@@ -408,7 +409,7 @@ export default function ClientesPage() {
   const handleConfirmConvert = (type: "active_contract" | "one_time") => {
     if (!convertingCustomer) return;
     updateCustomer({ ...convertingCustomer, status: 'won', type: type });
-    toast({ title: "Lead Convertido!", description: `${convertingCustomer.name} agora é um cliente.` });
+    toast({ title: "Lead Convertido!", description: `${convertingCustomer.nomeFantasia || convertingCustomer.name} agora é um cliente.` });
     setConvertingCustomer(null);
   };
 
@@ -420,7 +421,7 @@ export default function ClientesPage() {
   const confirmDeleteAction = () => {
     if (!deletingCustomer) return;
     deleteCustomer(deletingCustomer.id);
-    toast({ title: "Cliente Excluído", description: `${deletingCustomer.name} foi removido.` });
+    toast({ title: "Cliente Excluído", description: `${deletingCustomer.nomeFantasia || deletingCustomer.name} foi removido.` });
     setDeletingCustomer(null);
     setEditingCustomer(null);
   };
@@ -473,10 +474,10 @@ export default function ClientesPage() {
         const appointmentData = {
             date: interactionNextDate,
             time: interactionNextTime,
-            clientName: editingCustomer.name,
+            clientName: editingCustomer.nomeFantasia || editingCustomer.name,
             address: editingCustomer.endereco || "N/A",
             phone: editingCustomer.telefone,
-            contact: editingCustomer.contactName || editingCustomer.name,
+            contact: editingCustomer.contactName || editingCustomer.nomeFantasia || editingCustomer.name,
             assignedTo: [`user:${currentUser.id}`],
             summary: `Retorno CRM: ${interactionSummary.substring(0, 50)}...`,
             status: 'scheduled' as const,
@@ -860,10 +861,20 @@ export default function ClientesPage() {
                     <TableBody>
                     {displayedCustomers.length > 0 ? (
                         displayedCustomers.map((customer) => (
-                        <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer">
+                        <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer group">
                         <TableCell>
                             <div className="flex flex-col">
-                                <div className="flex items-center gap-2 flex-wrap mb-1"><span className="font-medium text-base">{customer.name}</span><div className="flex gap-1">{(customer.serviceCategories || []).map(catId => { const cat = SERVICE_CATEGORIES.find(c => c.id === catId); if (!cat) return null; return ( <Badge key={catId} variant="outline" className={cn("text-[8px] h-4 leading-none uppercase font-bold px-1 py-0", cat.color)}>{cat.label}</Badge> ); })}</div></div>
+                                <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                    <span className="font-bold text-base text-foreground group-hover:text-primary transition-colors">
+                                        {customer.nomeFantasia || customer.name}
+                                    </span>
+                                    <div className="flex gap-1">{(customer.serviceCategories || []).map(catId => { const cat = SERVICE_CATEGORIES.find(c => c.id === catId); if (!cat) return null; return ( <Badge key={catId} variant="outline" className={cn("text-[8px] h-4 leading-none uppercase font-bold px-1 py-0", cat.color)}>{cat.label}</Badge> ); })}</div>
+                                </div>
+                                {(customer.nomeFantasia && customer.nomeFantasia !== customer.name) && (
+                                    <div className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 tracking-tight">
+                                        {customer.name}
+                                    </div>
+                                )}
                                 <div className="text-xs text-muted-foreground">{customer.email}</div>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {customer.cnpj && <div className="text-[10px] bg-muted px-1.5 py-0.5 rounded flex items-center gap-1 border"><Building2 className="h-3 w-3" /><span>{formatDocument(customer.cnpj)}</span></div>}
@@ -907,7 +918,7 @@ export default function ClientesPage() {
     </div>
     </TooltipProvider>
 
-    <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.name}</span>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.nomeFantasia || deletingCustomer?.name}</span>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     
     <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}>
         <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>

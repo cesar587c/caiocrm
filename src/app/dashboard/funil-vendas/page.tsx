@@ -61,8 +61,13 @@ const KanbanCard = ({ customer }: { customer: Customer }) => {
                 ) : null}
             </div>
         </div>
-        <p className="font-bold text-foreground leading-tight">{customer.name}</p>
-        <div className="text-muted-foreground space-y-1 text-xs">
+        <div>
+            <p className="font-bold text-foreground leading-tight">{customer.nomeFantasia || customer.name}</p>
+            {(customer.nomeFantasia && customer.nomeFantasia !== customer.name) && (
+                <p className="text-[9px] text-muted-foreground uppercase leading-tight mt-1 tracking-tighter line-clamp-1">{customer.name}</p>
+            )}
+        </div>
+        <div className="text-muted-foreground space-y-1 text-xs pt-1">
             <div className="flex items-center gap-1.5">
                 <UserIcon className="h-3 w-3" />
                 <span className="truncate">{customer.responsible}</span>
@@ -108,7 +113,7 @@ export default function FunilVendasPage() {
     updateCustomer({ ...convertingCustomer, status: 'won', type: type });
     toast({ 
         title: "Lead Convertido!", 
-        description: `${convertingCustomer.name} agora é um cliente oficial e foi removido do funil.` 
+        description: `${convertingCustomer.nomeFantasia || convertingCustomer.name} agora é um cliente oficial e foi removido do funil.` 
     });
     setConvertingCustomer(null);
   };
@@ -201,7 +206,7 @@ export default function FunilVendasPage() {
                     Parabéns pela Venda!
                 </AlertDialogTitle>
                 <div className="text-sm text-muted-foreground space-y-1">
-                    <p>Você está convertendo <strong>{convertingCustomer?.name}</strong> em cliente.</p>
+                    <p>Você está convertendo <strong>{convertingCustomer?.nomeFantasia || convertingCustomer?.name}</strong> em cliente.</p>
                     <div className="flex flex-col gap-1 p-2 bg-muted rounded-md mt-2">
                         {convertingCustomer?.oneTimeValue ? (
                             <div className="flex justify-between text-xs">
