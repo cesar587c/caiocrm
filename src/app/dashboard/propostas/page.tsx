@@ -319,7 +319,12 @@ ${companyProfile.phone}`;
 
     setIsSharing(true);
     try {
-        const canvas = await html2canvas(proposalElement, { scale: 2, useCORS: true });
+        const canvas = await html2canvas(proposalElement, { 
+            scale: 2, 
+            useCORS: true,
+            logging: false,
+            allowTaint: true,
+        });
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
         const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -373,7 +378,11 @@ ${companyProfile.phone}`;
     }
     setIsDownloading(true);
     try {
-        const canvas = await html2canvas(proposalElement, { scale: 2, useCORS: true });
+        const canvas = await html2canvas(proposalElement, { 
+            scale: 2, 
+            useCORS: true,
+            logging: false,
+        });
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
         const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -814,90 +823,109 @@ ${companyProfile.phone}`;
                 <DialogHeader className="print-hide"><DialogTitle>Pré-visualização da Proposta</DialogTitle></DialogHeader>
                 {selectedProposal && (
                 <ScrollArea className="flex-1 -mx-6 px-6">
-                    <div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto font-sans my-8">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="flex items-center gap-4">
+                    <div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto my-8 border" style={{ fontFamily: 'Arial, sans-serif', letterSpacing: '0.01em' }}>
+                        <div className="flex justify-between items-start mb-6" style={{ minHeight: '80px' }}>
+                            <div className="flex items-center gap-5">
                                 {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="max-h-16 w-auto" />}
                                 <div>
-                                    <h1 className="text-2xl font-bold uppercase leading-tight">{companyProfile.name}</h1>
+                                    <h1 className="text-2xl font-bold uppercase leading-none" style={{ margin: '0' }}>{companyProfile.name}</h1>
                                 </div>
                             </div>
-                            <div className="text-right text-[10px] leading-relaxed">
+                            <div className="text-right text-[10px] leading-relaxed text-gray-500">
                                 <p>{companyProfile.address}</p>
                                 <p>{companyProfile.email}</p>
                                 <p>{companyProfile.phone}</p>
                             </div>
                         </div>
                         
-                        <hr className="my-6 border-gray-300" />
+                        <div className="w-full h-px bg-gray-300 my-6"></div>
                         
-                        <div className="text-center mb-8">
+                        <div className="text-center mb-10">
                             <h2 className="text-2xl font-bold uppercase tracking-widest border-b-2 border-black pb-2 inline-block">Proposta Comercial</h2>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
+                        <div className="grid grid-cols-2 gap-8 mb-10 text-sm">
                             <div>
-                                <p className="font-bold text-gray-500 uppercase text-xs mb-1">Para:</p>
-                                <p className="font-bold text-base">{selectedProposal.clientName}</p>
+                                <p className="font-bold text-gray-500 uppercase text-[10px] mb-1">Para:</p>
+                                <p className="font-bold text-lg leading-tight mb-1">{selectedProposal.clientName}</p>
                                 <p className="text-gray-600">{selectedProposal.clientPhone}</p>
                             </div>
-                            <div className="text-right flex flex-col justify-end">
-                                <p><span className="font-bold">Nº Proposta:</span> #{selectedProposal.id}</p>
-                                <p><span className="font-bold">Emissão:</span> {format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
-                                <p><span className="font-bold">Validade:</span> {format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
+                            <div className="text-right flex flex-col justify-end space-y-1">
+                                <p className="leading-none"><span className="font-bold">Nº Proposta:</span> #{selectedProposal.id}</p>
+                                <p className="leading-none"><span className="font-bold">Emissão:</span> {format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                                <p className="leading-none"><span className="font-bold">Validade:</span> {format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
                             </div>
                         </div>
 
-                        <div className="space-y-4 text-sm mb-8 leading-relaxed text-justify">
+                        <div className="space-y-4 text-sm mb-10 leading-relaxed text-justify">
                             <p>Com mais de 18 anos de experiência, somos a junção de Soluções especializada em tecnologia.</p>
                             <p>Na área de Consultoria da Tecnologia dispomos das mais modernas ferramentas e profissionais altamente qualificados.</p>
                             <p>A Active Representações conta hoje com a parceria de grandes empresas para atender seus clientes de forma ágil e com grande qualidade profissional no mínimo de tempo e passa por rigor de análise em vários critérios, a começar pelo atendimento ao cliente.</p>
                         </div>
 
-                        <table className="w-full text-left text-sm mb-8">
-                            <thead className="bg-gray-100"><tr><th className="p-2">Item</th><th className="p-2 text-center">Qtd.</th><th className="p-2 text-right">Preço Unit.</th><th className="p-2 text-right">Subtotal</th></tr></thead>
-                            <tbody>{selectedProposal.items.map((it, i) => (
-                                <tr key={i} className="border-b"><td className="p-2">{it.name} {it.isMonthly && <span className="text-[10px] font-bold text-emerald-600">(mensal)</span>}</td><td className="p-2 text-center">{it.quantity}</td><td className="p-2 text-right">{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="p-2 text-right">{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
-                            ))}</tbody>
+                        <table className="w-full text-left text-sm mb-10 border-collapse">
+                            <thead className="bg-gray-100">
+                                <tr>
+                                    <th className="p-3 font-bold border-b border-gray-300">Item</th>
+                                    <th className="p-3 text-center font-bold border-b border-gray-300">Qtd.</th>
+                                    <th className="p-3 text-right font-bold border-b border-gray-300">Preço Unit.</th>
+                                    <th className="p-3 text-right font-bold border-b border-gray-300">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {selectedProposal.items.map((it, i) => (
+                                    <tr key={i} className="border-b border-gray-200">
+                                        <td className="p-3">{it.name} {it.isMonthly && <span className="text-[10px] font-bold text-emerald-600">(mensal)</span>}</td>
+                                        <td className="p-3 text-center">{it.quantity}</td>
+                                        <td className="p-3 text-right">{(Number(it.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                        <td className="p-3 text-right font-medium">{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
                         </table>
                         
-                        <div className="flex justify-end mb-8">
-                            <div className="w-1/2 space-y-1">
-                                <div className="flex justify-between text-sm">
-                                    <span>Total Único:</span> 
-                                    <span className="font-bold">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        <div className="flex justify-end mb-10">
+                            <div className="w-1/2 space-y-2">
+                                <div className="flex justify-between text-sm py-1 border-b border-gray-100">
+                                    <span className="font-medium">Total Único:</span> 
+                                    <span className="font-bold text-lg">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                 </div>
-                                <div className="flex justify-between text-sm text-emerald-700 pt-1 border-t">
-                                    <span>Total Mensal:</span> 
-                                    <span className="font-bold">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                <div className="flex justify-between text-sm text-emerald-700 py-1">
+                                    <span className="font-medium">Total Mensal:</span> 
+                                    <span className="font-bold text-lg">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                            <div className="bg-gray-50 p-4 rounded text-sm h-full border">
-                                <h3 className="font-bold mb-2 uppercase text-xs text-gray-500">Pagamento (Investimento Único)</h3>
-                                <p className="mb-1">
-                                    <span className="font-semibold">Forma:</span> {selectedProposal.paymentMethod.toUpperCase()}
-                                </p>
-                                <p>
-                                    <span className="font-semibold">Parcelas:</span> {selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                    {selectedProposal.firstAsDownPayment && selectedProposal.installments > 1 && (
-                                        <span className="ml-1 font-semibold text-primary">(Sendo a 1ª como entrada)</span>
-                                    )}
-                                </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                            <div className="bg-gray-50 p-5 rounded-lg text-sm border border-gray-200 h-full">
+                                <h3 className="font-bold mb-4 uppercase text-[10px] text-gray-500 tracking-wider">Condições de Pagamento</h3>
+                                <div className="space-y-2">
+                                    <p className="flex items-baseline gap-2">
+                                        <span className="font-bold text-gray-700">Forma:</span> 
+                                        <span className="uppercase">{selectedProposal.paymentMethod}</span>
+                                    </p>
+                                    <p className="flex items-baseline gap-2 flex-wrap">
+                                        <span className="font-bold text-gray-700">Parcelas:</span> 
+                                        <span>{selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                        {selectedProposal.firstAsDownPayment && selectedProposal.installments > 1 && (
+                                            <span className="text-[10px] font-bold text-primary">(Sendo a 1ª como entrada)</span>
+                                        )}
+                                    </p>
+                                </div>
                             </div>
                             
                             {selectedProposal.observations && (
-                                <div className="bg-gray-50 p-4 rounded text-sm h-full border">
-                                    <h3 className="font-bold mb-2 uppercase text-xs text-gray-500">Condições e Observações</h3>
-                                    <p className="whitespace-pre-wrap italic text-gray-700">{selectedProposal.observations}</p>
+                                <div className="bg-gray-50 p-5 rounded-lg text-sm border border-gray-200 h-full">
+                                    <h3 className="font-bold mb-4 uppercase text-[10px] text-gray-500 tracking-wider">Observações Gerais</h3>
+                                    <p className="whitespace-pre-wrap italic text-gray-700 leading-relaxed text-xs">{selectedProposal.observations}</p>
                                 </div>
                             )}
                         </div>
 
-                        <div className="mt-24 text-center text-[10px] text-gray-400">
-                            <p>Atenciosamente, {companyProfile.name}</p>
+                        <div className="mt-20 text-center">
+                            <div className="w-1/2 h-px bg-gray-300 mx-auto mb-2"></div>
+                            <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest">{companyProfile.name}</p>
                         </div>
                     </div>
                 </ScrollArea>
