@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -56,6 +56,9 @@ import {
   Tag,
   XCircle,
   Share2,
+  Image as ImageIcon,
+  UploadCloud,
+  Camera,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -103,6 +106,7 @@ const proposalSchema = z.object({
   paymentMethod: z.string(),
   installments: z.coerce.number().min(1).max(12),
   firstAsDownPayment: z.boolean(),
+  observations: z.string().optional(),
 });
 
 type ProposalFormValues = z.infer<typeof proposalSchema>;
@@ -111,6 +115,7 @@ const productFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'O nome do produto é obrigatório.'),
   price: z.coerce.number().min(0, 'O preço não pode ser negativo.'),
+  imageUrl: z.string().optional(),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -129,6 +134,7 @@ export default function PropostasPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
@@ -141,6 +147,7 @@ export default function PropostasPage() {
       paymentMethod: 'boleto',
       installments: 1,
       firstAsDownPayment: false,
+      observations: '',
     },
   });
 
@@ -149,6 +156,7 @@ export default function PropostasPage() {
     defaultValues: {
       name: '',
       price: 0,
+      imageUrl: '',
     },
   });
 
@@ -164,6 +172,7 @@ export default function PropostasPage() {
   
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
+  const productImageUrl = productForm.watch('imageUrl');
 
   const totals = useMemo(() => {
     return (watchItems || []).reduce(
@@ -241,6 +250,21 @@ export default function PropostasPage() {
       }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 1 * 1024 * 1024) {
+        toast({ variant: "destructive", title: "Arquivo muito grande", description: "Por favor, selecione uma imagem com menos de 1MB." });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        productForm.setValue('imageUrl', reader.result as string, { shouldDirty: true });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSendWhatsAppText = (proposal: Proposal) => {
     const itemsText = proposal.items
       .map(
@@ -268,6 +292,8 @@ ${itemsText}
 *Condições de Pagamento (Valor Único):*
 - *Forma:* ${proposal.paymentMethod.replace('cartao', 'Cartão de Crédito').replace('boleto', 'Boleto Bancário').replace('pix', 'PIX')}
 - *Parcelas:* ${proposal.installments}x de ${(proposal.totalOneTime / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${installmentsDetail}
+
+${proposal.observations ? `\n*Observações:*\n${proposal.observations}` : ''}
 
 Agradecemos a oportunidade e ficamos à disposição!
 
@@ -404,6 +430,7 @@ ${companyProfile.phone}`;
       paymentMethod: proposal.paymentMethod,
       installments: proposal.installments,
       firstAsDownPayment: proposal.firstAsDownPayment,
+      observations: proposal.observations || '',
     });
     setIsQuickAddingClient(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -420,6 +447,7 @@ ${companyProfile.phone}`;
       paymentMethod: 'boleto',
       installments: 1,
       firstAsDownPayment: false,
+      observations: '',
     });
     setIsQuickAddingClient(false);
   };
@@ -469,6 +497,7 @@ ${companyProfile.phone}`;
         ...editingProduct,
         name: values.name,
         price: values.price,
+        imageUrl: values.imageUrl,
         priceHistory: values.price !== editingProduct.price ? [values.price, ...editingProduct.priceHistory] : editingProduct.priceHistory,
     });
     setIsProductFormOpen(false);
@@ -643,6 +672,31 @@ ${companyProfile.phone}`;
                             </div>
                         </CardFooter>
                     </Card>
+
+                    <Card className="mt-6">
+                        <CardHeader>
+                            <CardTitle>Observações e Condições Gerais</CardTitle>
+                            <CardDescription>Adicione prazos de entrega, garantias ou notas adicionais.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <FormField
+                                control={form.control}
+                                name="observations"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                            <Textarea 
+                                                placeholder="Ex: Prazo de entrega: 5 dias úteis. Garantia: 12 meses contra defeitos de fabricação." 
+                                                className="min-h-[100px]" 
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
                 </form>
             </Form>
         </div>
@@ -702,8 +756,23 @@ ${companyProfile.phone}`;
                 <div className="px-4 pb-4 space-y-1">
                   {filteredProducts.map(p => (
                      <div key={p.id} className="group flex cursor-pointer items-center justify-between rounded-md p-2 hover:bg-muted" onClick={() => handleAddProductFromList(p)}>
-                      <div className="flex-1 truncate"><p className="font-semibold text-xs truncate">{p.name}</p><p className="text-[10px] text-muted-foreground">{p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></div>
-                      <div className="flex items-center opacity-0 group-hover:opacity-100"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingProduct(p); productForm.reset({ id: p.id, name: p.name, price: p.price }); setIsProductFormOpen(true); }}><Pencil className="h-3 w-3" /></Button><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); setDeletingProduct(p); }}><Trash2 className="h-3 w-3" /></Button></div>
+                      <div className="flex items-center gap-3 flex-1 truncate">
+                        {p.imageUrl ? (
+                           <img src={p.imageUrl} alt={p.name} className="h-8 w-8 rounded object-cover border bg-white" />
+                        ) : (
+                           <div className="h-8 w-8 rounded bg-primary/5 flex items-center justify-center border border-primary/20">
+                             <ImageIcon className="h-4 w-4 text-primary" />
+                           </div>
+                        )}
+                        <div className="flex-1 truncate">
+                            <p className="font-semibold text-xs truncate">{p.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center opacity-0 group-hover:opacity-100">
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingProduct(p); productForm.reset({ id: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl || '' }); setIsProductFormOpen(true); }}><Pencil className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); setDeletingProduct(p); }}><Trash2 className="h-3 w-3" /></Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -791,18 +860,45 @@ ${companyProfile.phone}`;
                                 <tr key={i} className="border-b"><td className="p-2">{it.name} {it.isMonthly && <span className="text-[10px] font-bold text-emerald-600">(mensal)</span>}</td><td className="p-2 text-center">{it.quantity}</td><td className="p-2 text-right">{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="p-2 text-right">{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                             ))}</tbody>
                         </table>
-                        <div className="flex justify-end mb-8"><div className="w-1/2 space-y-1"><div className="flex justify-between text-sm"><span>Total Único:</span> <span className="font-bold">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div><div className="flex justify-between text-sm text-emerald-700 pt-1 border-t"><span>Total Mensal:</span> <span className="font-bold">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div></div></div>
-                        <div className="bg-gray-50 p-4 rounded text-sm">
-                            <h3 className="font-bold mb-1">Pagamento (Investimento Único)</h3>
-                            <p>
-                                Forma: {selectedProposal.paymentMethod.toUpperCase()} | 
-                                Parcelas: {selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                {selectedProposal.firstAsDownPayment && selectedProposal.installments > 1 && (
-                                    <span className="ml-1 font-semibold text-primary">(Sendo a 1ª como entrada)</span>
-                                )}
-                            </p>
+                        
+                        <div className="flex justify-end mb-8">
+                            <div className="w-1/2 space-y-1">
+                                <div className="flex justify-between text-sm">
+                                    <span>Total Único:</span> 
+                                    <span className="font-bold">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-emerald-700 pt-1 border-t">
+                                    <span>Total Mensal:</span> 
+                                    <span className="font-bold">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="mt-12 text-center text-[10px] text-gray-400"><p>Atenciosamente, {companyProfile.name}</p></div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                            <div className="bg-gray-50 p-4 rounded text-sm h-full border">
+                                <h3 className="font-bold mb-2 uppercase text-xs text-gray-500">Pagamento (Investimento Único)</h3>
+                                <p className="mb-1">
+                                    <span className="font-semibold">Forma:</span> {selectedProposal.paymentMethod.toUpperCase()}
+                                </p>
+                                <p>
+                                    <span className="font-semibold">Parcelas:</span> {selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    {selectedProposal.firstAsDownPayment && selectedProposal.installments > 1 && (
+                                        <span className="ml-1 font-semibold text-primary">(Sendo a 1ª como entrada)</span>
+                                    )}
+                                </p>
+                            </div>
+                            
+                            {selectedProposal.observations && (
+                                <div className="bg-gray-50 p-4 rounded text-sm h-full border">
+                                    <h3 className="font-bold mb-2 uppercase text-xs text-gray-500">Condições e Observações</h3>
+                                    <p className="whitespace-pre-wrap italic text-gray-700">{selectedProposal.observations}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-24 text-center text-[10px] text-gray-400">
+                            <p>Atenciosamente, {companyProfile.name}</p>
+                        </div>
                     </div>
                 </ScrollArea>
                 )}
@@ -828,11 +924,42 @@ ${companyProfile.phone}`;
         </AlertDialog>
 
         <Dialog open={isProductFormOpen} onOpenChange={setIsProductFormOpen}>
-            <DialogContent className="sm:max-w-[400px]">
+            <DialogContent className="sm:max-w-[450px]">
                 <Form {...productForm}>
                     <form onSubmit={productForm.handleSubmit(onProductSubmit)}>
-                        <DialogHeader><DialogTitle>Editar Produto</DialogTitle></DialogHeader>
-                        <div className="grid gap-4 py-4">
+                        <DialogHeader><DialogTitle>Gerenciar Produto</DialogTitle></DialogHeader>
+                        <div className="grid gap-6 py-4">
+                            <div className="flex flex-col items-center gap-4">
+                                <div 
+                                    className="relative group h-32 w-32 rounded-lg border-2 border-dashed border-primary/20 bg-primary/5 flex items-center justify-center cursor-pointer overflow-hidden hover:bg-primary/10 transition-colors"
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    {productImageUrl ? (
+                                        <img src={productImageUrl} alt="Preview" className="h-full w-full object-cover" />
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                                            <UploadCloud className="h-8 w-8" />
+                                            <span className="text-[10px] font-medium">Add Foto</span>
+                                        </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                        <Camera className="h-6 w-6 text-white" />
+                                    </div>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*" 
+                                        onChange={handleFileChange} 
+                                    />
+                                </div>
+                                {productImageUrl && (
+                                    <Button type="button" variant="ghost" size="sm" className="h-6 text-xs text-destructive" onClick={() => productForm.setValue('imageUrl', '')}>
+                                        Remover Foto
+                                    </Button>
+                                )}
+                            </div>
+
                             <FormField control={productForm.control} name="name" render={({ field }) => (
                                 <FormItem><FormLabel>Nome do Produto</FormLabel><FormControl><Input placeholder="Nome do produto ou serviço" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -840,7 +967,10 @@ ${companyProfile.phone}`;
                                 <FormItem><FormLabel>Preço Base</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
-                        <DialogFooter><Button type="button" variant="outline" onClick={() => setIsProductFormOpen(false)}>Cancelar</Button><Button type="submit">Salvar</Button></DialogFooter>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsProductFormOpen(false)}>Cancelar</Button>
+                            <Button type="submit">Salvar</Button>
+                        </DialogFooter>
                     </form>
                 </Form>
             </DialogContent>

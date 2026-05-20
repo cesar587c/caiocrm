@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -49,7 +48,7 @@ interface SettingsContextType {
   updateCustomer: (customer: Customer) => void;
   deleteCustomer: (id: string) => void;
   products: Product[];
-  addProduct: (productData: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => Product;
+  addProduct: (productData: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number, imageUrl?: string}) => Product;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
   proposals: Proposal[];
@@ -107,15 +106,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   // Carregamento Seguro e Migração
   useEffect(() => {
     try {
-      // Migração de propostas
-      const legacyProposals = localStorage.getItem('propostas');
       const currentProposals = localStorage.getItem('proposals');
-      
-      if (legacyProposals && !currentProposals) {
-          localStorage.setItem('proposals', legacyProposals);
-          setProposals(JSON.parse(legacyProposals));
-          localStorage.removeItem('propostas');
-      } else if (currentProposals) {
+      if (currentProposals) {
           setProposals(JSON.parse(currentProposals));
       }
 
@@ -376,12 +368,13 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       });
   }, [saveData]);
   
-  const addProduct = useCallback((data: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number}) => {
+  const addProduct = useCallback((data: Omit<Product, 'id' | 'priceHistory'> & {name: string, price: number, imageUrl?: string}) => {
     const newProd: Product = { 
         id: generateId('prod'), 
         name: data.name,
         price: data.price,
-        priceHistory: [data.price]
+        priceHistory: [data.price],
+        imageUrl: data.imageUrl
     };
     setProducts(prev => {
         const updated = [newProd, ...prev];

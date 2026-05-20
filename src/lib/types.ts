@@ -114,6 +114,7 @@ export type Product = {
   name: string;
   price: number;
   priceHistory: number[];
+  imageUrl?: string;
 };
 
 export type ProposalItem = {
@@ -136,6 +137,7 @@ export type Proposal = {
   firstAsDownPayment: boolean;
   totalOneTime: number;
   totalMonthly: number;
+  observations?: string;
 };
 
 export type RolePermissions = Record<UserRole, string[]>;
