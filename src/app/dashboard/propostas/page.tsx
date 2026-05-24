@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import jsPDF from 'jspdf';
+import jspdf from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -244,20 +244,20 @@ export default function PropostasPage() {
             onclone: (clonedDoc) => {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
-                    el.style.fontVariantLigatures = 'none';
-                    el.style.letterSpacing = '0px';
-                    // Garantir que todos os textos no clone tenham espaçamento normal
-                    const allText = el.querySelectorAll('*');
-                    allText.forEach((node: any) => {
-                        node.style.letterSpacing = '0px';
+                    // Proteção extrema contra fusão de palavras
+                    const allElements = el.querySelectorAll('*');
+                    allElements.forEach((node: any) => {
+                        node.style.letterSpacing = '0.2pt';
                         node.style.wordSpacing = 'normal';
+                        node.style.fontVariantLigatures = 'none';
+                        node.style.webkitFontSmoothing = 'antialiased';
                     });
                 }
             }
         });
         
         const imgData = canvas.toDataURL('image/png', 1.0);
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         pdf.save(`proposta-${selectedProposal.id}.pdf`);
     } catch (e) {
@@ -280,16 +280,16 @@ export default function PropostasPage() {
             onclone: (clonedDoc) => {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
-                    const allText = el.querySelectorAll('*');
-                    allText.forEach((node: any) => {
-                        node.style.letterSpacing = '0px';
-                        node.style.wordSpacing = 'normal';
+                    const allElements = el.querySelectorAll('*');
+                    allElements.forEach((node: any) => {
+                        node.style.letterSpacing = '0.2pt';
+                        node.style.fontVariantLigatures = 'none';
                     });
                 }
             }
         });
         const imgData = canvas.toDataURL('image/png', 1.0);
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         const pdfBlob = pdf.output('blob');
         const file = new File([pdfBlob], `proposta-${proposal.id}.pdf`, { type: 'application/pdf' });
@@ -741,29 +741,33 @@ export default function PropostasPage() {
                     fontSize: '11pt',
                     lineHeight: '1.4',
                     color: '#000000',
-                    letterSpacing: '0px',
+                    letterSpacing: '0.2pt',
                     wordSpacing: 'normal',
                     fontVariantLigatures: 'none'
                 }}
             >
-              {/* Header com Logo e Barra Lateral Estilo Word */}
-              <div style={{ marginBottom: '35px', display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
-                <div style={{ borderLeft: '5px solid #000000', height: '65px', minWidth: '5px' }}></div>
-                {companyProfile.logoUrl && (
-                  <img 
-                    src={companyProfile.logoUrl} 
-                    alt="Logo" 
-                    style={{ maxHeight: '60px', width: 'auto', display: 'block', objectFit: 'contain' }} 
-                  />
-                )}
-                <div style={{ textAlign: 'left' }}>
-                  <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', letterSpacing: '0px' }}>{companyProfile.name}</h2>
-                  <p style={{ margin: '2px 0', fontSize: '10pt', color: '#333', letterSpacing: '0px' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                  <p style={{ margin: '0', fontSize: '9.5pt', color: '#555', letterSpacing: '0px' }}>{companyProfile.address}</p>
-                </div>
-              </div>
+              {/* Estrutura de Cabeçalho via Tabela para estabilidade total */}
+              <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
+                <tr>
+                  <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
+                  <td style={{ padding: '0 20px', width: '70px', verticalAlign: 'top' }}>
+                    {companyProfile.logoUrl && (
+                      <img 
+                        src={companyProfile.logoUrl} 
+                        alt="Logo" 
+                        style={{ maxHeight: '60px', width: 'auto', display: 'block', objectFit: 'contain' }} 
+                      />
+                    )}
+                  </td>
+                  <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
+                    <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
+                    <p style={{ margin: '2px 0', fontSize: '10pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
+                    <p style={{ margin: '0', fontSize: '9.5pt', color: '#555' }}>{companyProfile.address}</p>
+                  </td>
+                </tr>
+              </table>
 
-              {/* Título Centralizado e Sublinhado */}
+              {/* Título Centralizado */}
               <div style={{ marginBottom: '45px', textAlign: 'center' }}>
                 <p style={{ 
                     fontWeight: 'bold', 
@@ -779,98 +783,99 @@ export default function PropostasPage() {
                 </p>
               </div>
 
-              {/* Bloco de Destinatário e Infos de Controle */}
-              <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ textAlign: 'left' }}>
-                    <p style={{ color: '#666666', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 6px 0', letterSpacing: '0px' }}>DESTINATÁRIO</p>
-                    <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', lineHeight: '1.2', letterSpacing: '0px' }}>{selectedProposal?.clientName}</h1>
-                    <p style={{ color: '#4F46E5', fontWeight: 'bold', margin: '6px 0 2px 0', fontSize: '11.5pt', letterSpacing: '0px' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
-                    {selectedProposal?.clientPhone && <p style={{ color: '#666666', margin: '0', fontSize: '10.5pt', letterSpacing: '0px' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
-                </div>
-                <div style={{ textAlign: 'right', fontSize: '10.5pt', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <p style={{ margin: '0', letterSpacing: '0px' }}><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
-                    <p style={{ margin: '0', letterSpacing: '0px' }}><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
-                    <p style={{ margin: '0', letterSpacing: '0px' }}><strong>VALIDADE:</strong> <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
-                </div>
-              </div>
+              {/* Bloco de Destinatário e Infos via Tabela */}
+              <table style={{ width: '100%', marginBottom: '40px', borderCollapse: 'collapse' }}>
+                <tr>
+                  <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
+                    <p style={{ color: '#666666', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 6px 0' }}>DESTINATÁRIO</p>
+                    <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', lineHeight: '1.2' }}>{selectedProposal?.clientName}</h1>
+                    <p style={{ color: '#4F46E5', fontWeight: 'bold', margin: '6px 0 2px 0', fontSize: '11.5pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
+                    {selectedProposal?.clientPhone && <p style={{ color: '#666666', margin: '0', fontSize: '10.5pt' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
+                  </td>
+                  <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '10.5pt', width: '200px' }}>
+                    <p style={{ margin: '4px 0' }}><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
+                    <p style={{ margin: '4px 0' }}><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                    <p style={{ margin: '4px 0' }}><strong>VALIDADE:</strong> <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
+                  </td>
+                </tr>
+              </table>
 
               {/* Texto Institucional */}
               <div style={{ marginBottom: '35px', textAlign: 'left', fontSize: '11pt', lineHeight: '1.5' }}>
-                <p style={{ marginBottom: '20px', letterSpacing: '0px' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
-                <p style={{ marginBottom: '20px', letterSpacing: '0px' }}>Com ampla experiência de mercado a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
-                <p style={{ marginBottom: '30px', letterSpacing: '0px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
+                <p style={{ marginBottom: '20px' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
+                <p style={{ marginBottom: '20px' }}>Com ampla experiência de mercado a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
+                <p style={{ marginBottom: '30px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
               </div>
 
-              {/* Tabela de Itens */}
-              <div style={{ marginBottom: '35px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid #000000' }}>
-                      <th style={{ padding: '12px 5px', fontWeight: 'bold', letterSpacing: '0px' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</th>
-                      <th style={{ padding: '12px 5px', textAlign: 'center', width: '60px', fontWeight: 'bold', letterSpacing: '0px' }}>QTD.</th>
-                      <th style={{ padding: '12px 5px', textAlign: 'right', width: '110px', fontWeight: 'bold', letterSpacing: '0px' }}>PREÇO UNIT.</th>
-                      <th style={{ padding: '12px 5px', textAlign: 'right', width: '110px', fontWeight: 'bold', letterSpacing: '0px' }}>SUBTOTAL</th>
+              {/* Tabela de Itens Fiel ao Layout */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left', marginBottom: '35px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #000000' }}>
+                    <th style={{ padding: '12px 5px', fontWeight: 'bold' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</th>
+                    <th style={{ padding: '12px 5px', textAlign: 'center', width: '60px', fontWeight: 'bold' }}>QTD.</th>
+                    <th style={{ padding: '12px 5px', textAlign: 'right', width: '110px', fontWeight: 'bold' }}>PREÇO UNIT.</th>
+                    <th style={{ padding: '12px 5px', textAlign: 'right', width: '110px', fontWeight: 'bold' }}>SUBTOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedProposal?.items.map((it, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}>
+                      <td style={{ padding: '10px 5px', fontWeight: 'bold' }}>{it.name.toUpperCase()}</td>
+                      <td style={{ padding: '10px 5px', textAlign: 'center' }}>{it.quantity}</td>
+                      <td style={{ padding: '10px 5px', textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                      <td style={{ padding: '10px 5px', textAlign: 'right', fontWeight: 'bold' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {selectedProposal?.items.map((it, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}>
-                        <td style={{ padding: '10px 5px', fontWeight: 'bold', letterSpacing: '0px' }}>{it.name.toUpperCase()}</td>
-                        <td style={{ padding: '10px 5px', textAlign: 'center', letterSpacing: '0px' }}>{it.quantity}</td>
-                        <td style={{ padding: '10px 5px', textAlign: 'right', letterSpacing: '0px' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                        <td style={{ padding: '10px 5px', textAlign: 'right', fontWeight: 'bold', letterSpacing: '0px' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                
-                {/* Total Alinhado à Direita */}
-                <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <div style={{ 
-                        padding: '15px 25px', 
-                        backgroundColor: '#F8FAFC', 
-                        border: '1.5px solid #E2E8F0', 
-                        borderRadius: '6px',
-                        display: 'flex',
-                        gap: '40px',
-                        alignItems: 'center'
-                    }}>
-                        <span style={{ fontSize: '10.5pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0px' }}>TOTAL INVESTIMENTO</span>
-                        <span style={{ fontSize: '13pt', fontWeight: 'bold', color: '#000000', letterSpacing: '0px' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                    </div>
+                  ))}
+                </tbody>
+              </table>
+              
+              {/* Total Investimento */}
+              <div style={{ textAlign: 'right', marginBottom: '45px' }}>
+                <div style={{ 
+                    padding: '15px 25px', 
+                    backgroundColor: '#F8FAFC', 
+                    border: '1.5px solid #E2E8F0', 
+                    borderRadius: '6px',
+                    display: 'inline-block'
+                }}>
+                    <span style={{ fontSize: '10.5pt', fontWeight: 'bold', textTransform: 'uppercase', marginRight: '40px' }}>TOTAL INVESTIMENTO</span>
+                    <span style={{ fontSize: '13pt', fontWeight: 'bold', color: '#000000' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </div>
               </div>
 
               {/* Condições de Pagamento */}
-              <div style={{ marginTop: '45px', padding: '20px', border: '1.5px solid #000000', borderRadius: '5px' }}>
-                <p style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '11pt', textDecoration: 'underline', textTransform: 'uppercase', letterSpacing: '0px' }}>CONDIÇÕES DE PAGAMENTO</p>
+              <div style={{ padding: '20px', border: '1.5px solid #000000', borderRadius: '5px', marginBottom: '80px' }}>
+                <p style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '11pt', textDecoration: 'underline', textTransform: 'uppercase' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <div style={{ fontSize: '10.5pt', lineHeight: '1.5' }}>
-                    <p style={{ margin: '4px 0', letterSpacing: '0px' }}>• FORMA DE PAGAMENTO: {selectedProposal?.paymentMethod.toUpperCase()}</p>
-                    <p style={{ margin: '4px 0', letterSpacing: '0px' }}>• CONDIÇÃO: {selectedProposal?.installments}X DE {(selectedProposal ? selectedProposal.totalOneTime / selectedProposal.installments : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                    {selectedProposal?.firstAsDownPayment && <p style={{ margin: '4px 0', fontStyle: 'italic', letterSpacing: '0px' }}>• PRIMEIRA PARCELA COMO ENTRADA.</p>}
+                    <p style={{ margin: '4px 0' }}>• FORMA DE PAGAMENTO: {selectedProposal?.paymentMethod.toUpperCase()}</p>
+                    <p style={{ margin: '4px 0' }}>• CONDIÇÃO: {selectedProposal?.installments}X DE {(selectedProposal ? selectedProposal.totalOneTime / selectedProposal.installments : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    {selectedProposal?.firstAsDownPayment && <p style={{ margin: '4px 0', fontStyle: 'italic' }}>• PRIMEIRA PARCELA COMO ENTRADA.</p>}
                 </div>
                 
                 {selectedProposal?.observations && (
                     <div style={{ marginTop: '20px', borderTop: '1px solid #DDDDDD', paddingTop: '12px' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '10.5pt', letterSpacing: '0px' }}>OBSERVAÇÕES E PRAZOS:</p>
-                        <p style={{ fontSize: '10pt', whiteSpace: 'pre-wrap', letterSpacing: '0px' }}>{selectedProposal.observations}</p>
+                        <p style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '10.5pt' }}>OBSERVAÇÕES E PRAZOS:</p>
+                        <p style={{ fontSize: '10pt', whiteSpace: 'pre-wrap' }}>{selectedProposal.observations}</p>
                     </div>
                 )}
               </div>
 
-              {/* Assinaturas */}
-              <div style={{ marginTop: '80px', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '9.5pt' }}>
-                <div style={{ width: '230px' }}>
-                  <div style={{ borderTop: '1.5px solid #000000', marginBottom: '6px' }}></div>
-                  <p style={{ fontWeight: 'bold', margin: '0', letterSpacing: '0px' }}>{companyProfile.name.toUpperCase()}</p>
-                  <p style={{ color: '#666666', letterSpacing: '0px' }}>EMITENTE RESPONSÁVEL</p>
-                </div>
-                <div style={{ width: '230px' }}>
-                  <div style={{ borderTop: '1.5px solid #000000', marginBottom: '6px' }}></div>
-                  <p style={{ fontWeight: 'bold', margin: '0', letterSpacing: '0px' }}>{selectedProposal?.clientName.toUpperCase()}</p>
-                  <p style={{ color: '#666666', letterSpacing: '0px' }}>ACEITE DO CLIENTE</p>
-                </div>
-              </div>
+              {/* Assinaturas via Tabela */}
+              <table style={{ width: '100%', textAlign: 'center', fontSize: '9.5pt', borderCollapse: 'collapse' }}>
+                <tr>
+                  <td style={{ width: '230px', padding: '0 20px' }}>
+                    <div style={{ borderTop: '1.5px solid #000000', marginBottom: '6px' }}></div>
+                    <p style={{ fontWeight: 'bold', margin: '0' }}>{companyProfile.name.toUpperCase()}</p>
+                    <p style={{ color: '#666666' }}>EMITENTE RESPONSÁVEL</p>
+                  </td>
+                  <td></td>
+                  <td style={{ width: '230px', padding: '0 20px' }}>
+                    <div style={{ borderTop: '1.5px solid #000000', marginBottom: '6px' }}></div>
+                    <p style={{ fontWeight: 'bold', margin: '0' }}>{selectedProposal?.clientName.toUpperCase()}</p>
+                    <p style={{ color: '#666666' }}>ACEITE DO CLIENTE</p>
+                  </td>
+                </tr>
+              </table>
             </div>
           </ScrollArea>
           
