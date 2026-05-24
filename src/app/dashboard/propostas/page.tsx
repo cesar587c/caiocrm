@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
@@ -59,6 +60,7 @@ import {
   Image as ImageIcon,
   UploadCloud,
   Camera,
+  Copy,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -445,6 +447,28 @@ ${companyProfile.phone}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleCloneProposalClick = (proposal: Proposal) => {
+    setEditingProposal(null); // Ensure we are in "new" mode
+    form.reset({
+      clientId: proposal.clientId,
+      clientName: proposal.clientName,
+      clientPhone: proposal.clientPhone,
+      proposalDate: new Date(),
+      validityDate: addDays(new Date(), 10),
+      items: proposal.items.map(item => ({ ...item })),
+      paymentMethod: proposal.paymentMethod,
+      installments: proposal.installments,
+      firstAsDownPayment: proposal.firstAsDownPayment,
+      observations: proposal.observations || '',
+    });
+    setIsQuickAddingClient(!proposal.clientId);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast({ 
+        title: 'Proposta Duplicada!', 
+        description: 'Os dados foram carregados no formulário. Você pode editar o cliente e os itens antes de salvar.' 
+    });
+  };
+
   const handleCancelEdit = () => {
     setEditingProposal(null);
     form.reset({
@@ -806,9 +830,12 @@ ${companyProfile.phone}`;
                             <TableCell className="text-emerald-500 font-medium">{p.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-1">
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleEditProposalClick(p)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedProposal(p)}><Printer className="h-4 w-4" /></Button>
-                                    <Button variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingProposal(p)}><Trash2 className="h-4 w-4" /></Button>
+                                    <Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleCloneProposalClick(p)} title="Clonar Proposta">
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleEditProposalClick(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedProposal(p)} title="Imprimir"><Printer className="h-4 w-4" /></Button>
+                                    <Button variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingProposal(p)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
                                 </div>
                             </TableCell>
                         </TableRow>
