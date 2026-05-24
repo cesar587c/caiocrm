@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+* as z from 'zod';
 import { addDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -49,6 +49,13 @@ import {
   Image as ImageIcon,
   Share2,
   XCircle,
+  FileText,
+  Calendar as CalendarIcon,
+  User,
+  Phone,
+  Settings,
+  CreditCard,
+  TrendingUp,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -75,6 +82,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { Proposal, Product, Customer } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Badge } from '@/components/ui/badge';
 
 const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -104,6 +112,7 @@ type ProposalFormValues = z.infer<typeof proposalSchema>;
 export default function PropostasPage() {
   const { companyProfile, customers, products, addProduct, proposals, addProposal, updateProposal, deleteProposal, addCustomer, currentUser } = useSettings();
   const { toast } = useToast();
+  
   const [productSearch, setProductSearch] = useState('');
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -225,7 +234,7 @@ export default function PropostasPage() {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
                   el.style.width = '210mm';
-                  el.style.letterSpacing = "0px";
+                  el.style.letterSpacing = "normal";
                   el.style.wordSpacing = "normal";
                   el.style.fontVariantLigatures = "none";
                 }
@@ -362,87 +371,144 @@ export default function PropostasPage() {
   };
 
   return (
-    <div className="flex-1 space-y-6 p-8 pt-6">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-background/50">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gerador de Propostas</h2>
+        <div>
+            <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gerador de Propostas</h2>
+            <p className="text-muted-foreground">Crie orçamentos profissionais em PDF com tabelas organizadas.</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-4">
         <div className="lg:col-span-2 space-y-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form">
-              <Card>
-                <CardHeader className="flex flex-row items-start justify-between">
-                  <div>
-                    <CardTitle>{editingProposal ? `Editando Proposta ${editingProposal.id}` : 'Nova Proposta'}</CardTitle>
-                    <CardDescription>Preencha para gerar o documento.</CardDescription>
+              <Card className="shadow-lg border-primary/10">
+                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-6">
+                  <div className="space-y-1">
+                    <CardTitle className="text-xl flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        {editingProposal ? `Editar Proposta #${editingProposal.id}` : 'Configurar Orçamento'}
+                    </CardTitle>
+                    <CardDescription>Defina as datas e o destinatário da proposta.</CardDescription>
                   </div>
                   <div className="flex gap-4">
                     <FormField control={form.control} name="proposalDate" render={({ field }) => (
                       <div className="space-y-1">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emissão</Label>
-                        <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[120px] h-8 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                            <CalendarIcon className="h-3 w-3" /> Emissão
+                        </Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-[125px] h-9 text-xs font-medium">
+                                    {field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-auto" align="end">
+                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} />
+                            </PopoverContent>
+                        </Popover>
                       </div>
                     )} />
                     <FormField control={form.control} name="validityDate" render={({ field }) => (
                       <div className="space-y-1">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Validade</Label>
-                        <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[120px] h-8 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" /> Validade
+                        </Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-[125px] h-9 text-xs font-medium">
+                                    {field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-auto" align="end">
+                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} />
+                            </PopoverContent>
+                        </Popover>
                       </div>
                     )} />
                   </div>
                 </CardHeader>
-                <CardContent className="border-t pt-6 space-y-6">
-                  <div className="flex items-center gap-4">
-                    {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="h-12 w-auto object-contain" />}
-                    <div>
-                      <h3 className="font-bold">{companyProfile.name}</h3>
-                      <p className="text-xs text-muted-foreground">{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
+                <CardContent className="border-t pt-8 space-y-8">
+                  <div className="flex items-center gap-5 p-4 rounded-xl bg-muted/30 border">
+                    {companyProfile.logoUrl ? (
+                        <img src={companyProfile.logoUrl} alt="Logo" className="h-14 w-auto object-contain rounded" />
+                    ) : (
+                        <div className="h-14 w-14 rounded bg-primary/10 flex items-center justify-center">
+                            <ImageIcon className="h-6 w-6 text-primary" />
+                        </div>
+                    )}
+                    <div className="space-y-0.5">
+                      <h3 className="font-bold text-lg leading-none">{companyProfile.name}</h3>
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">
+                        {companyProfile.email} <span className="text-muted-foreground/30">|</span> {formatPhoneNumber(companyProfile.phone)}
+                      </p>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
+                        <Label className="text-sm font-semibold flex items-center gap-2">
+                            <User className="h-4 w-4 text-primary" /> Cliente Destinatário
+                        </Label>
+                    </div>
+                    <div className="flex gap-3">
                       <div className="flex-1">
                         <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
-                          <SelectTrigger><SelectValue placeholder="Selecione um cliente..." /></SelectTrigger>
-                          <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent>
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Buscar na minha base de contatos..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {customers.map(c => (
+                                <SelectItem key={c.id} value={c.id}>
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>{c.nomeFantasia || c.name}</span>
+                                        <Badge variant="outline" className="ml-2 text-[8px] uppercase">{c.type === 'lead' ? 'Lead' : 'Cliente'}</Badge>
+                                    </div>
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
                         </Select>
                       </div>
-                      <Button type="button" variant="outline" onClick={handleQuickAddClient}><PlusCircle className="mr-2 h-4 w-4" />Novo</Button>
+                      <Button type="button" variant="secondary" onClick={handleQuickAddClient} className="h-10 gap-2">
+                        <PlusCircle className="h-4 w-4" />
+                        Outro
+                      </Button>
                     </div>
 
                     {isQuickAddingClient && (
-                      <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <div className="p-5 border rounded-xl bg-muted/20 space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField control={form.control} name="clientName" render={({ field }) => (
-                            <FormItem><FormLabel>Empresa / Cliente</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                            <FormItem><FormLabel>Empresa / Cliente</FormLabel><FormControl><Input placeholder="Nome da empresa" {...field} className="h-9" /></FormControl></FormItem>
                           )} />
                           <FormField control={form.control} name="contactName" render={({ field }) => (
-                            <FormItem><FormLabel>Pessoa de Contato</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                            <FormItem><FormLabel>Pessoa de Contato</FormLabel><FormControl><Input placeholder="Ex: Sr. Ricardo" {...field} className="h-9" /></FormControl></FormItem>
                           )} />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={form.control} name="clientPhone" render={({ field }) => (
-                            <FormItem><FormLabel>Telefone / WhatsApp</FormLabel><FormControl><Input {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} /></FormControl></FormItem>
+                            <FormItem><FormLabel>Telefone / WhatsApp</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} className="h-9" /></FormControl></FormItem>
                             )} />
                             <FormField control={form.control} name="contactType" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Cadastrar como</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                        <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
                                         <SelectContent>
-                                            <SelectItem value="lead">Lead (Funil)</SelectItem>
-                                            <SelectItem value="one_time">Cliente (Venda Única)</SelectItem>
+                                            <SelectItem value="lead">Lead (Para o Funil de Vendas)</SelectItem>
+                                            <SelectItem value="one_time">Cliente (Venda Avulsa)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </FormItem>
                             )} />
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-primary/5 rounded-md">
-                          <div>
-                            <p className="text-xs font-bold text-primary">Salvar nos meus contatos?</p>
-                            <p className="text-[10px] text-muted-foreground">Adiciona à base atual automaticamente.</p>
+                        <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/10">
+                          <div className="space-y-0.5">
+                            <p className="text-xs font-bold text-primary flex items-center gap-2">
+                                <Settings className="h-3 w-3" /> Salvar nos meus contatos?
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">Isso adicionará os dados à sua base de CRM automaticamente.</p>
                           </div>
                           <FormField control={form.control} name="saveToContacts" render={({ field }) => (
                             <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -452,35 +518,68 @@ export default function PropostasPage() {
                     )}
                   </div>
 
-                  <div className="space-y-4 border-t pt-6">
-                    <h4 className="text-sm font-bold">Itens da Proposta</h4>
-                    <Table>
-                      <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead className="w-20">Qtd.</TableHead><TableHead className="w-28">Preço</TableHead><TableHead className="w-24">Tipo</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {fields.map((it, idx) => (
-                          <TableRow key={it.id}>
-                            <TableCell><Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} /></TableCell>
-                            <TableCell><Input type="number" {...form.register(`items.${idx}.quantity`)} /></TableCell>
-                            <TableCell><Input type="number" step="0.01" {...form.register(`items.${idx}.price`)} /></TableCell>
-                            <TableCell>
-                              <Controller control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (
-                                <Select onValueChange={v => field.onChange(v === 'M')} value={field.value ? 'M' : 'U'}>
-                                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                  <SelectContent><SelectItem value="U">Único</SelectItem><SelectItem value="M">Mensal</SelectItem></SelectContent>
-                                </Select>
-                              )} />
-                            </TableCell>
-                            <TableCell><Button variant="ghost" size="icon" onClick={() => remove(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })}><PlusCircle className="mr-2 h-4 w-4" />Novo Item</Button>
+                  <div className="space-y-4 border-t pt-8">
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-bold flex items-center gap-2">
+                            <ImageIcon className="h-4 w-4 text-primary" /> Itens do Orçamento
+                        </h4>
+                        <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })} className="h-8 gap-2">
+                            <PlusCircle className="h-3.5 w-3.5" /> Adicionar Manualmente
+                        </Button>
+                    </div>
+                    <div className="rounded-xl border overflow-hidden">
+                        <Table>
+                        <TableHeader className="bg-muted/50">
+                            <TableRow>
+                                <TableHead className="text-xs">Descrição do Item</TableHead>
+                                <TableHead className="w-20 text-xs">Qtd.</TableHead>
+                                <TableHead className="w-28 text-xs">Preço Unit.</TableHead>
+                                <TableHead className="w-24 text-xs">Faturamento</TableHead>
+                                <TableHead className="w-10"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {fields.map((it, idx) => (
+                            <TableRow key={it.id} className="hover:bg-transparent">
+                                <TableCell className="py-2">
+                                    <Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} className="h-8 text-xs border-none bg-muted/20 focus-visible:ring-1" />
+                                </TableCell>
+                                <TableCell className="py-2">
+                                    <Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs border-none bg-muted/20 text-center" />
+                                </TableCell>
+                                <TableCell className="py-2">
+                                    <Input type="number" step="0.01" {...form.register(`items.${idx}.price`)} className="h-8 text-xs border-none bg-muted/20 text-right" />
+                                </TableCell>
+                                <TableCell className="py-2">
+                                <Controller control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (
+                                    <Select onValueChange={v => field.onChange(v === 'M')} value={field.value ? 'M' : 'U'}>
+                                    <SelectTrigger className="h-8 text-[10px] uppercase font-bold border-none bg-muted/30"><SelectValue /></SelectTrigger>
+                                    <SelectContent><SelectItem value="U">Único</SelectItem><SelectItem value="M">Mensal</SelectItem></SelectContent>
+                                    </Select>
+                                )} />
+                                </TableCell>
+                                <TableCell className="py-2 text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => remove(idx)} className="h-8 w-8 text-destructive/50 hover:text-destructive">
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </div>
                   </div>
 
-                  <div className="border-t pt-6">
+                  <div className="border-t pt-8">
                     <FormField control={form.control} name="observations" render={({ field }) => (
-                      <FormItem><FormLabel>Observações e Prazos</FormLabel><FormControl><Textarea rows={3} placeholder="Ex: Prazo de entrega: 5 dias..." {...field} /></FormControl></FormItem>
+                      <FormItem>
+                        <FormLabel className="font-bold flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-primary" /> Condições e Prazos Adicionais
+                        </FormLabel>
+                        <FormControl>
+                            <Textarea rows={3} placeholder="Ex: Prazo de entrega: 5 dias úteis após aprovação. Validade de preços enquanto durarem os estoques..." {...field} className="text-xs resize-none" />
+                        </FormControl>
+                      </FormItem>
                     )} />
                   </div>
                 </CardContent>
@@ -490,55 +589,104 @@ export default function PropostasPage() {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-          <Card>
-            <CardHeader><CardTitle>Pagamento e Resumo</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+          <Card className="shadow-lg border-primary/10 overflow-hidden">
+            <CardHeader className="bg-primary/5 pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" /> Faturamento
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
               <div className="space-y-2">
-                <Label className="text-xs">Forma de Pagamento</Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Meio de Pagamento</Label>
                 <Controller control={form.control} name="paymentMethod" render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="boleto">Boleto</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="cartao">Cartão</SelectItem></SelectContent>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="boleto">Boleto Bancário</SelectItem>
+                        <SelectItem value="pix">Transferência PIX</SelectItem>
+                        <SelectItem value="cartao">Cartão de Crédito</SelectItem>
+                        <SelectItem value="faturamento">Faturamento Direto</SelectItem>
+                    </SelectContent>
                   </Select>
                 )} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Parcelas (Venda Única)</Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Parcelamento (Investimento Único)</Label>
                 <Controller control={form.control} name="installments" render={({ field }) => (
                   <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x de {((totals.oneTime / (i+1)) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</SelectItem>)}</SelectContent>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        {[...Array(12)].map((_, i) => (
+                            <SelectItem key={i+1} value={String(i+1)}>
+                                {i+1}x de {((totals.oneTime / (i+1)) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
                   </Select>
                 )} />
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border">
+                <Label className="text-xs font-medium cursor-pointer" htmlFor="down-payment-switch">1ª parcela como entrada?</Label>
                 <Controller control={form.control} name="firstAsDownPayment" render={({ field }) => (
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <Switch id="down-payment-switch" checked={field.value} onCheckedChange={field.onChange} />
                 )} />
-                <Label className="text-xs">1ª parcela como entrada?</Label>
               </div>
+              
               <Separator />
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between font-bold"><span>Total Único:</span><span className="text-primary">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                <div className="flex justify-between font-bold"><span>Total Mensal:</span><span className="text-emerald-500">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-center bg-primary/5 p-3 rounded-lg border border-primary/10">
+                    <span className="text-xs font-bold text-primary">Investimento Único:</span>
+                    <span className="text-lg font-bold text-primary">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                </div>
+                {totals.monthly > 0 && (
+                    <div className="flex justify-between items-center bg-emerald-500/5 p-3 rounded-lg border border-emerald-500/10">
+                        <span className="text-xs font-bold text-emerald-600">Recorrência Mensal:</span>
+                        <span className="text-lg font-bold text-emerald-600">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    </div>
+                )}
               </div>
             </CardContent>
-            <CardFooter><Button type="submit" form="proposal-form" className="w-full">{editingProposal ? 'Atualizar Proposta' : 'Salvar Proposta'}</Button></CardFooter>
+            <CardFooter className="bg-muted/10 pt-6">
+                <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">
+                    {editingProposal ? 'Atualizar Orçamento' : 'Finalizar e Salvar'}
+                </Button>
+            </CardFooter>
           </Card>
 
-          <Card>
-            <CardHeader className="p-4"><CardTitle className="text-xs">Produtos Rápidos</CardTitle></CardHeader>
+          <Card className="shadow-md">
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-xs uppercase font-extrabold tracking-widest text-muted-foreground flex items-center gap-2">
+                    <ImageIcon className="h-3 w-3" /> Catálogo Rápido
+                </CardTitle>
+                <div className="relative mt-3">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input placeholder="Buscar produto..." className="h-8 pl-8 text-[11px]" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
+                </div>
+            </CardHeader>
             <CardContent className="p-0">
-              <ScrollArea className="h-60 px-4 pb-4">
-                <div className="space-y-1">
+              <ScrollArea className="h-[280px] px-4 pb-4">
+                <div className="space-y-1.5 mt-2">
                   {filteredProducts.map(p => (
-                    <div key={p.id} className="flex items-center justify-between p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => append({ name: p.name, quantity: 1, price: p.price, isMonthly: false })}>
-                      <div className="flex items-center gap-2 truncate">
-                        {p.imageUrl ? <img src={p.imageUrl} className="h-8 w-8 rounded object-cover" /> : <div className="h-8 w-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="h-4 w-4 text-muted-foreground" /></div>}
-                        <div className="truncate"><p className="text-xs font-bold truncate">{p.name}</p><p className="text-[10px] text-muted-foreground">{p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></div>
+                    <div key={p.id} className="flex items-center justify-between p-2 hover:bg-muted/50 border rounded-lg cursor-pointer transition-colors group" onClick={() => append({ name: p.name, quantity: 1, price: p.price, isMonthly: false })}>
+                      <div className="flex items-center gap-3 truncate">
+                        {p.imageUrl ? (
+                            <img src={p.imageUrl} className="h-9 w-9 rounded-md object-cover border" alt="" />
+                        ) : (
+                            <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center border">
+                                <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
+                            </div>
+                        )}
+                        <div className="truncate">
+                            <p className="text-[11px] font-bold truncate group-hover:text-primary transition-colors">{p.name}</p>
+                            <p className="text-[10px] text-muted-foreground font-medium">{p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        </div>
                       </div>
                     </div>
                   ))}
+                  {filteredProducts.length === 0 && (
+                      <p className="text-[10px] text-center text-muted-foreground py-10 italic">Nenhum produto encontrado.</p>
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>
@@ -546,160 +694,208 @@ export default function PropostasPage() {
         </div>
       </div>
 
-      <Card className="mt-6">
-        <CardHeader><CardTitle>Propostas Geradas</CardTitle></CardHeader>
-        <CardContent>
+      <Card className="shadow-lg mt-8 overflow-hidden">
+        <CardHeader className="bg-muted/30">
+            <CardTitle className="text-lg">Orçamentos Enviados</CardTitle>
+            <CardDescription>Consulte e gerencie as propostas geradas.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
           <Table>
-            <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Total</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+            <TableHeader>
+                <TableRow>
+                    <TableHead className="w-24 pl-6">Nº ID</TableHead>
+                    <TableHead>Cliente Destinatário</TableHead>
+                    <TableHead>Data Emissão</TableHead>
+                    <TableHead className="text-right pr-6">Investimento</TableHead>
+                    <TableHead className="text-right w-40 pr-6">Ações</TableHead>
+                </TableRow>
+            </TableHeader>
             <TableBody>
               {proposals.map(p => (
-                <TableRow key={p.id} className="group">
-                  <TableCell className="font-bold">#{p.id}</TableCell>
-                  <TableCell>{p.clientName}</TableCell>
-                  <TableCell>{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell className="text-primary font-bold">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                  <TableCell className="text-right flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleCloneProposalClick(p)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleEditProposalClick(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(p)} title="Imprimir"><Printer className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingProposal(p)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                <TableRow key={p.id} className="group hover:bg-muted/20">
+                  <TableCell className="font-mono font-bold pl-6 text-primary">#{p.id}</TableCell>
+                  <TableCell className="font-medium">{p.clientName}</TableCell>
+                  <TableCell className="text-muted-foreground text-xs">{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell className="text-right font-bold pr-6">
+                    {p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </TableCell>
+                  <TableCell className="text-right pr-6">
+                    <div className="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCloneProposalClick(p)} title="Duplicar Proposta"><Copy className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditProposalClick(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => setSelectedProposal(p)} title="Visualizar PDF"><Printer className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => setDeletingProposal(p)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
+              {proposals.length === 0 && (
+                  <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground italic">Nenhuma proposta gerada ainda.</TableCell>
+                  </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
       <Dialog open={!!selectedProposal} onOpenChange={o => !o && setSelectedProposal(null)}>
-        <DialogContent className="sm:max-w-[950px] h-[95vh] flex flex-col p-0 overflow-hidden bg-background">
-          <DialogHeader className="p-6 pb-0"><DialogTitle>Visualização da Proposta</DialogTitle></DialogHeader>
-          <ScrollArea className="flex-1 bg-muted/30 p-8">
+        <DialogContent className="sm:max-w-[950px] h-[95vh] flex flex-col p-0 overflow-hidden bg-background border-none shadow-2xl">
+          <DialogHeader className="p-6 pb-0 border-b bg-muted/20 flex flex-row items-center justify-between space-y-0">
+            <DialogTitle className="text-xl">Pré-visualização do Documento</DialogTitle>
+            <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(null)} className="h-8 w-8 rounded-full"><XCircle className="h-5 w-5" /></Button>
+          </DialogHeader>
+          <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
             <div 
                 id="proposal-preview" 
-                className="bg-white text-black mx-auto shadow-md" 
+                className="bg-white text-black mx-auto shadow-2xl" 
                 style={{ 
                     width: '210mm', 
                     minHeight: '297mm', 
                     padding: '25mm',
                     fontFamily: 'Arial, sans-serif',
                     fontSize: '11pt',
-                    lineHeight: '1.4',
-                    letterSpacing: '0px',
+                    lineHeight: '1.45',
+                    color: '#000000',
+                    letterSpacing: 'normal',
                     wordSpacing: 'normal',
                     fontVariantLigatures: 'none'
                 }}
             >
-              {/* Cabeçalho Conforme Imagem */}
-              <div style={{ marginBottom: '30px', textAlign: 'left' }}>
-                <h2 style={{ fontSize: '14pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
-                <p style={{ margin: '5px 0' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                <p style={{ margin: '5px 0' }}>{companyProfile.address}</p>
+              {/* CABEÇALHO LIMPO - ESTILO WORD */}
+              <div style={{ marginBottom: '35px', textAlign: 'left', borderLeft: '4px solid #000', paddingLeft: '20px' }}>
+                <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', letterSpacing: '1px' }}>{companyProfile.name}</h2>
+                <p style={{ margin: '8px 0 2px 0', fontSize: '10pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
+                <p style={{ margin: '0', fontSize: '10pt', color: '#555' }}>{companyProfile.address}</p>
               </div>
 
-              {/* Título da Proposta */}
-              <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-                <p style={{ fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>
+              {/* TÍTULO DA PROPOSTA */}
+              <div style={{ marginBottom: '25px', textAlign: 'center', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px' }}>
+                <p style={{ fontWeight: 'bold', margin: '0', fontSize: '13pt', textTransform: 'uppercase' }}>
                     PROPOSTA COMERCIAL DESTINATÁRIO {selectedProposal?.clientName}
                 </p>
               </div>
 
-              {/* Detalhes da Proposta */}
-              <div style={{ marginBottom: '30px', textAlign: 'left' }}>
-                <p style={{ margin: '5px 0' }}>Nº Proposta {selectedProposal?.id}</p>
-                <p style={{ margin: '5px 0' }}>Emissão {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
-                <p style={{ margin: '5px 0' }}>Validade {selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
-                <p style={{ margin: '5px 0', fontWeight: 'bold' }}>
-                    A/C: {selectedProposal?.contactName || 'Responsável'} {selectedProposal?.clientPhone && `(${formatPhoneNumber(selectedProposal.clientPhone)})`}
-                </p>
+              {/* DETALHES TÉCNICOS DA PROPOSTA */}
+              <div style={{ marginBottom: '35px', display: 'flex', justifyContent: 'space-between', fontSize: '10.5pt', borderBottom: '1px solid #eee', paddingBottom: '20px' }}>
+                <div style={{ textAlign: 'left' }}>
+                    <p style={{ margin: '3px 0' }}><strong>Nº Proposta:</strong> {selectedProposal?.id}</p>
+                    <p style={{ margin: '3px 0' }}><strong>Emissão:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                    <p style={{ margin: '3px 0' }}><strong>Validade:</strong> {selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: '0', fontWeight: 'bold', fontSize: '11pt' }}>A/C: {selectedProposal?.contactName || 'Setor Responsável'}</p>
+                    {selectedProposal?.clientPhone && <p style={{ margin: '3px 0', color: '#444' }}>Contato: {formatPhoneNumber(selectedProposal.clientPhone)}</p>}
+                </div>
               </div>
 
-              {/* Texto Institucional Exato da Imagem */}
-              <div style={{ marginBottom: '25px', textAlign: 'left' }}>
+              {/* TEXTO INSTITUCIONAL ORIGINAL - SEM ALTERAÇÕES */}
+              <div style={{ marginBottom: '30px', textAlign: 'left', fontSize: '11pt' }}>
                 <p style={{ marginBottom: '20px' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ marginBottom: '20px' }}>Com ampla experiência de mercado a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
-                <p style={{ marginBottom: '25px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
+                <p style={{ marginBottom: '30px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
               </div>
 
-              {/* Tabela de Itens Simplificada */}
-              <div style={{ marginBottom: '30px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', textAlign: 'left' }}>
+              {/* TABELA DE ITENS - PADRÃO PROFISSIONAL */}
+              <div style={{ marginBottom: '35px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #000' }}>
-                      <th style={{ padding: '8px 0', fontWeight: 'bold' }}>Item / Descrição</th>
-                      <th style={{ padding: '8px 0', textAlign: 'center', width: '60px', fontWeight: 'bold' }}>Qtd.</th>
-                      <th style={{ padding: '8px 0', textAlign: 'right', width: '100px', fontWeight: 'bold' }}>Preço</th>
-                      <th style={{ padding: '8px 0', textAlign: 'right', width: '100px', fontWeight: 'bold' }}>Subtotal</th>
+                    <tr style={{ backgroundColor: '#f4f4f4', borderBottom: '2px solid #000' }}>
+                      <th style={{ padding: '12px 10px', fontWeight: 'bold' }}>Item / Descrição do Serviço ou Produto</th>
+                      <th style={{ padding: '12px 10px', textAlign: 'center', width: '60px', fontWeight: 'bold' }}>Qtd.</th>
+                      <th style={{ padding: '12px 10px', textAlign: 'right', width: '110px', fontWeight: 'bold' }}>Preço Unit.</th>
+                      <th style={{ padding: '12px 10px', textAlign: 'right', width: '110px', fontWeight: 'bold' }}>Subtotal</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedProposal?.items.map((it, i) => (
-                      <tr key={i} style={{ borderBottom: '0.5px solid #eee' }}>
-                        <td style={{ padding: '8px 0' }}>{it.name} {it.isMonthly && '(Mensal)'}</td>
-                        <td style={{ padding: '8px 0', textAlign: 'center' }}>{it.quantity}</td>
-                        <td style={{ padding: '8px 0', textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                        <td style={{ padding: '8px 0', textAlign: 'right' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid #efefef' }}>
+                        <td style={{ padding: '10px' }}>
+                            <div style={{ fontWeight: 'bold' }}>{it.name}</div>
+                            {it.isMonthly && <div style={{ fontSize: '8pt', color: '#059669', fontStyle: 'italic' }}>Recorrência Mensal</div>}
+                        </td>
+                        <td style={{ padding: '10px', textAlign: 'center' }}>{it.quantity}</td>
+                        <td style={{ padding: '10px', textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 
-                {/* Resumo de Valores */}
-                <div style={{ marginTop: '20px', textAlign: 'right' }}>
-                    <p style={{ margin: '5px 0', fontSize: '12pt', fontWeight: 'bold' }}>
-                        Total Único: {selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </p>
-                    {selectedProposal && selectedProposal.totalMonthly > 0 && (
-                        <p style={{ margin: '5px 0', fontSize: '12pt', fontWeight: 'bold', color: '#059669' }}>
-                            Recorrência Mensal: {selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </p>
-                    )}
+                {/* RESUMO FINANCEIRO */}
+                <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{ width: '300px', padding: '15px', backgroundColor: '#fcfcfc', border: '1px solid #eee', borderRadius: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '10pt', fontWeight: 'bold' }}>Total Investimento:</span>
+                            <span style={{ fontSize: '11pt', fontWeight: 'bold' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                        {selectedProposal && selectedProposal.totalMonthly > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #ddd', paddingTop: '8px' }}>
+                                <span style={{ fontSize: '10pt', fontWeight: 'bold', color: '#059669' }}>Total Recorrência:</span>
+                                <span style={{ fontSize: '11pt', fontWeight: 'bold', color: '#059669' }}>{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
               </div>
 
-              {/* Rodapé: Condições */}
-              <div style={{ marginTop: '40px', fontSize: '10pt' }}>
-                <p style={{ fontWeight: 'bold', marginBottom: '10px' }}>CONDIÇÕES DE PAGAMENTO:</p>
-                <p style={{ margin: '2px 0' }}>Forma: {selectedProposal?.paymentMethod.toUpperCase()}</p>
-                <p style={{ margin: '2px 0' }}>Parcelamento: {selectedProposal?.installments}x de {(selectedProposal ? selectedProposal.totalOneTime / selectedProposal.installments : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              {/* CONDIÇÕES DE PAGAMENTO - LIMPO */}
+              <div style={{ marginTop: '40px', padding: '20px', border: '1px solid #000', borderRadius: '2px', backgroundColor: '#fff' }}>
+                <p style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '11pt', textDecoration: 'underline' }}>CONDIÇÕES DE PAGAMENTO:</p>
+                <div style={{ fontSize: '10.5pt', lineHeight: '1.6' }}>
+                    <p style={{ margin: '4px 0' }}>• <strong>Forma de Pagamento:</strong> {selectedProposal?.paymentMethod.toUpperCase()}</p>
+                    <p style={{ margin: '4px 0' }}>• <strong>Condição:</strong> {selectedProposal?.installments}x de {(selectedProposal ? selectedProposal.totalOneTime / selectedProposal.installments : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    {selectedProposal?.firstAsDownPayment && <p style={{ margin: '4px 0', fontStyle: 'italic' }}>• Primeira parcela como entrada (no ato do fechamento).</p>}
+                </div>
                 
                 {selectedProposal?.observations && (
-                    <div style={{ marginTop: '20px' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '5px' }}>OBSERVAÇÕES:</p>
-                        <p style={{ whiteSpace: 'pre-wrap' }}>{selectedProposal.observations}</p>
+                    <div style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                        <p style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '10.5pt' }}>OBSERVAÇÕES E PRAZOS:</p>
+                        <p style={{ fontSize: '10pt', whiteSpace: 'pre-wrap', color: '#333' }}>{selectedProposal.observations}</p>
                     </div>
                 )}
               </div>
 
-              {/* Assinaturas Alinhadas */}
+              {/* BLOCO DE ASSINATURAS PADRÃO A4 */}
               <div style={{ marginTop: '80px', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '10pt' }}>
-                <div style={{ width: '220px' }}>
-                  <div style={{ borderTop: '1px solid #000', marginBottom: '5px' }}></div>
-                  <p>{companyProfile.name}</p>
+                <div style={{ width: '240px' }}>
+                  <div style={{ borderTop: '1px solid #000', marginBottom: '8px' }}></div>
+                  <p style={{ fontWeight: 'bold', margin: '0' }}>{companyProfile.name}</p>
+                  <p style={{ fontSize: '9pt', color: '#555' }}>Emitente Responsável</p>
                 </div>
-                <div style={{ width: '220px' }}>
-                  <div style={{ borderTop: '1px solid #000', marginBottom: '5px' }}></div>
-                  <p>De acordo do Cliente</p>
+                <div style={{ width: '240px' }}>
+                  <div style={{ borderTop: '1px solid #000', marginBottom: '8px' }}></div>
+                  <p style={{ fontWeight: 'bold', margin: '0' }}>{selectedProposal?.clientName}</p>
+                  <p style={{ fontSize: '9pt', color: '#555' }}>Aceite do Cliente</p>
                 </div>
               </div>
             </div>
           </ScrollArea>
-          <DialogFooter className="p-6 border-t gap-2">
-            <Button variant="outline" onClick={() => setSelectedProposal(null)}>Fechar</Button>
-            <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>
-                {isDownloading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Printer className="h-4 w-4 mr-2" />} 
-                Baixar PDF
+          <DialogFooter className="p-6 border-t bg-muted/20 gap-3">
+            <Button variant="outline" onClick={() => setSelectedProposal(null)} className="h-11">Cancelar</Button>
+            <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading} className="h-11 gap-2 shadow-sm">
+                {isDownloading ? <Loader2 className="animate-spin h-4 w-4" /> : <Printer className="h-4 w-4" />} 
+                Baixar Documento (PDF)
             </Button>
-            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleSharePdf(selectedProposal!)} disabled={isSharing}>
-                <Share2 className="h-4 w-4 mr-2" /> 
-                {isSharing ? 'Processando...' : 'Enviar por WhatsApp'}
+            <Button className="bg-emerald-600 hover:bg-emerald-700 h-11 gap-2 shadow-md" onClick={() => handleSharePdf(selectedProposal!)} disabled={isSharing}>
+                <Share2 className="h-4 w-4" /> 
+                {isSharing ? 'Gerando...' : 'Enviar por WhatsApp'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={!!deletingProposal} onOpenChange={o => !o && setDeletingProposal(null)}>
-        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir Proposta?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Não</AlertDialogCancel><AlertDialogAction onClick={() => { deleteProposal(deletingProposal!.id); setDeletingProposal(null); }}>Sim, Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Excluir Orçamento permanentemente?</AlertDialogTitle>
+                <AlertDialogDescription>Essa ação removerá o registro #{deletingProposal?.id} da sua base de dados e não pode ser desfeita.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Manter Registro</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { deleteProposal(deletingProposal!.id); setDeletingProposal(null); }} className="bg-destructive hover:bg-destructive/90">Confirmar Exclusão</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
     </div>
   );

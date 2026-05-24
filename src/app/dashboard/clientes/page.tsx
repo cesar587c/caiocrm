@@ -43,7 +43,8 @@ import {
   Send,
   BellRing,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Mail
 } from "lucide-react";
 import { format, startOfDay, endOfDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -518,101 +519,421 @@ export default function ClientesPage() {
   return (
     <>
     <TooltipProvider>
-    <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight font-headline">Gestão de Clientes e Leads</h2>
-        <div className="flex items-center gap-2"><Badge variant="secondary" className="px-3 py-1 text-sm font-medium">{displayedCustomers.length} Registro(s) encontrado(s)</Badge></div>
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-background/50">
+      <div className="flex items-center justify-between">
+        <div>
+            <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gestão de Clientes e Leads</h2>
+            <p className="text-muted-foreground">Gerencie sua carteira de clientes, leads e o histórico do CRM.</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="px-3 py-1.5 text-xs font-semibold shadow-sm border-primary/10">
+                {displayedCustomers.length} Registro(s) Encontrado(s)
+            </Badge>
+        </div>
       </div>
-      <Tabs defaultValue="all" onValueChange={(value) => setActiveTab(value)}>
-        <div className="flex items-center">
-          <TabsList>
-            <TabsTrigger value="all">Clientes</TabsTrigger>
+
+      <Tabs defaultValue="all" onValueChange={(value) => setActiveTab(value)} className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <TabsList className="bg-muted/50 p-1">
+            <TabsTrigger value="all">Todos Clientes</TabsTrigger>
             <TabsTrigger value="active_contract">Contratos</TabsTrigger>
             <TabsTrigger value="one_time">Avulsos</TabsTrigger>
-            <TabsTrigger value="leads">Leads / Funil</TabsTrigger>
+            <TabsTrigger value="leads">Funil / Leads</TabsTrigger>
             <TabsTrigger value="new">Novos</TabsTrigger>
             <TabsTrigger value="inactive">Inativos</TabsTrigger>
           </TabsList>
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 gap-1" onClick={handleExportExcel}><Download className="h-3.5 w-3.5" /><span>Exportar</span></Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm" onClick={handleExportExcel}><Download className="h-4 w-4" /><span>Exportar</span></Button>
             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-              <DialogTrigger asChild><Button variant="outline" size="sm" className="h-8 gap-1"><Upload className="h-3.5 w-3.5" /><span>Importar</span></Button></DialogTrigger>
+              <DialogTrigger asChild><Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm"><Upload className="h-4 w-4" /><span>Importar</span></Button></DialogTrigger>
               <DialogContent className="sm:max-w-[500px]" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <DialogHeader><DialogTitle>Importar Clientes (Excel / CSV)</DialogTitle></DialogHeader>
                 <div className="space-y-4 py-4">
-                  <Alert variant="default" className="bg-primary/5 border-primary/20"><div className="flex justify-between items-center w-full"><AlertTitle className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" />Formato Aceito</AlertTitle><Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-8 gap-1"><Download className="h-3 v-3" />Modelo</Button></div></Alert>
-                  <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-10 hover:bg-muted/50 cursor-pointer" onClick={() => fileInputRef.current?.click()}><Upload className="h-10 w-10 text-muted-foreground mb-2" /><p className="text-sm font-medium">Selecione seu arquivo .xlsx ou .csv</p><input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls, .csv" onChange={handleImportFile} /></div>
+                  <Alert variant="default" className="bg-primary/5 border-primary/20"><div className="flex justify-between items-center w-full"><AlertTitle className="flex items-center gap-2 font-bold"><FileSpreadsheet className="h-4 w-4" />Formato Aceito</AlertTitle><Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-8 gap-1"><Download className="h-3 w-3" />Baixar Modelo</Button></div></Alert>
+                  <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-12 hover:bg-muted/50 cursor-pointer transition-all" onClick={() => fileInputRef.current?.click()}><Upload className="h-10 w-10 text-muted-foreground mb-4 opacity-50" /><p className="text-sm font-medium">Arraste seu arquivo .xlsx ou .csv aqui</p><p className="text-xs text-muted-foreground mt-1">Ou clique para selecionar</p><input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls, .csv" onChange={handleImportFile} /></div>
                 </div>
               </DialogContent>
             </Dialog>
             <Dialog open={isFormDialogOpen} onOpenChange={(open) => { if (!open) { setEditingCustomer(null); form.reset(defaultFormValues); } setIsFormDialogOpen(open); }}>
-              <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}><PlusCircle className="h-3.5 w-3.5" /><span>Novo</span></Button>
-              <DialogContent className="sm:max-w-[900px]" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
-                <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)}>
-                    <DialogHeader><div className="flex items-center justify-between"><DialogTitle>{editingCustomer ? 'Editar Registro' : 'Cadastrar Novo'}</DialogTitle><Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsFormDialogOpen(false)}><XCircle className="h-5 w-5" /></Button></div></DialogHeader>
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-4 max-h-[75vh] overflow-y-auto px-1">
-                        <div className="lg:col-span-3 space-y-4">
-                            <div className="space-y-4 bg-primary/5 p-4 rounded-lg">
-                                <FormField control={form.control} name="isLead" render={({ field }) => ( <FormItem className="flex items-center justify-between"><div className="space-y-0.5"><FormLabel>Tipo de Registro</FormLabel></div><div className="flex items-center space-x-2"><span className={cn("text-xs", !field.value && "text-primary font-bold")}>Cliente</span><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><span className={cn("text-xs", field.value && "text-primary font-bold")}>Lead</span></div></FormItem> )} />
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <FormField control={form.control} name="oneTimeValue" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-2"><Tag className="h-3.5 w-3.5 text-primary" />Valor de Venda (Única)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} /></FormControl><FormDescription>Peças ou serviço avulso.</FormDescription><FormMessage /></FormItem> )} />
-                                    <FormField control={form.control} name="monthlyValue" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-2"><Repeat className="h-3.5 w-3.5 text-primary" />Valor do Contrato (Mensal)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} /></FormControl><FormDescription>Recorrência mensal.</FormDescription><FormMessage /></FormItem> )} />
+              <Button size="sm" className="h-9 gap-2 shadow-md bg-primary hover:bg-primary/90" onClick={handleAddNewClick}><PlusCircle className="h-4 w-4" /><span>Novo Registro</span></Button>
+              <DialogContent className="sm:max-w-[950px] p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+                <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[90vh]">
+                    <DialogHeader className="p-6 bg-muted/30 border-b flex flex-row items-center justify-between space-y-0">
+                        <div className="space-y-1">
+                            <DialogTitle className="text-xl">{editingCustomer ? 'Ficha do Cliente' : 'Cadastrar Novo Registro'}</DialogTitle>
+                            <DialogDescription>{editingCustomer ? `Editando dados de ${editingCustomer.nomeFantasia || editingCustomer.name}.` : 'Preencha os campos abaixo para adicionar à base.'}</DialogDescription>
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setIsFormDialogOpen(false)}><XCircle className="h-5 w-5" /></Button>
+                    </DialogHeader>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 overflow-hidden flex-1">
+                        <div className="lg:col-span-3 overflow-y-auto p-6 space-y-8 border-r">
+                            <div className="space-y-4 p-5 rounded-xl bg-primary/5 border border-primary/10">
+                                <FormField control={form.control} name="isLead" render={({ field }) => ( <FormItem className="flex items-center justify-between"><div className="space-y-0.5"><FormLabel className="text-xs uppercase font-bold text-muted-foreground">Classificação Principal</FormLabel></div><div className="flex items-center space-x-3"><span className={cn("text-[10px] font-bold uppercase", !field.value ? "text-primary" : "text-muted-foreground")}>Cliente Efetivo</span><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><span className={cn("text-[10px] font-bold uppercase", field.value ? "text-primary" : "text-muted-foreground")}>Lead / Prospecto</span></div></FormItem> )} />
+                                <Separator className="bg-primary/10" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <FormField control={form.control} name="oneTimeValue" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-2 text-xs font-bold"><Tag className="h-3.5 w-3.5 text-primary" />Valor de Venda (Única)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} className="h-10" /></FormControl><FormDescription className="text-[10px]">Serviços pontuais ou venda de peças.</FormDescription><FormMessage /></FormItem> )} />
+                                    <FormField control={form.control} name="monthlyValue" render={({ field }) => ( <FormItem><FormLabel className="flex items-center gap-2 text-xs font-bold"><Repeat className="h-3.5 w-3.5 text-primary" />Valor de Recorrência (Mensal)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="0,00" {...field} className="h-10" /></FormControl><FormDescription className="text-[10px]">Contratos de manutenção mensal.</FormDescription><FormMessage /></FormItem> )} />
                                 </div>
-                                {!isLead && ( <> <Separator className="bg-primary/10" /> <FormField control={form.control} name="tipoCliente" render={({ field }) => ( <FormItem className="space-y-3"><FormLabel>Classificação do Cliente</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-row space-x-4"><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="one_time" /></FormControl><FormLabel className="font-normal cursor-pointer">Avulso</FormLabel></FormItem><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="active_contract" /></FormControl><FormLabel className="font-normal cursor-pointer">Contrato</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem> )} /> </> )}
+                                {!isLead && ( <> <Separator className="bg-primary/10" /> <FormField control={form.control} name="tipoCliente" render={({ field }) => ( <FormItem className="space-y-3"><FormLabel className="text-xs uppercase font-bold text-muted-foreground">Tipo de Contrato</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-row space-x-6"><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="one_time" /></FormControl><FormLabel className="font-medium cursor-pointer text-sm">Avulso</FormLabel></FormItem><FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="active_contract" /></FormControl><FormLabel className="font-medium cursor-pointer text-sm">Mensalista</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem> )} /> </> )}
                             </div>
-                            <div className="space-y-4 mt-2">
-                              <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="h-4 w-4" /> Dados {isLead ? 'do Lead' : 'Gerais'}</h3>
+
+                            <div className="space-y-4">
+                              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Building2 className="h-4 w-4" /> Identificação Corporativa</h3>
                               <Separator />
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {!isLead && ( <FormField control={form.control} name="cnpj" render={({ field }) => ( <FormItem><FormLabel>CNPJ/CPF</FormLabel><div className="flex items-center gap-2"><FormControl><Input placeholder="00.000.000/0000-00" {...field} onChange={(e) => field.onChange(formatDocument(e.target.value))} /></FormControl><Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading}>{isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}</Button></div><FormMessage /></FormItem> )} /> )}
-                                <FormField control={form.control} name="razaoSocial" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>{isLead ? 'Nome do Lead / Empresa' : 'Razão Social'}</FormLabel><FormControl><Input placeholder={isLead ? 'Ex: Tech Solutions' : ''} {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                {!isLead && ( <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input {...field} value={field.value || ''}/></FormControl></FormItem>)} /> )}
-                                <FormField control={form.control} name="email" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>E-mail Corporativo</FormLabel><FormControl><Input type="email" placeholder="contato@empresa.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                {!isLead && ( <FormField control={form.control} name="cnpj" render={({ field }) => ( <FormItem><FormLabel>CNPJ ou CPF</FormLabel><div className="flex items-center gap-2"><FormControl><Input placeholder="00.000.000/0000-00" {...field} onChange={(e) => field.onChange(formatDocument(e.target.value))} className="h-9" /></FormControl><Button type="button" variant="secondary" size="icon" onClick={handleCnpjLookup} disabled={isCnpjLoading} className="h-9 w-9 shrink-0">{isCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}</Button></div><FormMessage /></FormItem> )} /> )}
+                                <FormField control={form.control} name="razaoSocial" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>{isLead ? 'Nome da Empresa / Lead' : 'Razão Social'}</FormLabel><FormControl><Input placeholder={isLead ? 'Ex: Tech Solutions' : 'Razão Social Completa'} {...field} className="h-9" /></FormControl><FormMessage /></FormItem>)} />
+                                {!isLead && ( <FormField control={form.control} name="nomeFantasia" render={({ field }) => (<FormItem><FormLabel>Nome Fantasia</FormLabel><FormControl><Input placeholder="Como a empresa é conhecida" {...field} value={field.value || ''} className="h-9" /></FormControl></FormItem>)} /> )}
+                                <FormField control={form.control} name="email" render={({ field }) => (<FormItem className={cn(isLead && "md:col-span-2")}><FormLabel>E-mail Comercial</FormLabel><FormControl><Input type="email" placeholder="contato@empresa.com" {...field} className="h-9" /></FormControl><FormMessage /></FormItem>)} />
                               </div>
                             </div>
-                            <div className="space-y-4 mt-2">
-                              <h3 className="text-sm font-semibold flex items-center gap-2 text-primary"><User className="h-4 w-4" /> Contato 1 (Principal)</h3>
+
+                            <div className="space-y-4">
+                              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><User className="h-4 w-4" /> Contatos Diretos</h3>
                               <Separator />
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>Nome do Contato</FormLabel><FormControl><Input placeholder="Pessoa principal" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                                <FormField control={form.control} name="telefone" render={({ field }) => (<FormItem><FormLabel>Telefone / WhatsApp</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4 p-4 rounded-lg bg-muted/20 border">
+                                    <Label className="text-[10px] font-bold uppercase text-primary">Contato Principal</Label>
+                                    <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel className="text-xs">Nome</FormLabel><FormControl><Input placeholder="Nome da pessoa" {...field} value={field.value || ''} className="h-8" /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="telefone" render={({ field }) => (<FormItem><FormLabel className="text-xs">WhatsApp</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} className="h-8" /></FormControl><FormMessage /></FormItem>)} />
+                                </div>
+                                <div className="space-y-4 p-4 rounded-lg bg-muted/20 border">
+                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Contato Reserva</Label>
+                                    <FormField control={form.control} name="contactName2" render={({ field }) => (<FormItem><FormLabel className="text-xs">Nome</FormLabel><FormControl><Input placeholder="Nome da pessoa" {...field} value={field.value || ''} className="h-8" /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="phone2" render={({ field }) => (<FormItem><FormLabel className="text-xs">WhatsApp</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} className="h-8" /></FormControl><FormMessage /></FormItem>)} />
+                                </div>
                               </div>
                             </div>
-                            <div className="space-y-4 mt-2">
-                              <h3 className="text-sm font-semibold flex items-center gap-2"><User className="h-4 w-4" /> Contato 2 (Secundário)</h3>
-                              <Separator />
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="contactName2" render={({ field }) => (<FormItem><FormLabel>Nome do Contato 2</FormLabel><FormControl><Input placeholder="Pessoa reserva" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                                <FormField control={form.control} name="phone2" render={({ field }) => (<FormItem><FormLabel>Telefone / WhatsApp 2</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                              </div>
-                            </div>
-                            <div className="space-y-4 mt-2">
-                              <h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Localização</h3>
+
+                            <div className="space-y-4">
+                              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Localização</h3>
                               <Separator />
                               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} value={field.value || ''} /></FormControl></FormItem>)} />
-                                <FormField control={form.control} name="endereco" render={({ field }) => (<FormItem className="md:col-span-3"><FormLabel>Endereço</FormLabel><FormControl><Input placeholder="Logradouro, número, bairro..." {...field} value={field.value || ''} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="cep" render={({ field }) => (<FormItem><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} value={field.value || ''} className="h-9" /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="endereco" render={({ field }) => (<FormItem className="md:col-span-3"><FormLabel>Endereço Completo</FormLabel><FormControl><Input placeholder="Rua, número, bairro, cidade - UF" {...field} value={field.value || ''} className="h-9" /></FormControl></FormItem>)} />
                               </div>
                             </div>
                         </div>
-                        <div className="lg:col-span-2 border-l pl-6 space-y-6">
-                            <div className="space-y-4"><h3 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Observações Técnicas</h3><Separator /><FormField control={form.control} name="observations" render={({ field }) => ( <FormItem><FormControl><Textarea placeholder="Ex: 5 PCs, 2 Impressoras HP. Manutenção preventiva mensal..." className="min-h-[100px] text-xs" {...field} value={field.value || ''} /></FormControl><FormDescription className="text-[10px]">Especifique equipamentos e particularidades fixas.</FormDescription><FormMessage /></FormItem> )} /></div>
-                            <div className="space-y-4"><h3 className="text-sm font-semibold flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" /> Histórico de Contatos (CRM)</h3><div className="space-y-3 bg-muted/30 p-3 rounded-lg border border-border/50"><div className="space-y-2"><Label className="text-xs uppercase text-muted-foreground font-bold">Resumo do Contato</Label><Textarea placeholder="O que foi conversado hoje?" className="text-xs h-20 bg-background" value={interactionSummary} onChange={(e) => setInteractionSummary(e.target.value)} /></div><div className="grid grid-cols-2 gap-2"><div className="space-y-1"><Label className="text-[10px] uppercase text-muted-foreground font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Próximo Contato</Label><Input type="date" className="text-xs h-8 bg-background" value={interactionNextDate} onChange={(e) => setInteractionNextDate(e.target.value)} /></div><div className="space-y-1"><Label className="text-[10px] uppercase text-muted-foreground font-bold">Horário</Label><Input type="time" className="text-xs h-8 bg-background" value={interactionNextTime} onChange={(e) => setInteractionNextTime(e.target.value)} /></div></div><Button type="button" size="sm" className="w-full h-8 text-xs gap-2" disabled={!interactionSummary.trim() || !editingCustomer} onClick={handleAddInteraction}><Check className="h-3 w-3" /> Registrar Interação</Button>{!editingCustomer && <p className="text-[10px] text-center text-destructive">Salve o cadastro primeiro para registrar interações.</p>}</div><ScrollArea className="h-[300px] pr-3"><div className="space-y-4 mt-4">{editingCustomer?.interactions && editingCustomer.interactions.length > 0 ? ( editingCustomer.interactions.slice().reverse().map((int) => ( <div key={int.id} className="relative pl-4 border-l-2 border-primary/20 pb-4"><div className="absolute -left-[7px] top-0 h-3 w-3 rounded-full bg-primary" /><div className="flex flex-col gap-1"><div className="flex justify-between items-center"><span className="text-[10px] font-bold text-primary uppercase">{int.userName}</span><span className="text-[10px] text-muted-foreground">{format(parseISO(int.timestamp), 'dd/MM/yyyy HH:mm')}</span></div><p className="text-xs text-foreground/90 bg-muted/50 p-2 rounded leading-relaxed">{int.summary}</p>{int.nextContactDate && ( <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold mt-1"><CalendarPlus className="h-3 w-3" /><span>Retorno agendado: {format(parseISO(int.nextContactDate), 'dd/MM/yyyy')} às {int.nextContactTime}</span></div> )}</div></div> )) ) : ( <div className="flex flex-col items-center justify-center py-10 text-muted-foreground"><History className="h-8 w-8 mb-2 opacity-20" /><p className="text-xs italic">Nenhuma interação registrada.</p></div> )}</div></ScrollArea></div>
+
+                        <div className="lg:col-span-2 bg-muted/30 overflow-y-auto p-6 space-y-8">
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Detalhes do Ambiente</h3>
+                                <Separator />
+                                <FormField control={form.control} name="observations" render={({ field }) => ( <FormItem><FormControl><Textarea placeholder="Descreva equipamentos instalados, logins, senhas, particularidades técnicas..." className="min-h-[120px] text-xs resize-none shadow-sm" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
+                            </div>
+
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Linha do Tempo (CRM)</h3>
+                                <div className="space-y-4 bg-background p-4 rounded-xl border shadow-sm">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Nova Interação / Resumo</Label>
+                                        <Textarea placeholder="Descreva o que foi conversado hoje..." className="text-xs h-24 resize-none" value={interactionSummary} onChange={(e) => setInteractionSummary(e.target.value)} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Retorno em</Label>
+                                            <Input type="date" className="text-xs h-9" value={interactionNextDate} onChange={(e) => setInteractionNextDate(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Horário</Label>
+                                            <Input type="time" className="text-xs h-9" value={interactionNextTime} onChange={(e) => setInteractionNextTime(e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <Button type="button" size="sm" className="w-full h-10 text-xs font-bold gap-2" disabled={!interactionSummary.trim() || !editingCustomer} onClick={handleAddInteraction}><Check className="h-4 w-4" /> Registrar No Histórico</Button>
+                                    {!editingCustomer && <p className="text-[10px] text-center text-destructive font-medium">Salve o cadastro primeiro para habilitar o CRM.</p>}
+                                </div>
+
+                                <ScrollArea className="h-[350px] pr-4 mt-4">
+                                    <div className="space-y-6 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-muted-foreground/10">
+                                        {editingCustomer?.interactions && editingCustomer.interactions.length > 0 ? ( 
+                                            editingCustomer.interactions.slice().reverse().map((int) => ( 
+                                                <div key={int.id} className="relative pl-8">
+                                                    <div className="absolute left-0 top-1 h-4 w-4 rounded-full bg-primary border-4 border-background shadow-sm" />
+                                                    <div className="flex flex-col gap-2">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-[10px] font-bold text-primary uppercase">{int.userName}</span>
+                                                            <span className="text-[10px] text-muted-foreground">{format(parseISO(int.timestamp), 'dd/MM/yyyy HH:mm')}</span>
+                                                        </div>
+                                                        <div className="bg-background border p-3 rounded-lg text-xs leading-relaxed shadow-sm">
+                                                            {int.summary}
+                                                            {int.nextContactDate && ( 
+                                                                <div className="flex items-center gap-2 text-[10px] text-emerald-600 font-bold mt-3 border-t pt-2">
+                                                                    <BellRing className="h-3 w-3" />
+                                                                    <span>Retorno agendado: {format(parseISO(int.nextContactDate), 'dd/MM/yyyy')} às {int.nextContactTime}</span>
+                                                                </div> 
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div> 
+                                            )) 
+                                        ) : ( 
+                                            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-40 text-center">
+                                                <History className="h-10 w-10 mb-3" />
+                                                <p className="text-xs italic">Sem registros no histórico.</p>
+                                            </div> 
+                                        )}
+                                    </div>
+                                </ScrollArea>
+                            </div>
                         </div>
                     </div>
-                    <DialogFooter className="gap-2 mt-4">{editingCustomer && ( <> <Button type="button" variant="destructive" className="mr-auto" onClick={() => handleDeleteClick(editingCustomer)}>Excluir</Button>{editingCustomer.status !== 'inactive' && ( <Button type="button" variant="outline" className="text-yellow-600 border-yellow-600/30" onClick={() => { handleInactivateClick(editingCustomer); setIsFormDialogOpen(false); }}>Inativar</Button> )} </> )} <Button variant="ghost" type="button" onClick={() => setIsFormDialogOpen(false)}>Cancelar</Button><Button type="submit">{editingCustomer ? 'Salvar Alterações' : 'Cadastrar'}</Button></DialogFooter>
+
+                    <DialogFooter className="p-6 bg-muted/30 border-t flex flex-row items-center gap-3">
+                        {editingCustomer && ( 
+                            <> 
+                                <Button type="button" variant="destructive" className="mr-auto h-10 px-6 font-bold" onClick={() => handleDeleteClick(editingCustomer)}><Trash2 className="h-4 w-4 mr-2" />Excluir</Button>
+                                {editingCustomer.status !== 'inactive' && ( 
+                                    <Button type="button" variant="outline" className="h-10 px-6 border-yellow-600/30 text-yellow-600 hover:bg-yellow-600/5 font-bold" onClick={() => { handleInactivateClick(editingCustomer); setIsFormDialogOpen(false); }}>Inativar</Button> 
+                                )} 
+                            </> 
+                        )} 
+                        <Button variant="ghost" type="button" onClick={() => setIsFormDialogOpen(false)} className="h-10 px-6">Cancelar</Button>
+                        <Button type="submit" className="h-10 px-8 font-bold shadow-md">{editingCustomer ? 'Atualizar Dados' : 'Criar Cadastro'}</Button>
+                    </DialogFooter>
                   </form></Form>
               </DialogContent>
             </Dialog>
           </div>
         </div>
-        <TabsContent value="all" forceMount className="mt-4"><Card><CardHeader><div className="flex flex-col md:flex-row gap-4"><div className="relative flex-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar cliente por nome, fantasia, contato ou e-mail..." className="pl-8" value={searchTermTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div><DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="gap-2"><Filter className="h-4 w-4" />Serviços {selectedServices.length > 0 && `(${selectedServices.length})`}</Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-56"><DropdownMenuLabel>Filtrar por Serviço</DropdownMenuLabel><DropdownMenuSeparator />{SERVICE_CATEGORIES.map((cat) => ( <DropdownMenuCheckboxItem key={cat.id} checked={selectedServices.includes(cat.id)} onCheckedChange={(checked) => { setSelectedServices(prev => checked ? [...prev, cat.id] : prev.filter(id => id !== cat.id)); }} onSelect={(e) => e.preventDefault()}>{cat.label}</DropdownMenuCheckboxItem> ))}{selectedServices.length > 0 && ( <> <DropdownMenuSeparator /><DropdownMenuItem className="justify-center text-primary font-medium" onClick={() => setSelectedServices([])}>Limpar Filtros</DropdownMenuItem> </> )}</DropdownMenuContent></DropdownMenu></div></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Cliente / Nome Fantasia</TableHead><TableHead>Contatos</TableHead><TableHead>Status / Valores</TableHead><TableHead className="hidden md:table-cell">Último Contato</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader><TableBody>{displayedCustomers.length > 0 ? ( displayedCustomers.map((customer) => ( <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer group"><TableCell><div className="flex flex-col"><div className="flex items-center gap-2 flex-wrap mb-0.5"><span className="font-bold text-base text-foreground group-hover:text-primary transition-colors">{customer.nomeFantasia || customer.name}</span><div className="flex gap-1">{(customer.serviceCategories || []).map(catId => { const cat = SERVICE_CATEGORIES.find(c => c.id === catId); if (!cat) return null; return ( <Badge key={catId} variant="outline" className={cn("text-[8px] h-4 leading-none uppercase font-bold px-1 py-0", cat.color)}>{cat.label}</Badge> ); })}</div></div>{(customer.nomeFantasia && customer.nomeFantasia !== customer.name) && ( <div className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 tracking-tight">{customer.name}</div> )}<div className="text-xs text-muted-foreground">{customer.email}</div>{customer.cnpj && <div className="text-[10px] bg-muted w-fit mt-1 px-1.5 py-0.5 rounded flex items-center gap-1 border"><Building2 className="h-3 w-3" /><span>{formatDocument(customer.cnpj)}</span></div>}</div></TableCell><TableCell><div className="flex flex-col gap-2">{customer.contactName && ( <div className="flex flex-col"><span className="text-xs font-semibold">{customer.contactName}</span><span className="text-[10px] text-muted-foreground flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{formatPhoneNumber(customer.telefone || '')}</span></div> )}{customer.contactName2 && ( <div className="flex flex-col border-t pt-1 border-border/50"><span className="text-xs font-semibold">{customer.contactName2}</span><span className="text-[10px] text-muted-foreground flex items-center gap-1"><Phone className="h-2.5 w-2.5" />{formatPhoneNumber(customer.phone2 || '')}</span></div> )}</div></TableCell><TableCell><div className="flex flex-col gap-1"><div className="flex items-center gap-2"><Badge variant={customer.status === 'active' || customer.status === 'won' ? 'default' : 'secondary'}>{statusMap[customer.status]}</Badge></div><div className="flex flex-col text-[10px] gap-0.5 mt-1">{customer.oneTimeValue ? ( <div className="flex items-center gap-1 text-primary font-bold"><Tag className="h-2.5 w-2.5" /><span>Venda: {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div> ) : null}{customer.monthlyValue ? ( <div className="flex items-center gap-1 text-emerald-500 font-bold"><Repeat className="h-2.5 w-2.5" /><span>Mensal: {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div> ) : null}</div>{customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && customer.status !== 'opportunity' && customer.status !== 'proposal' && customer.status !== 'negotiation' && ( <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{customer.type === 'active_contract' ? 'Contrato' : 'Avulso'}</span> )}</div></TableCell><TableCell className="hidden md:table-cell"><div className="flex flex-col gap-0.5"><span className="text-xs font-medium">{format(parseISO(customer.lastContact), 'dd/MM/yyyy')}</span><span className="text-[10px] text-muted-foreground">{format(parseISO(customer.lastContact), 'HH:mm')}</span></div></TableCell><TableCell className="text-right"><div className="flex justify-end gap-1"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleCloneClick(customer); }}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Clonar Registro</TooltipContent></Tooltip>{customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' ? ( <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={(e) => { e.stopPropagation(); handleInactivateClick(customer); }}><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Inativar Cliente</TooltipContent></Tooltip> ) : ( <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={(e) => { e.stopPropagation(); handleReactivateClick(customer); }}><RotateCcw className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Reativar Cliente</TooltipContent></Tooltip> )}<Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteClick(customer); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Excluir Permanentemente</TooltipContent></Tooltip>{(customer.status === 'lead' || customer.status === 'opportunity' || customer.status === 'proposal' || customer.status === 'negotiation') && ( <> <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}><UserCheck className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Converter em Cliente (Venda Ganha)</TooltipContent></Tooltip> <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDiscardClick(customer); }}><UserX className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Descartar Lead (Venda Perdida)</TooltipContent></Tooltip> </> )}</div></TableCell></TableRow> )) ) : ( <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow> )}</TableBody></Table></CardContent><CardFooter className="justify-center border-t py-4"><p className="text-sm text-muted-foreground">Mostrando <strong>{displayedCustomers.length}</strong> registro(s) de um total de <strong>{customers.length}</strong> cadastrados.</p></CardFooter></Card></TabsContent>
+
+        <TabsContent value="all" forceMount className="mt-0">
+            <Card className="shadow-lg border-primary/10 overflow-hidden">
+                <CardHeader className="bg-muted/30 pb-6">
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Buscar por Nome, Fantasia, CNPJ, E-mail ou Contato..." className="pl-10 h-10 border-muted-foreground/20 focus-visible:ring-primary shadow-sm" value={searchTermTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="h-10 gap-2 font-medium border-muted-foreground/20 shadow-sm"><Filter className="h-4 w-4" />Filtrar Serviços {selectedServices.length > 0 && `(${selectedServices.length})`}</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-64 p-2 shadow-xl">
+                                <DropdownMenuLabel className="text-xs uppercase font-bold text-muted-foreground px-2 py-2">Categorias de Atuação</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {SERVICE_CATEGORIES.map((cat) => ( 
+                                    <DropdownMenuCheckboxItem key={cat.id} checked={selectedServices.includes(cat.id)} onCheckedChange={(checked) => { setSelectedServices(prev => checked ? [...prev, cat.id] : prev.filter(id => id !== cat.id)); }} onSelect={(e) => e.preventDefault()} className="rounded-md py-2">{cat.label}</DropdownMenuCheckboxItem> 
+                                ))}
+                                {selectedServices.length > 0 && ( 
+                                    <> 
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="justify-center text-primary font-bold py-2 hover:bg-primary/10" onClick={() => setSelectedServices([])}>Limpar Todos os Filtros</DropdownMenuItem> 
+                                    </> 
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent bg-muted/20">
+                                <TableHead className="pl-6 h-12 font-bold text-xs uppercase tracking-wider text-muted-foreground">Cliente / Identificação</TableHead>
+                                <TableHead className="h-12 font-bold text-xs uppercase tracking-wider text-muted-foreground">Canais de Contato</TableHead>
+                                <TableHead className="h-12 font-bold text-xs uppercase tracking-wider text-muted-foreground">Status / Faturamento</TableHead>
+                                <TableHead className="hidden md:table-cell h-12 font-bold text-xs uppercase tracking-wider text-muted-foreground">Última Atividade</TableHead>
+                                <TableHead className="text-right pr-6 h-12 font-bold text-xs uppercase tracking-wider text-muted-foreground">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {displayedCustomers.length > 0 ? ( 
+                                displayedCustomers.map((customer) => ( 
+                                    <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer group hover:bg-muted/40 transition-colors">
+                                        <TableCell className="pl-6 py-4">
+                                            <div className="flex flex-col space-y-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="font-bold text-base text-foreground group-hover:text-primary transition-colors leading-tight">{customer.nomeFantasia || customer.name}</span>
+                                                    <div className="flex gap-1">
+                                                        {(customer.serviceCategories || []).map(catId => { 
+                                                            const cat = SERVICE_CATEGORIES.find(c => c.id === catId); 
+                                                            if (!cat) return null; 
+                                                            return ( <Badge key={catId} variant="outline" className={cn("text-[8px] h-4 leading-none uppercase font-extrabold px-1.5 py-0 border-none shadow-sm", cat.color)}>{cat.label}</Badge> ); 
+                                                        })}
+                                                    </div>
+                                                </div>
+                                                {(customer.nomeFantasia && customer.nomeFantasia !== customer.name) && ( 
+                                                    <div className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-tight leading-none">{customer.name}</div> 
+                                                )}
+                                                <div className="text-xs text-muted-foreground/80 flex items-center gap-1.5 pt-0.5">
+                                                    <Mail className="h-3 w-3 opacity-50" /> {customer.email}
+                                                </div>
+                                                {customer.cnpj && (
+                                                    <div className="text-[9px] font-bold bg-muted w-fit mt-1 px-2 py-0.5 rounded-full border flex items-center gap-1 text-muted-foreground uppercase">
+                                                        <Building2 className="h-2.5 w-2.5" /> <span>{formatDocument(customer.cnpj)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="py-4">
+                                            <div className="flex flex-col gap-3">
+                                                {customer.contactName && ( 
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-bold leading-tight">{customer.contactName}</span>
+                                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                                                            <Phone className="h-3 w-3 text-primary/60" /> {formatPhoneNumber(customer.telefone || '')}
+                                                        </span>
+                                                    </div> 
+                                                )}
+                                                {customer.contactName2 && ( 
+                                                    <div className="flex flex-col border-t pt-1.5 border-muted-foreground/10">
+                                                        <span className="text-xs font-bold leading-tight text-muted-foreground">{customer.contactName2}</span>
+                                                        <span className="text-[10px] text-muted-foreground/70 flex items-center gap-1.5 mt-0.5">
+                                                            <Phone className="h-3 w-3" /> {formatPhoneNumber(customer.phone2 || '')}
+                                                        </span>
+                                                    </div> 
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="py-4">
+                                            <div className="flex flex-col gap-2">
+                                                <Badge variant={customer.status === 'active' || customer.status === 'won' ? 'default' : 'secondary'} className="w-fit text-[10px] px-2 py-0">
+                                                    {statusMap[customer.status]}
+                                                </Badge>
+                                                <div className="flex flex-col gap-1">
+                                                    {customer.oneTimeValue ? ( 
+                                                        <div className="flex items-center gap-1.5 text-[10px] text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md w-fit border border-primary/10">
+                                                            <Tag className="h-2.5 w-2.5" /> <span>Venda: {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                        </div> 
+                                                    ) : null}
+                                                    {customer.monthlyValue ? ( 
+                                                        <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-bold bg-emerald-500/5 px-2 py-0.5 rounded-md w-fit border border-emerald-500/10">
+                                                            <Repeat className="h-2.5 w-2.5" /> <span>Mensal: {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                        </div> 
+                                                    ) : null}
+                                                </div>
+                                                {customer.status !== 'lead' && customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' && customer.status !== 'opportunity' && customer.status !== 'proposal' && customer.status !== 'negotiation' && ( 
+                                                    <span className="text-[9px] text-muted-foreground font-extrabold uppercase tracking-widest">{customer.type === 'active_contract' ? 'Modalidade: Contrato' : 'Modalidade: Avulso'}</span> 
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell py-4">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2 text-xs font-semibold">
+                                                    <Clock className="h-3 w-3 text-muted-foreground" />
+                                                    {format(parseISO(customer.lastContact), 'dd/MM/yyyy')}
+                                                </div>
+                                                <span className="text-[10px] text-muted-foreground ml-5">{format(parseISO(customer.lastContact), 'HH:mm')}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right pr-6 py-4">
+                                            <div className="flex justify-end gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
+                                                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleCloneClick(customer); }}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Clonar Cadastro</TooltipContent></Tooltip>
+                                                {customer.status !== 'inactive' && customer.status !== 'discarded' && customer.status !== 'lost' ? ( 
+                                                    <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600/70 hover:text-yellow-600" onClick={(e) => { e.stopPropagation(); handleInactivateClick(customer); }}><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Mover para Inativos</TooltipContent></Tooltip> 
+                                                ) : ( 
+                                                    <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-green-600/70 hover:text-green-600" onClick={(e) => { e.stopPropagation(); handleReactivateClick(customer); }}><RotateCcw className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Reativar Cliente</TooltipContent></Tooltip> 
+                                                )}
+                                                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteClick(customer); }}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Remover permanentemente</TooltipContent></Tooltip>
+                                                {(customer.status === 'lead' || customer.status === 'opportunity' || customer.status === 'proposal' || customer.status === 'negotiation') && ( 
+                                                    <> 
+                                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={(e) => { e.stopPropagation(); handleOpenConvertDialog(customer); }}><UserCheck className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Venda Realizada (Ganhou)</TooltipContent></Tooltip> 
+                                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); handleDiscardClick(customer); }}><UserX className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent>Descartar Lead (Perdeu)</TooltipContent></Tooltip> 
+                                                    </> 
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow> 
+                                )) 
+                            ) : ( 
+                                <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground italic">Nenhum registro encontrado com estes critérios.</TableCell></TableRow> 
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+                <CardFooter className="justify-center border-t py-6 bg-muted/10">
+                    <p className="text-xs text-muted-foreground font-medium">Exibindo <strong>{displayedCustomers.length}</strong> de <strong>{customers.length}</strong> cadastros totais.</p>
+                </CardFooter>
+            </Card>
+        </TabsContent>
       </Tabs>
     </div>
     </TooltipProvider>
-    <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá <span className="font-semibold">{deletingCustomer?.nomeFantasia || deletingCustomer?.name}</span>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-    <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}><AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><AlertDialogHeader><AlertDialogTitle>Converter Lead</AlertDialogTitle></AlertDialogHeader><div className="grid grid-cols-2 gap-4 py-4"><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('one_time')}><Users className="h-6 w-6" /><span>Avulso</span></Button><Button variant="outline" className="h-auto flex-col gap-2 p-4" onClick={() => handleConfirmConvert('active_contract')}><File className="h-6 w-6" /><span>Contrato</span></Button></div><AlertDialogFooter><AlertDialogCancel onClick={() => setConvertingCustomer(null)}>Cancelar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent></AlertDialog>
-    <Dialog open={notificationState.isOpen} onOpenChange={(open) => setNotificationState(prev => ({ ...prev, isOpen: open }))}><DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}><DialogHeader><DialogTitle className="flex items-center gap-2">{notificationState.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (notificationState.isSimulated ? <AlertTriangle className="h-5 w-5 text-yellow-500" /> : <CheckCircle2 className="h-5 w-5 text-green-500" />)}{notificationState.isLoading ? 'Processando Lembrete' : (notificationState.isSimulated ? 'Configuração Pendente' : 'Tudo Pronto!')}</DialogTitle><DialogDescription>{notificationState.isLoading ? 'Preparando a mensagem de retorno.' : (notificationState.isSimulated ? 'A API automática não está configurada. Por favor, envie a mensagem de retorno manualmente abaixo.' : 'O lembrete de retorno foi enviado com sucesso via WhatsApp.')}</DialogDescription></DialogHeader>{notificationState.isLoading ? ( <div className="py-8 flex justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div> ) : ( <ScrollArea className="max-h-[50vh] pr-4"><div className="space-y-3 py-2">{notificationState.details.map((detail, idx) => { const isSent = sentMessageIndexes.includes(idx); return ( <div key={idx} className="flex flex-col gap-2 p-3 border rounded-lg bg-muted/30"><div className="flex items-center justify-between"><span className="text-sm font-semibold">{detail.name}</span><Badge variant="outline" className="text-[10px] uppercase">Retorno</Badge></div><div className="text-xs text-muted-foreground line-clamp-2 italic">"{detail.message}"</div><Button size="sm" variant={isSent ? "outline" : (notificationState.isSimulated ? "default" : "outline")} className={cn("w-full h-8 gap-2", isSent && "text-green-500 border-green-500/30 bg-green-500/5 hover:bg-green-500/10")} onClick={() => sendManualWhatsApp(detail, idx)}>{isSent ? <Check className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}{isSent ? 'Lembrete Enviado' : (notificationState.isSimulated ? 'Enviar via WhatsApp' : 'Reenviar')}</Button></div> ); })}</div></ScrollArea> )}<DialogFooter><Button variant="outline" onClick={() => setNotificationState(prev => ({ ...prev, isOpen: false }))}>Fechar</Button></DialogFooter></DialogContent></Dialog>
+
+    <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => !open && setDeletingCustomer(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
+                <AlertDialogDescription>Essa ação não pode ser desfeita. Todos os dados e interações de <span className="font-bold text-foreground">{deletingCustomer?.nomeFantasia || deletingCustomer?.name}</span> serão removidos permanentemente.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeletingCustomer(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDeleteAction} className="bg-destructive hover:bg-destructive/90 font-bold">Sim, Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={!!convertingCustomer} onOpenChange={(open) => !open && setConvertingCustomer(null)}>
+        <AlertDialogContent className="sm:max-w-md">
+            <AlertDialogHeader className="pb-4">
+                <AlertDialogTitle className="flex items-center gap-2 text-xl">
+                    <CheckCircle2 className="h-6 w-6 text-green-500" />
+                    Parabéns pela Conversão!
+                </AlertDialogTitle>
+                <AlertDialogDescription>Você está transformando este lead em cliente. Selecione a modalidade de faturamento:</AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-6 border-y">
+                <Button variant="outline" className="h-auto flex-col gap-3 p-6 hover:border-primary hover:bg-primary/5 transition-all shadow-sm group" onClick={() => handleConfirmConvert('one_time')}>
+                    <Users className="h-8 w-8 text-blue-500 group-hover:scale-110 transition-transform" />
+                    <div className="text-center">
+                        <p className="font-bold text-sm">Cliente Avulso</p>
+                        <p className="text-[10px] text-muted-foreground">Faturamento eventual</p>
+                    </div>
+                </Button>
+                <Button variant="outline" className="h-auto flex-col gap-3 p-6 hover:border-primary hover:bg-primary/5 transition-all shadow-sm group" onClick={() => handleConfirmConvert('active_contract')}>
+                    <File className="h-8 w-8 text-purple-500 group-hover:scale-110 transition-transform" />
+                    <div className="text-center">
+                        <p className="font-bold text-sm">Contrato Fixo</p>
+                        <p className="text-[10px] text-muted-foreground">Mensalista recorrente</p>
+                    </div>
+                </Button>
+            </div>
+            <AlertDialogFooter className="pt-4">
+                <AlertDialogCancel onClick={() => setConvertingCustomer(null)}>Voltar</AlertDialogCancel>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <Dialog open={notificationState.isOpen} onOpenChange={(open) => setNotificationState(prev => ({ ...prev, isOpen: open }))}>
+        <DialogContent className="sm:max-w-md" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                    {notificationState.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (notificationState.isSimulated ? <AlertTriangle className="h-5 w-5 text-yellow-500" /> : <CheckCircle2 className="h-5 w-5 text-green-500" />)}
+                    {notificationState.isLoading ? 'Processando Lembrete' : (notificationState.isSimulated ? 'Enviar WhatsApp Manual' : 'Lembrete Enviado!')}
+                </DialogTitle>
+                <DialogDescription>
+                    {notificationState.isLoading ? 'Aguarde um momento enquanto preparamos os dados.' : (notificationState.isSimulated ? 'A integração automática está pendente. Use o botão abaixo para enviar via WhatsApp Web.' : 'O lembrete de retorno foi enviado com sucesso para o cliente.')}
+                </DialogDescription>
+            </DialogHeader>
+            {notificationState.isLoading ? ( 
+                <div className="py-12 flex justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary opacity-50" /></div> 
+            ) : ( 
+                <ScrollArea className="max-h-[50vh] pr-4 mt-2">
+                    <div className="space-y-4 py-2">
+                        {notificationState.details.map((detail, idx) => { 
+                            const isSent = sentMessageIndexes.includes(idx); 
+                            return ( 
+                                <div key={idx} className="flex flex-col gap-3 p-4 border rounded-xl bg-muted/20">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-bold">{detail.name}</span>
+                                        <Badge variant="outline" className="text-[9px] uppercase font-extrabold tracking-widest px-2 py-0 border-primary/20 text-primary">Ação: Retorno</Badge>
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground leading-relaxed italic border-l-2 pl-3 border-muted-foreground/30">"{detail.message}"</div>
+                                    <Button size="sm" variant={isSent ? "outline" : "default"} className={cn("w-full h-10 gap-2 font-bold shadow-sm", isSent && "text-green-600 border-green-600/30 bg-green-600/5")} onClick={() => sendManualWhatsApp(detail, idx)}>
+                                        {isSent ? <Check className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                                        {isSent ? 'Mensagem Visualizada' : 'Enviar via WhatsApp'}
+                                    </Button>
+                                </div> 
+                            ); 
+                        })}
+                    </div>
+                </ScrollArea> 
+            )}
+            <DialogFooter className="pt-4 border-t">
+                <Button variant="outline" onClick={() => setNotificationState(prev => ({ ...prev, isOpen: false }))} className="w-full h-10">Fechar Janela</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }
