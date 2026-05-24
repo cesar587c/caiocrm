@@ -82,10 +82,21 @@ export default function ConfiguracoesPage() {
   const [sectorToDelete, setSectorToDelete] = useState<Sector | null>(null);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
+  const formatPhoneNumber = (value: string) => {
+    if (!value) return "";
+    const cleaned = value.replace(/\D/g, "").slice(0, 11);
+    const length = cleaned.length;
+    if (length <= 2) return cleaned;
+    if (length <= 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    if (length <= 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+  }
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
         ...companyProfile,
+        phone: companyProfile.phone ? formatPhoneNumber(companyProfile.phone) : '',
         googleCalendarEmail: companyProfile.googleCalendarEmail || '',
     },
   });
@@ -96,6 +107,7 @@ export default function ConfiguracoesPage() {
     if(isLoaded) {
         form.reset({
             ...companyProfile,
+            phone: companyProfile.phone ? formatPhoneNumber(companyProfile.phone) : '',
             googleCalendarEmail: companyProfile.googleCalendarEmail || '',
         });
     }
@@ -110,7 +122,11 @@ export default function ConfiguracoesPage() {
   }, [users]);
 
   function onSubmit(values: FormValues) {
-    setCompanyProfile(values);
+    const dataToSave = {
+        ...values,
+        phone: values.phone ? values.phone.replace(/\D/g, '') : '',
+    };
+    setCompanyProfile(dataToSave);
     toast({
       title: 'Configurações Salvas!',
       description: 'Os dados da sua empresa foram atualizados com sucesso.',
@@ -203,7 +219,23 @@ export default function ConfiguracoesPage() {
                 <CardContent className="space-y-6 max-w-2xl">
                     <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome da Empresa</FormLabel><FormControl><Input placeholder="O nome da sua empresa" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>E-mail de Contato</FormLabel><FormControl><Input type="email" placeholder="contato@suaempresa.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone</FormLabel><FormControl><Input placeholder="(00) 00000-0000" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField 
+                      control={form.control} 
+                      name="phone" 
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="(00) 00000-0000" 
+                              {...field} 
+                              onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} 
+                    />
                     <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Endereço</FormLabel><FormControl><Textarea placeholder="Rua, número, cidade - UF" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="whatsappReminderMessage" render={({ field }) => (<FormItem><FormLabel>Mensagem de Lembrete (WhatsApp)</FormLabel><FormControl><Textarea placeholder="Texto do lembrete..." rows={5} {...field} value={field.value || ''} /></FormControl><FormDescription>Variáveis: {"{cliente}"}, {"{empresa}"}, {"{data}"}, e {"{hora}"}.</FormDescription><FormMessage /></FormItem>)} />
                     <FormItem>
@@ -326,7 +358,7 @@ export default function ConfiguracoesPage() {
                         <div className="p-4 border rounded-lg space-y-3 bg-card">
                             <h4 className="font-bold flex items-center gap-2"><Download className="h-4 w-4 text-primary" />1. Exportar Dados</h4>
                             <p className="text-xs text-muted-foreground">Gera um arquivo com todos os clientes, propostas, agendas e configurações atuais.</p>
-                            <Button type="button" variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10" onClick={exportAllData}>
+                            <Button type="button" variant="outline" className="full gap-2 border-primary/30 text-primary hover:bg-primary/10" onClick={exportAllData}>
                                 Salvar Backup Atual (.json)
                             </Button>
                         </div>
@@ -334,7 +366,7 @@ export default function ConfiguracoesPage() {
                             <h4 className="font-bold flex items-center gap-2"><Upload className="h-4 w-4 text-emerald-500" />2. Importar em outro PC</h4>
                             <p className="text-xs text-muted-foreground">Carrega um arquivo de backup para restaurar ou atualizar suas informações nesta máquina.</p>
                             <input type="file" ref={importInputRef} className="hidden" accept=".json" onChange={handleImportFile} />
-                            <Button type="button" variant="outline" className="w-full gap-2 text-emerald-500 hover:text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10" onClick={() => importInputRef.current?.click()}>
+                            <Button type="button" variant="outline" className="full gap-2 text-emerald-500 hover:text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10" onClick={() => importInputRef.current?.click()}>
                                 Carregar Backup
                             </Button>
                         </div>
