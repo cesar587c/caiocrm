@@ -84,9 +84,11 @@ export default function ConfiguracoesPage() {
 
   const formatPhoneNumber = (value: string) => {
     if (!value) return "";
-    const cleaned = value.replace(/\D/g, "").slice(0, 11);
+    let cleaned = value.replace(/\D/g, "");
+    if (cleaned.startsWith("55") && cleaned.length > 10) cleaned = cleaned.substring(2);
+    cleaned = cleaned.slice(0, 11);
     const length = cleaned.length;
-    if (length <= 2) return cleaned;
+    if (length <= 2) return length > 0 ? `(${cleaned}` : "";
     if (length <= 6) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
     if (length <= 10) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
