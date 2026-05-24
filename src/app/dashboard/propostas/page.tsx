@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import jsPDF from 'jspdf';
+import jsPDF from 'jsPDF';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -778,23 +779,25 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TÍTULO DA PROPOSTA */}
-              <div style={{ marginBottom: '25px', textAlign: 'center', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '4px' }}>
-                <p style={{ fontWeight: 'bold', margin: '0', fontSize: '13pt', textTransform: 'uppercase' }}>
-                    PROPOSTA COMERCIAL DESTINATÁRIO {selectedProposal?.clientName}
+              {/* TÍTULO DA PROPOSTA CENTRALIZADO E SUBILINHADO */}
+              <div style={{ marginBottom: '40px', textAlign: 'center' }}>
+                <p style={{ fontWeight: 'bold', margin: '0', fontSize: '14pt', textTransform: 'uppercase', textDecoration: 'underline', borderBottom: '1px solid black', display: 'inline-block', paddingBottom: '2px' }}>
+                    PROPOSTA COMERCIAL
                 </p>
               </div>
 
-              {/* DETALHES TÉCNICOS DA PROPOSTA */}
-              <div style={{ marginBottom: '35px', display: 'flex', justifyContent: 'space-between', fontSize: '10.5pt', borderBottom: '1px solid #eee', paddingBottom: '20px' }}>
+              {/* IDENTIFICAÇÃO DO DESTINATÁRIO (ESTILO IMAGEM) */}
+              <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ textAlign: 'left' }}>
-                    <p style={{ margin: '3px 0' }}><strong>Nº Proposta:</strong> {selectedProposal?.id}</p>
-                    <p style={{ margin: '3px 0' }}><strong>Emissão:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
-                    <p style={{ margin: '3px 0' }}><strong>Validade:</strong> {selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
+                    <p style={{ color: '#94a3b8', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 8px 0' }}>DESTINATÁRIO</p>
+                    <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', lineHeight: '1.2' }}>{selectedProposal?.clientName}</h1>
+                    <p style={{ color: '#6366f1', fontWeight: 'bold', margin: '6px 0 2px 0', fontSize: '11pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
+                    {selectedProposal?.clientPhone && <p style={{ color: '#64748b', margin: '0', fontSize: '10.5pt' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                    <p style={{ margin: '0', fontWeight: 'bold', fontSize: '11pt' }}>A/C: {selectedProposal?.contactName || 'Setor Responsável'}</p>
-                    {selectedProposal?.clientPhone && <p style={{ margin: '3px 0', color: '#444' }}>Contato: {formatPhoneNumber(selectedProposal.clientPhone)}</p>}
+                <div style={{ textAlign: 'right', fontSize: '10.5pt', display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '35px' }}>
+                    <p style={{ margin: '0' }}><strong>Nº Proposta:</strong> {selectedProposal?.id}</p>
+                    <p style={{ margin: '0' }}><strong>Emissão:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                    <p style={{ margin: '0' }}><strong>Validade:</strong> <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
                 </div>
               </div>
 
