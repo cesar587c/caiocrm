@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import jspdf from 'jspdf';
+import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -183,11 +183,6 @@ export default function PropostasPage() {
     );
   }, [watchItems]);
 
-  const filteredProducts = useMemo(() => {
-    if (!productSearch) return products;
-    return products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()));
-  }, [products, productSearch]);
-
   const handleClientSelect = (clientId: string) => {
     const client = customers.find(c => c.id === clientId);
     if (client) {
@@ -244,10 +239,9 @@ export default function PropostasPage() {
             onclone: (clonedDoc) => {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
-                    // Proteção extrema contra fusão de palavras
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
-                        node.style.letterSpacing = '0.2pt';
+                        node.style.letterSpacing = '0.3pt';
                         node.style.wordSpacing = 'normal';
                         node.style.fontVariantLigatures = 'none';
                         node.style.webkitFontSmoothing = 'antialiased';
@@ -257,7 +251,7 @@ export default function PropostasPage() {
         });
         
         const imgData = canvas.toDataURL('image/png', 1.0);
-        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         pdf.save(`proposta-${selectedProposal.id}.pdf`);
     } catch (e) {
@@ -282,14 +276,14 @@ export default function PropostasPage() {
                 if (el) {
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
-                        node.style.letterSpacing = '0.2pt';
+                        node.style.letterSpacing = '0.3pt';
                         node.style.fontVariantLigatures = 'none';
                     });
                 }
             }
         });
         const imgData = canvas.toDataURL('image/png', 1.0);
-        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         const pdfBlob = pdf.output('blob');
         const file = new File([pdfBlob], `proposta-${proposal.id}.pdf`, { type: 'application/pdf' });
@@ -741,30 +735,32 @@ export default function PropostasPage() {
                     fontSize: '11pt',
                     lineHeight: '1.4',
                     color: '#000000',
-                    letterSpacing: '0.2pt',
+                    letterSpacing: '0.3pt',
                     wordSpacing: 'normal',
                     fontVariantLigatures: 'none'
                 }}
             >
               {/* Estrutura de Cabeçalho via Tabela para estabilidade total */}
               <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
-                <tr>
-                  <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
-                  <td style={{ padding: '0 20px', width: '70px', verticalAlign: 'top' }}>
-                    {companyProfile.logoUrl && (
-                      <img 
-                        src={companyProfile.logoUrl} 
-                        alt="Logo" 
-                        style={{ maxHeight: '60px', width: 'auto', display: 'block', objectFit: 'contain' }} 
-                      />
-                    )}
-                  </td>
-                  <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
-                    <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
-                    <p style={{ margin: '2px 0', fontSize: '10pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                    <p style={{ margin: '0', fontSize: '9.5pt', color: '#555' }}>{companyProfile.address}</p>
-                  </td>
-                </tr>
+                <tbody>
+                  <tr>
+                    <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
+                    <td style={{ padding: '0 20px', width: '70px', verticalAlign: 'top' }}>
+                      {companyProfile.logoUrl && (
+                        <img 
+                          src={companyProfile.logoUrl} 
+                          alt="Logo" 
+                          style={{ maxHeight: '60px', width: 'auto', display: 'block', objectFit: 'contain' }} 
+                        />
+                      )}
+                    </td>
+                    <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
+                      <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
+                      <p style={{ margin: '2px 0', fontSize: '10pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
+                      <p style={{ margin: '0', fontSize: '9.5pt', color: '#555' }}>{companyProfile.address}</p>
+                    </td>
+                  </tr>
+                </tbody>
               </table>
 
               {/* Título Centralizado */}
@@ -785,19 +781,21 @@ export default function PropostasPage() {
 
               {/* Bloco de Destinatário e Infos via Tabela */}
               <table style={{ width: '100%', marginBottom: '40px', borderCollapse: 'collapse' }}>
-                <tr>
-                  <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
-                    <p style={{ color: '#666666', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 6px 0' }}>DESTINATÁRIO</p>
-                    <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', lineHeight: '1.2' }}>{selectedProposal?.clientName}</h1>
-                    <p style={{ color: '#4F46E5', fontWeight: 'bold', margin: '6px 0 2px 0', fontSize: '11.5pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
-                    {selectedProposal?.clientPhone && <p style={{ color: '#666666', margin: '0', fontSize: '10.5pt' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
-                  </td>
-                  <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '10.5pt', width: '200px' }}>
-                    <p style={{ margin: '4px 0' }}><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
-                    <p style={{ margin: '4px 0' }}><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
-                    <p style={{ margin: '4px 0' }}><strong>VALIDADE:</strong> <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
-                  </td>
-                </tr>
+                <tbody>
+                  <tr>
+                    <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
+                      <p style={{ color: '#666666', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 6px 0' }}>DESTINATÁRIO</p>
+                      <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', lineHeight: '1.2' }}>{selectedProposal?.clientName}</h1>
+                      <p style={{ color: '#4F46E5', fontWeight: 'bold', margin: '6px 0 2px 0', fontSize: '11.5pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
+                      {selectedProposal?.clientPhone && <p style={{ color: '#666666', margin: '0', fontSize: '10.5pt' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
+                    </td>
+                    <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '10.5pt', width: '200px' }}>
+                      <p style={{ margin: '4px 0' }}><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
+                      <p style={{ margin: '4px 0' }}><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                      <p style={{ margin: '4px 0' }}><strong>VALIDADE:</strong> <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
+                    </td>
+                  </tr>
+                </tbody>
               </table>
 
               {/* Texto Institucional */}
@@ -862,19 +860,21 @@ export default function PropostasPage() {
 
               {/* Assinaturas via Tabela */}
               <table style={{ width: '100%', textAlign: 'center', fontSize: '9.5pt', borderCollapse: 'collapse' }}>
-                <tr>
-                  <td style={{ width: '230px', padding: '0 20px' }}>
-                    <div style={{ borderTop: '1.5px solid #000000', marginBottom: '6px' }}></div>
-                    <p style={{ fontWeight: 'bold', margin: '0' }}>{companyProfile.name.toUpperCase()}</p>
-                    <p style={{ color: '#666666' }}>EMITENTE RESPONSÁVEL</p>
-                  </td>
-                  <td></td>
-                  <td style={{ width: '230px', padding: '0 20px' }}>
-                    <div style={{ borderTop: '1.5px solid #000000', marginBottom: '6px' }}></div>
-                    <p style={{ fontWeight: 'bold', margin: '0' }}>{selectedProposal?.clientName.toUpperCase()}</p>
-                    <p style={{ color: '#666666' }}>ACEITE DO CLIENTE</p>
-                  </td>
-                </tr>
+                <tbody>
+                  <tr>
+                    <td style={{ width: '230px', padding: '0 20px' }}>
+                      <div style={{ borderTop: '1.5px solid #000000', marginBottom: '6px' }}></div>
+                      <p style={{ fontWeight: 'bold', margin: '0' }}>{companyProfile.name.toUpperCase()}</p>
+                      <p style={{ color: '#666666' }}>EMITENTE RESPONSÁVEL</p>
+                    </td>
+                    <td></td>
+                    <td style={{ width: '230px', padding: '0 20px' }}>
+                      <div style={{ borderTop: '1.5px solid #000000', marginBottom: '6px' }}></div>
+                      <p style={{ fontWeight: 'bold', margin: '0' }}>{selectedProposal?.clientName.toUpperCase()}</p>
+                      <p style={{ color: '#666666' }}>ACEITE DO CLIENTE</p>
+                    </td>
+                  </tr>
+                </tbody>
               </table>
             </div>
           </ScrollArea>
