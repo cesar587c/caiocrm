@@ -392,6 +392,12 @@ export default function PropostasPage() {
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-background/50">
+      <datalist id="proposal-products-list">
+        {products.map(p => (
+          <option key={p.id} value={p.name} />
+        ))}
+      </datalist>
+      
       <div className="flex items-center justify-between">
         <div>
             <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gerador de Propostas</h2>
@@ -562,7 +568,7 @@ export default function PropostasPage() {
                             {fields.map((it, idx) => (
                             <TableRow key={it.id} className="hover:bg-transparent">
                                 <TableCell className="py-2">
-                                    <Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} className="h-8 text-xs border-none bg-muted/20 focus-visible:ring-1" />
+                                    <Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} list="proposal-products-list" className="h-8 text-xs border-none bg-muted/20 focus-visible:ring-1" />
                                 </TableCell>
                                 <TableCell className="py-2">
                                     <Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs border-none bg-muted/20 text-center" />
@@ -579,7 +585,7 @@ export default function PropostasPage() {
                                 )} />
                                 </TableCell>
                                 <TableCell className="py-2 text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => remove(idx)} className="h-8 w-8 text-destructive/50 hover:text-destructive">
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} className="h-8 w-8 text-destructive/50 hover:text-destructive">
                                         <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                 </TableCell>
@@ -741,7 +747,6 @@ export default function PropostasPage() {
                     fontVariantLigatures: 'none'
                 }}
             >
-              {/* Estrutura de Cabeçalho via Tabela para estabilidade total */}
               <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr>
