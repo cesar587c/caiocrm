@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-* as z from 'zod';
+import * as z from 'zod';
 import { addDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -604,7 +604,7 @@ export default function PropostasPage() {
                     <SelectContent>
                         <SelectItem value="boleto">Boleto Bancário</SelectItem>
                         <SelectItem value="pix">Transferência PIX</SelectItem>
-                        <SelectItem value="cartao">Cartão de Crédito</SelectItem>
+                        <SelectItem value="cartao">Até 12x no Cartão</SelectItem>
                         <SelectItem value="faturamento">Faturamento Direto</SelectItem>
                     </SelectContent>
                   </Select>
@@ -762,11 +762,20 @@ export default function PropostasPage() {
                     fontVariantLigatures: 'none'
                 }}
             >
-              {/* CABEÇALHO LIMPO - ESTILO WORD */}
-              <div style={{ marginBottom: '35px', textAlign: 'left', borderLeft: '4px solid #000', paddingLeft: '20px' }}>
-                <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', letterSpacing: '1px' }}>{companyProfile.name}</h2>
-                <p style={{ margin: '8px 0 2px 0', fontSize: '10pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                <p style={{ margin: '0', fontSize: '10pt', color: '#555' }}>{companyProfile.address}</p>
+              {/* CABEÇALHO COM LOGO AO LADO DO NOME */}
+              <div style={{ marginBottom: '35px', display: 'flex', alignItems: 'center', gap: '20px', borderLeft: '4px solid #000', paddingLeft: '20px' }}>
+                {companyProfile.logoUrl && (
+                  <img 
+                    src={companyProfile.logoUrl} 
+                    alt="Logo" 
+                    style={{ maxHeight: '60px', width: 'auto', display: 'block', objectFit: 'contain' }} 
+                  />
+                )}
+                <div style={{ textAlign: 'left' }}>
+                  <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
+                  <p style={{ margin: '4px 0 2px 0', fontSize: '10pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
+                  <p style={{ margin: '0', fontSize: '10pt', color: '#555' }}>{companyProfile.address}</p>
+                </div>
               </div>
 
               {/* TÍTULO DA PROPOSTA */}
@@ -789,14 +798,14 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TEXTO INSTITUCIONAL ORIGINAL - SEM ALTERAÇÕES */}
+              {/* TEXTO INSTITUCIONAL ORIGINAL */}
               <div style={{ marginBottom: '30px', textAlign: 'left', fontSize: '11pt' }}>
                 <p style={{ marginBottom: '20px' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ marginBottom: '20px' }}>Com ampla experiência de mercado a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
                 <p style={{ marginBottom: '30px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
               </div>
 
-              {/* TABELA DE ITENS - PADRÃO PROFISSIONAL */}
+              {/* TABELA DE ITENS */}
               <div style={{ marginBottom: '35px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left' }}>
                   <thead>
@@ -839,7 +848,7 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* CONDIÇÕES DE PAGAMENTO - LIMPO */}
+              {/* CONDIÇÕES DE PAGAMENTO */}
               <div style={{ marginTop: '40px', padding: '20px', border: '1px solid #000', borderRadius: '2px', backgroundColor: '#fff' }}>
                 <p style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '11pt', textDecoration: 'underline' }}>CONDIÇÕES DE PAGAMENTO:</p>
                 <div style={{ fontSize: '10.5pt', lineHeight: '1.6' }}>
@@ -856,7 +865,7 @@ export default function PropostasPage() {
                 )}
               </div>
 
-              {/* BLOCO DE ASSINATURAS PADRÃO A4 */}
+              {/* BLOCO DE ASSINATURAS */}
               <div style={{ marginTop: '80px', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '10pt' }}>
                 <div style={{ width: '240px' }}>
                   <div style={{ borderTop: '1px solid #000', marginBottom: '8px' }}></div>
