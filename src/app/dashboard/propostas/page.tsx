@@ -169,7 +169,6 @@ export default function PropostasPage() {
 
   const watchItems = useWatch({ control: form.control, name: "items" });
   const watchInstallments = form.watch('installments');
-  const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
 
   const totals = useMemo(() => {
     return (watchItems || []).reduce(
@@ -740,17 +739,16 @@ export default function PropostasPage() {
                     fontVariantLigatures: 'none'
                 }}
             >
-              {/* Estrutura de Cabeçalho via Tabela para estabilidade total */}
               <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr>
                     <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
-                    <td style={{ padding: '0 20px', width: '70px', verticalAlign: 'top' }}>
+                    <td style={{ padding: '0 25px', width: '110px', verticalAlign: 'top' }}>
                       {companyProfile.logoUrl && (
                         <img 
                           src={companyProfile.logoUrl} 
                           alt="Logo" 
-                          style={{ maxHeight: '60px', width: 'auto', display: 'block', objectFit: 'contain' }} 
+                          style={{ maxHeight: '100px', width: 'auto', display: 'block', objectFit: 'contain' }} 
                         />
                       )}
                     </td>
@@ -763,7 +761,6 @@ export default function PropostasPage() {
                 </tbody>
               </table>
 
-              {/* Título Centralizado */}
               <div style={{ marginBottom: '45px', textAlign: 'center' }}>
                 <p style={{ 
                     fontWeight: 'bold', 
@@ -779,7 +776,6 @@ export default function PropostasPage() {
                 </p>
               </div>
 
-              {/* Bloco de Destinatário e Infos via Tabela */}
               <table style={{ width: '100%', marginBottom: '40px', borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr>
@@ -798,14 +794,12 @@ export default function PropostasPage() {
                 </tbody>
               </table>
 
-              {/* Texto Institucional */}
               <div style={{ marginBottom: '35px', textAlign: 'left', fontSize: '11pt', lineHeight: '1.5' }}>
                 <p style={{ marginBottom: '20px' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ marginBottom: '20px' }}>Com ampla experiência de mercado a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
                 <p style={{ marginBottom: '30px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
               </div>
 
-              {/* Tabela de Itens Fiel ao Layout */}
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left', marginBottom: '35px' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #000000' }}>
@@ -827,7 +821,6 @@ export default function PropostasPage() {
                 </tbody>
               </table>
               
-              {/* Total Investimento */}
               <div style={{ textAlign: 'right', marginBottom: '45px' }}>
                 <div style={{ 
                     padding: '15px 25px', 
@@ -841,7 +834,6 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* Condições de Pagamento */}
               <div style={{ padding: '20px', border: '1.5px solid #000000', borderRadius: '5px', marginBottom: '80px' }}>
                 <p style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '11pt', textDecoration: 'underline', textTransform: 'uppercase' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <div style={{ fontSize: '10.5pt', lineHeight: '1.5' }}>
@@ -858,7 +850,6 @@ export default function PropostasPage() {
                 )}
               </div>
 
-              {/* Assinaturas via Tabela */}
               <table style={{ width: '100%', textAlign: 'center', fontSize: '9.5pt', borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr>
