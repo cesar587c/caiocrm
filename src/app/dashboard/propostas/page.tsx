@@ -43,7 +43,6 @@ import {
   Building,
   Calendar as CalendarIcon,
   Download,
-  Mail,
   PlusCircle,
   Trash2,
   Send,
@@ -58,8 +57,6 @@ import {
   XCircle,
   Share2,
   Image as ImageIcon,
-  UploadCloud,
-  Camera,
   Copy,
   User,
   UserPlus,
@@ -69,7 +66,6 @@ import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { useSettings } from '@/contexts/SettingsContext';
 import { ToastAction } from '@/components/ui/toast';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -119,17 +115,8 @@ const proposalSchema = z.object({
 
 type ProposalFormValues = z.infer<typeof proposalSchema>;
 
-const productFormSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(1, 'O nome do produto é obrigatório.'),
-  price: z.coerce.number().min(0, 'O preço não pode ser negativo.'),
-  imageUrl: z.string().optional(),
-});
-
-type ProductFormValues = z.infer<typeof productFormSchema>;
-
 export default function PropostasPage() {
-  const { companyProfile, customers, products, addProduct, updateProduct, deleteProduct, proposals, addProposal, updateProposal, deleteProposal, addCustomer, currentUser } = useSettings();
+  const { companyProfile, customers, products, addProduct, proposals, addProposal, updateProposal, deleteProposal, addCustomer, currentUser } = useSettings();
   const { toast } = useToast();
   const [productSearch, setProductSearch] = useState('');
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
@@ -139,11 +126,6 @@ export default function PropostasPage() {
   const [isSharing, setIsSharing] = useState(false);
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
 
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
-  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
   const formatPhoneNumber = (value: string) => {
     if (!value) return "";
     let cleaned = value.replace(/\D/g, "");
@@ -174,39 +156,22 @@ export default function PropostasPage() {
     },
   });
 
-  const productForm = useForm<ProductFormValues>({
-    resolver: zodResolver(productFormSchema),
-    defaultValues: {
-      name: '',
-      price: 0,
-      imageUrl: '',
-    },
-  });
-
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'items',
   });
 
-  const watchItems = useWatch({
-    control: form.control,
-    name: "items",
-  });
-  
+  const watchItems = useWatch({ control: form.control, name: "items" });
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
   const watchSaveToContacts = form.watch('saveToContacts');
-  const productImageUrl = productForm.watch('imageUrl');
 
   const totals = useMemo(() => {
     return (watchItems || []).reduce(
         (acc, item) => {
             const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
-            if (item.isMonthly) {
-                acc.monthly += subtotal;
-            } else {
-                acc.oneTime += subtotal;
-            }
+            if (item.isMonthly) acc.monthly += subtotal;
+            else acc.oneTime += subtotal;
             return acc;
         },
         { oneTime: 0, monthly: 0 }
@@ -214,12 +179,8 @@ export default function PropostasPage() {
   }, [watchItems]);
 
   const filteredProducts = useMemo(() => {
-    if (!productSearch) {
-      return products;
-    }
-    return products.filter(p =>
-      p.name.toLowerCase().includes(productSearch.toLowerCase())
-    );
+    if (!productSearch) return products;
+    return products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()));
   }, [products, productSearch]);
 
   const handleClientSelect = (clientId: string) => {
@@ -240,25 +201,11 @@ export default function PropostasPage() {
     form.setValue('clientPhone', '');
     setIsQuickAddingClient(true);
   }
-  
-  const handleSaveNewProduct = (newProduct: { name: string, price: number }) => {
-    const lowerCaseName = newProduct.name.toLowerCase().trim();
-    if (!lowerCaseName || products.some(p => p.name.toLowerCase().trim() === lowerCaseName)) {
-        return;
-    }
-    const createdProduct = addProduct(newProduct);
-    toast({
-        title: "Item Cadastrado!",
-        description: `"${createdProduct.name}" foi adicionado à sua lista de produtos.`,
-    });
-  };
 
   const handleItemNameBlur = (index: number) => {
       const itemName = form.getValues(`items.${index}.name`);
       if (!itemName) return;
-
       const existingProduct = products.find(p => p.name.toLowerCase().trim() === itemName.toLowerCase().trim());
-
       if (existingProduct) {
           form.setValue(`items.${index}.price`, existingProduct.price, { shouldDirty: true, shouldTouch: true });
           form.trigger(`items.${index}.price`);
@@ -268,120 +215,51 @@ export default function PropostasPage() {
               title: 'Cadastrar Novo Item?',
               description: `Deseja salvar "${itemName}" na sua lista de produtos?`,
               action: (
-                  <ToastAction altText="Cadastrar" onClick={() => handleSaveNewProduct({ name: itemName, price: itemPrice || 0 })}>
-                      Cadastrar
-                  </ToastAction>
+                  <ToastAction altText="Cadastrar" onClick={() => {
+                      addProduct({ name: itemName, price: itemPrice || 0 });
+                      toast({ title: "Item Cadastrado!" });
+                  }}>Cadastrar</ToastAction>
               ),
           });
       }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 1 * 1024 * 1024) {
-        toast({ variant: "destructive", title: "Arquivo muito grande", description: "Por favor, selecione uma imagem com menos de 1MB." });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        productForm.setValue('imageUrl', reader.result as string, { shouldDirty: true });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSendWhatsAppText = (proposal: Proposal) => {
     const itemsText = proposal.items
-      .map(
-        (item) =>
-          `- ${item.name} ${item.isMonthly ? '*(mensal)*' : ''} (Qtd: ${item.quantity}, Valor Unit.: ${item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`
-      )
+      .map(it => `- ${it.name} ${it.isMonthly ? '*(mensal)*' : ''} (Qtd: ${it.quantity}, Valor Unit.: ${it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`)
       .join('\n');
 
-    const installmentsDetail = proposal.installments > 1 && proposal.firstAsDownPayment 
-        ? ` (sendo a 1ª como entrada)` 
-        : '';
-
-    const message = `Olá, ${proposal.contactName || proposal.clientName}! 👋
-Segue a sua proposta comercial da ${companyProfile.name}.
-
-*Proposta:* ${proposal.id}
-*Data:* ${format(parseISO(proposal.proposalDate), 'dd/MM/yyyy')}
-
-*Itens:*
-${itemsText}
-
-*Total Único:* *${proposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*
-*Total Mensal:* *${proposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*
-
-*Condições de Pagamento (Valor Único):*
-- *Forma:* ${proposal.paymentMethod.replace('cartao', 'Cartão de Crédito').replace('boleto', 'Boleto Bancário').replace('pix', 'PIX')}
-- *Parcelas:* ${proposal.installments}x de ${(proposal.totalOneTime / proposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${installmentsDetail}
-
-${proposal.observations ? `\n*Observações:*\n${proposal.observations}` : ''}
-
-Agradecemos a oportunidade e ficamos à disposição!
-
-${companyProfile.name}
-${formatPhoneNumber(companyProfile.phone)}`;
+    const message = `Olá, ${proposal.contactName || proposal.clientName}! 👋\nSegue a proposta da ${companyProfile.name}.\n\n*Itens:*\n${itemsText}\n\n*Total Único:* *${proposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*\n*Total Mensal:* *${proposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*\n\nAcesse para detalhes e PDF!`;
 
     const cleanPhone = proposal.clientPhone?.replace(/\D/g, '') || '';
     if (cleanPhone.length < 10) {
-         toast({ title: "Número Inválido", description: "O cliente não possui um telefone válido.", variant: "destructive" });
+        toast({ title: "Número Inválido", variant: "destructive" });
         return;
     }
-    const phoneWithCountryCode = cleanPhone.length > 11 ? cleanPhone : `55${cleanPhone}`;
-    const url = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/55${cleanPhone.length > 11 ? cleanPhone.slice(-11) : cleanPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, 'vendaspro_whatsapp');
-  };
-
-  const captureProposalImage = async () => {
-    const element = document.getElementById('proposal-preview');
-    if (!element) return null;
-
-    return await html2canvas(element, {
-      scale: 1.5,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      removeContainer: true,
-      imageTimeout: 0,
-    });
   };
 
   const handleSharePdf = async (proposal: Proposal) => {
     setIsSharing(true);
     try {
-        const canvas = await captureProposalImage();
-        if (!canvas) throw new Error("Canvas failure");
-
-        const imgData = canvas.toDataURL('image/png', 0.8);
+        const element = document.getElementById('proposal-preview');
+        if (!element) return;
+        const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+        const imgData = canvas.toDataURL('image/png', 0.9);
         const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-        
+        pdf.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
         const pdfBlob = pdf.output('blob');
         const file = new File([pdfBlob], `proposta-${proposal.id}.pdf`, { type: 'application/pdf' });
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-                files: [file],
-                title: `Proposta Comercial #${proposal.id}`,
-                text: `Segue proposta da ${companyProfile.name} para ${proposal.clientName}.`,
-            });
+            await navigator.share({ files: [file], title: `Proposta #${proposal.id}` });
         } else {
             pdf.save(`proposta-${proposal.id}.pdf`);
-            toast({
-                title: "PDF Baixado",
-                description: "Seu navegador não suporta envio direto. O PDF foi baixado para envio manual.",
-            });
+            toast({ title: "PDF Baixado" });
         }
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'Falha ao processar PDF' });
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'Falha ao processar' });
     } finally {
         setIsSharing(false);
     }
@@ -391,103 +269,51 @@ ${formatPhoneNumber(companyProfile.phone)}`;
     if (!selectedProposal) return;
     setIsDownloading(true);
     try {
-        const canvas = await captureProposalImage();
-        if (!canvas) throw new Error("Canvas failure");
-
-        const imgData = canvas.toDataURL('image/png', 0.8);
+        const element = document.getElementById('proposal-preview');
+        if (!element) return;
+        const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+        const imgData = canvas.toDataURL('image/png', 0.9);
         const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        pdf.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
         pdf.save(`proposta-${selectedProposal.id}.pdf`);
-    } catch (error) {
-        console.error(error);
+    } catch (e) {
         toast({ variant: 'destructive', title: 'Erro ao gerar PDF' });
     } finally {
         setIsDownloading(false);
     }
   };
 
-  const confirmDeleteAction = () => {
-    if (!deletingProposal) return;
-    deleteProposal(deletingProposal.id);
-    toast({ title: "Proposta Excluída" });
-    setDeletingProposal(null);
-  };
-
-  const confirmDeleteProductAction = () => {
-    if (!deletingProduct) return;
-    deleteProduct(deletingProduct.id);
-    toast({ title: "Produto Removido" });
-    setDeletingProduct(null);
-  };
-  
-  const handleAddProductFromList = (product: Product) => {
-    append({ name: product.name, quantity: 1, price: product.price, isMonthly: false });
-    toast({ title: "Item Adicionado!", description: `"${product.name}" foi adicionado à proposta.` });
-  };
-
-  const handleEditProposalClick = (proposal: Proposal) => {
-    setEditingProposal(proposal);
+  const handleEditProposalClick = (p: Proposal) => {
+    setEditingProposal(p);
     form.reset({
-      clientId: proposal.clientId,
-      clientName: proposal.clientName,
-      contactName: proposal.contactName || '',
-      clientPhone: formatPhoneNumber(proposal.clientPhone || ''),
+      clientId: p.clientId,
+      clientName: p.clientName,
+      contactName: p.contactName || '',
+      clientPhone: formatPhoneNumber(p.clientPhone || ''),
       saveToContacts: false,
       contactType: 'lead',
-      proposalDate: new Date(proposal.proposalDate),
-      validityDate: new Date(proposal.validityDate),
-      items: proposal.items,
-      paymentMethod: proposal.paymentMethod,
-      installments: proposal.installments,
-      firstAsDownPayment: proposal.firstAsDownPayment,
-      observations: proposal.observations || '',
+      proposalDate: new Date(p.proposalDate),
+      validityDate: new Date(p.validityDate),
+      items: p.items,
+      paymentMethod: p.paymentMethod,
+      installments: p.installments,
+      firstAsDownPayment: p.firstAsDownPayment,
+      observations: p.observations || '',
     });
-    setIsQuickAddingClient(false);
+    setIsQuickAddingClient(!p.clientId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleCloneProposalClick = (proposal: Proposal) => {
+  const handleCloneProposalClick = (p: Proposal) => {
     setEditingProposal(null);
     form.reset({
-      clientId: proposal.clientId,
-      clientName: proposal.clientName,
-      contactName: proposal.contactName || '',
-      clientPhone: formatPhoneNumber(proposal.clientPhone || ''),
-      saveToContacts: false,
-      contactType: 'lead',
+      ...p,
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
-      items: proposal.items.map(item => ({ ...item })),
-      paymentMethod: proposal.paymentMethod,
-      installments: proposal.installments,
-      firstAsDownPayment: proposal.firstAsDownPayment,
-      observations: proposal.observations || '',
+      clientPhone: formatPhoneNumber(p.clientPhone || ''),
     });
-    setIsQuickAddingClient(!proposal.clientId);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    toast({ title: 'Proposta Duplicada!', description: 'Os dados foram carregados no formulário.' });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingProposal(null);
-    form.reset({
-      clientName: '',
-      contactName: '',
-      clientPhone: '',
-      saveToContacts: false,
-      contactType: 'lead',
-      proposalDate: new Date(),
-      validityDate: addDays(new Date(), 10),
-      items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
-      paymentMethod: 'boleto',
-      installments: 1,
-      firstAsDownPayment: false,
-      observations: '',
-    });
-    setIsQuickAddingClient(false);
+    setIsQuickAddingClient(!p.clientId);
+    toast({ title: 'Proposta Duplicada!' });
   };
 
   const onSubmit = (data: ProposalFormValues) => {
@@ -497,12 +323,11 @@ ${formatPhoneNumber(companyProfile.phone)}`;
             if (item.isMonthly) acc.monthly += subtotal;
             else acc.oneTime += subtotal;
             return acc;
-        },
-        { oneTime: 0, monthly: 0 }
+        }, { oneTime: 0, monthly: 0 }
     );
 
     if (isQuickAddingClient && data.saveToContacts && !editingProposal) {
-        const newCustomer: Omit<Customer, 'id'> = {
+        addCustomer({
             name: data.clientName,
             nomeFantasia: data.clientName,
             contactName: data.contactName,
@@ -514,348 +339,304 @@ ${formatPhoneNumber(companyProfile.phone)}`;
             potential: 'medium',
             lastContact: new Date().toISOString(),
             createdAt: new Date().toISOString(),
-            interactions: [{
-                id: `int_${Date.now()}`,
-                timestamp: new Date().toISOString(),
-                summary: `Cliente cadastrado automaticamente via Gerador de Propostas.`,
-                userId: currentUser?.id || 'admin',
-                userName: currentUser?.name || 'Admin'
-            }]
-        };
-        addCustomer(newCustomer);
-        toast({ title: 'Novo Contato Salvo!', description: `${data.clientName} foi adicionado à sua base como ${data.contactType === 'lead' ? 'Lead' : 'Cliente'}.` });
+            interactions: []
+        });
     }
 
     if (editingProposal) {
-      const updatedP: Proposal = { 
+      updateProposal({ 
         ...data, 
         id: editingProposal.id, 
-        clientPhone: data.clientPhone ? data.clientPhone.replace(/\D/g, '') : '', 
+        clientPhone: data.clientPhone?.replace(/\D/g, ''), 
         proposalDate: data.proposalDate.toISOString(), 
         validityDate: data.validityDate.toISOString(), 
         totalOneTime: currentTotals.oneTime, 
         totalMonthly: currentTotals.monthly 
-      };
-      updateProposal(updatedP);
+      } as Proposal);
       toast({ title: 'Proposta Atualizada!' });
     } else {
       const newId = proposals.length > 0 ? Math.max(0, ...proposals.map(p => Number(p.id))) + 1 : 1;
-      const newP: Proposal = { 
+      addProposal({ 
         ...data, 
         id: String(newId), 
-        clientPhone: data.clientPhone ? data.clientPhone.replace(/\D/g, '') : '', 
+        clientPhone: data.clientPhone?.replace(/\D/g, ''), 
         proposalDate: data.proposalDate.toISOString(), 
         validityDate: data.validityDate.toISOString(), 
         totalOneTime: currentTotals.oneTime, 
         totalMonthly: currentTotals.monthly 
-      };
-      addProposal(newP);
+      } as Proposal);
       toast({ title: 'Proposta Salva!' });
     }
-    handleCancelEdit();
-  };
-
-  const onProductSubmit = (values: ProductFormValues) => {
-    if (!editingProduct) return;
-    updateProduct({ ...editingProduct, name: values.name, price: values.price, imageUrl: values.imageUrl, priceHistory: values.price !== editingProduct.price ? [values.price, ...editingProduct.priceHistory] : editingProduct.priceHistory });
-    setIsProductFormOpen(false); setEditingProduct(null); toast({ title: "Produto Atualizado" });
+    setEditingProposal(null);
+    form.reset();
   };
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
-      <datalist id="product-datalist">{products.map(product => <option key={product.id} value={product.name} />)}</datalist>
-      <div className="flex items-center justify-between"><h2 className="text-3xl font-bold tracking-tight font-headline">Gerador de Propostas</h2></div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight font-headline">Gerador de Propostas</h2>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
         <div className="lg:col-span-2 space-y-6">
-            <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form">
-                    <Card>
-                        <CardHeader className="flex flex-row items-start justify-between">
-                            <div><CardTitle>{editingProposal ? `Editando Proposta ${editingProposal.id}` : 'Nova Proposta Comercial'}</CardTitle><CardDescription>{editingProposal ? 'Altere os itens e condições de pagamento.' : 'Preencha os dados para gerar uma nova proposta'}</CardDescription></div>
-                            <div className="flex items-center gap-4">
-                                <FormField control={form.control} name="proposalDate" render={({ field }) => ( <div className="space-y-1 text-right"><Label className="text-xs uppercase font-bold text-muted-foreground">Emissão</Label><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className={cn("w-[140px] justify-start text-left font-normal h-8 text-xs", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-3 w-3" />{field.value ? format(field.value, "dd/MM/yyyy") : <span>Data</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={ptBR}/></PopoverContent></Popover></div> )} />
-                                <FormField control={form.control} name="validityDate" render={({ field }) => ( <div className="space-y-1 text-right"><Label className="text-xs uppercase font-bold text-muted-foreground">Validade</Label><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className={cn("w-[140px] justify-start text-left font-normal h-8 text-xs", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-3 w-3" />{field.value ? format(field.value, "dd/MM/yyyy") : <span>Data</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} locale={ptBR}/></PopoverContent></Popover></div> )} />
-                            </div>
-                        </CardHeader>
-                        <CardContent className="flex items-center gap-4 border-t pt-6">{companyProfile.logoUrl ? <img src={companyProfile.logoUrl} alt="Logo" data-ai-hint="logo" className="h-16 w-24 object-contain" /> : <Building className="h-16 w-16 text-muted-foreground" />}<div><h3 className="font-bold text-lg">{companyProfile.name}</h3><p className="text-sm text-muted-foreground">{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p></div></CardContent>
-                    </Card>
-                    <Card className="mt-6">
-                        <CardHeader><CardTitle>Dados do Cliente</CardTitle><CardDescription>Selecione um cliente ou preencha manualmente.</CardDescription></CardHeader>
-                        <CardContent className="space-y-4">
-                            {!editingProposal ? ( 
-                              <> 
-                                <div className="flex gap-2">
-                                  <div className="flex-1">
-                                    <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
-                                      <SelectTrigger><SelectValue placeholder="Selecione um cliente..." /></SelectTrigger>
-                                      <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                  </div>
-                                  <Button type="button" variant={isQuickAddingClient ? "secondary" : "outline"} onClick={handleQuickAddClient}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />Avulso
-                                  </Button>
-                                </div> 
-                                {isQuickAddingClient && ( 
-                                  <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-                                    <div className="grid sm:grid-cols-2 gap-4">
-                                      <FormField
-                                        control={form.control}
-                                        name="clientName"
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormLabel className="flex items-center gap-2"><Building className="h-3.5 w-3.5"/>Empresa / Cliente</FormLabel>
-                                            <FormControl><Input placeholder="Nome completo ou Razão Social" {...field} /></FormControl>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                      <FormField
-                                        control={form.control}
-                                        name="contactName"
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormLabel className="flex items-center gap-2"><User className="h-3.5 w-3.5"/>Pessoa de Contato</FormLabel>
-                                            <FormControl><Input placeholder="Ex: Sr. Carlos" {...field} /></FormControl>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                    </div>
-                                    <div className="grid sm:grid-cols-2 gap-4">
-                                      <FormField
-                                        control={form.control}
-                                        name="clientPhone"
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormLabel>Telefone / WhatsApp</FormLabel>
-                                            <FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} /></FormControl>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                    </div>
-                                    
-                                    <Separator className="my-2" />
-                                    
-                                    <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
-                                      <FormField
-                                        control={form.control}
-                                        name="saveToContacts"
-                                        render={({ field }) => (
-                                          <FormItem className="flex items-center justify-between space-y-0">
-                                            <div className="space-y-0.5">
-                                              <FormLabel className="flex items-center gap-2 text-primary font-bold">
-                                                <UserPlus className="h-4 w-4" />
-                                                Salvar nos meus contatos?
-                                              </FormLabel>
-                                              <FormDescription className="text-[10px]">
-                                                Adiciona automaticamente este cliente à sua base.
-                                              </FormDescription>
-                                            </div>
-                                            <FormControl>
-                                              <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                          </FormItem>
-                                        )}
-                                      />
-                                      
-                                      {watchSaveToContacts && (
-                                        <div className="mt-4 animate-in fade-in slide-in-from-top-2">
-                                          <FormField
-                                            control={form.control}
-                                            name="contactType"
-                                            render={({ field }) => (
-                                              <FormItem className="space-y-3">
-                                                <FormLabel className="text-xs uppercase text-muted-foreground font-bold">Cadastrar como:</FormLabel>
-                                                <FormControl>
-                                                  <RadioGroup
-                                                    onValueChange={field.onChange}
-                                                    defaultValue={field.value}
-                                                    className="flex flex-row space-x-4"
-                                                  >
-                                                    <FormItem className="flex items-center space-x-2 space-y-0">
-                                                      <FormControl><RadioGroupItem value="lead" /></FormControl>
-                                                      <FormLabel className="font-normal cursor-pointer">Lead (Funil)</FormLabel>
-                                                    </FormItem>
-                                                    <FormItem className="flex items-center space-x-2 space-y-0">
-                                                      <FormControl><RadioGroupItem value="one_time" /></FormControl>
-                                                      <FormLabel className="font-normal cursor-pointer">Cliente</FormLabel>
-                                                    </FormItem>
-                                                  </RadioGroup>
-                                                </FormControl>
-                                              </FormItem>
-                                            )}
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div> 
-                                )} 
-                              </> 
-                            ) : ( 
-                              <div className="space-y-2 p-4 border rounded-md bg-muted/50">
-                                <div className="flex justify-between">
-                                  <div>
-                                    <p className="text-xs uppercase font-bold text-muted-foreground">Cliente</p>
-                                    <p className="font-bold">{form.getValues('clientName')}</p>
-                                  </div>
-                                  {form.getValues('contactName') && (
-                                    <div className="text-right">
-                                      <p className="text-xs uppercase font-bold text-muted-foreground">Aos cuidados de</p>
-                                      <p className="font-medium text-primary">{form.getValues('contactName')}</p>
-                                    </div>
-                                  )}
-                                </div>
-                                <p className="text-sm text-muted-foreground">{form.getValues('clientPhone')}</p>
-                              </div> 
-                            )}
-                        </CardContent>
-                    </Card>
-                    <Card className="mt-6">
-                        <CardHeader><CardTitle>Itens da Proposta</CardTitle></CardHeader>
-                        <CardContent><Table><TableHeader><TableRow><TableHead className="w-[40%]">Descrição</TableHead><TableHead>Qtd.</TableHead><TableHead>Recorrência</TableHead><TableHead>Preço Unit.</TableHead><TableHead>Subtotal</TableHead><TableHead className="text-right w-10"></TableHead></TableRow></TableHeader><TableBody>{fields.map((item, index) => { const currentItemName = watchItems && watchItems[index]?.name; const currentProduct = products.find(p => p.name.toLowerCase() === currentItemName?.toLowerCase()); return ( <TableRow key={item.id}><TableCell><Textarea placeholder="Descrição..." {...form.register(`items.${index}.name`)} className="min-h-0 h-10 py-1" list="product-datalist" onBlur={() => handleItemNameBlur(index)} /></TableCell><TableCell><Input type="number" {...form.register(`items.${index}.quantity`)} className="w-16 h-8" /></TableCell><TableCell><Controller control={form.control} name={`items.${index}.isMonthly`} render={({ field }) => ( <Select onValueChange={(val) => field.onChange(val === 'monthly')} value={field.value ? 'monthly' : 'onetime'}><SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="onetime">Único</SelectItem><SelectItem value="monthly">Mensal</SelectItem></SelectContent></Select> )} /></TableCell><TableCell><div className="relative flex items-center"><Input type="number" step="0.01" {...form.register(`items.${index}.price`)} className={cn("w-24 h-8 pr-6", !currentProduct && 'pr-2')} />{currentProduct && ( <Popover><PopoverTrigger asChild><Button type="button" variant="ghost" size="icon" className="absolute right-0 h-8 w-6 text-muted-foreground"><History className="h-3 w-3" /></Button></PopoverTrigger><PopoverContent className="w-auto p-2"><p className="font-bold text-xs mb-1">Histórico</p><div className="flex flex-col gap-1">{currentProduct.priceHistory.map((p, i) => <Button key={i} variant="ghost" className="h-6 text-[10px] justify-start" onClick={() => { form.setValue(`items.${index}.price`, p); form.trigger(`items.${index}.price`); }}>{p.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Button>)}</div></PopoverContent></Popover> )}</div></TableCell><TableCell className="font-medium text-xs">{((Number(watchItems && watchItems[index]?.quantity) || 0) * (Number(watchItems && watchItems[index]?.price) || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell><TableCell className="text-right"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow> )})}</TableBody></Table></CardContent>
-                        <CardFooter className="justify-between border-t pt-6"><Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })}><PlusCircle className="mr-2 h-4 w-4" />Adicionar Item</Button><div className="text-right space-y-1"><div className="flex items-center justify-end gap-2 text-primary font-bold"><Tag className="h-4 w-4" /><span>Investimento: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div><div className="flex items-center justify-end gap-2 text-emerald-500 font-bold"><Repeat className="h-4 w-4" /><span>Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div></div></CardFooter>
-                    </Card>
-                    <Card className="mt-6"><CardHeader><CardTitle>Observações e Condições Gerais</CardTitle><CardDescription>Adicione prazos de entrega, garantias ou notas adicionais.</CardDescription></CardHeader><CardContent><FormField control={form.control} name="observations" render={({ field }) => ( <FormItem><FormControl><Textarea placeholder="Ex: Prazo de entrega: 5 dias úteis. Garantia: 12 meses contra defeitos de fabricação." className="min-h-[100px]" {...field} /></FormControl><FormMessage /></FormItem> )} /></CardContent></Card>
-                </form></Form>
-        </div>
-        <div className="lg:col-span-1 space-y-6">
-          <Card><CardHeader><CardTitle>Pagamento e Resumo</CardTitle></CardHeader><CardContent className="space-y-4"><div className="space-y-2"><Label>Forma (Venda Única)</Label><Controller control={form.control} name="paymentMethod" render={({ field }) => ( <Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="boleto">Boleto</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="cartao">Até 12x no Cartão</SelectItem></Select> )} /></div><div className="space-y-2"><Label>Parcelas</Label><Controller control={form.control} name="installments" render={({ field }) => ( <Select onValueChange={field.onChange} value={String(field.value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}x de { (totals.oneTime / (i + 1) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }</SelectItem>)}</SelectContent></Select> )} /></div><div className="flex items-center space-x-2"><Controller control={form.control} name="firstAsDownPayment" render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />} /><Label className="text-xs">1ª parcela como entrada?</Label></div><Separator /><div className="space-y-1 text-sm"><div className="flex justify-between font-bold"><span>Total Único:</span> <span className="text-primary">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div><div className="flex justify-between font-bold"><span>Total Mensal:</span> <span className="text-emerald-500">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div><div className="flex justify-between text-xs text-muted-foreground italic"><span>({watchInstallments}x de { (totals.oneTime / watchInstallments || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) } no investimento{watchFirstAsDownPayment && watchInstallments > 1 ? ', sendo a 1ª como entrada' : ''})</span></div></div></CardContent><CardFooter><Button type="submit" form="proposal-form" className="w-full">{editingProposal ? 'Atualizar' : 'Salvar Proposta'}</Button></CardFooter></Card>
-          <Card><CardHeader className="p-4"><CardTitle className="text-sm">Produtos Rápidos</CardTitle><div className="relative mt-2"><Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" /><Input placeholder="Buscar..." className="pl-7 h-8 text-xs" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} /></div></CardHeader><CardContent className="p-0"><ScrollArea className="h-64"><div className="px-4 pb-4 space-y-1">{filteredProducts.map(p => ( <div key={p.id} className="group flex cursor-pointer items-center justify-between rounded-md p-2 hover:bg-muted" onClick={() => handleAddProductFromList(p)}><div className="flex items-center gap-3 flex-1 truncate">{p.imageUrl ? ( <img src={p.imageUrl} alt={p.name} className="h-8 w-8 rounded object-cover border bg-white" loading="lazy" /> ) : ( <div className="h-8 w-8 rounded bg-primary/5 flex items-center justify-center border border-primary/20"><ImageIcon className="h-4 w-4 text-primary" /></div> )}<div className="flex-1 truncate"><p className="font-semibold text-xs truncate">{p.name}</p><p className="text-[10px] text-muted-foreground">{p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></div></div><div className="flex items-center opacity-0 group-hover:opacity-100"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingProduct(p); productForm.reset({ id: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl || '' }); setIsProductFormOpen(true); }}><Pencil className="h-3 w-3" /></Button><Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); setDeletingProduct(p); }}><Trash2 className="h-3 w-3" /></Button></div></div> ))}</div></ScrollArea></CardContent></Card>
-        </div>
-      </div>
-      <Card className="mt-6"><CardHeader><CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5"/>Propostas Geradas</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Investimento</TableHead><TableHead>Mensal</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader><TableBody>{proposals.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-20 text-muted-foreground">Vazio</TableCell></TableRow> : proposals.map(p => ( <TableRow key={p.id}><TableCell className="font-bold">#{p.id}</TableCell><TableCell>{p.clientName}</TableCell><TableCell>{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell><TableCell className="text-primary font-medium">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell><TableCell className="text-emerald-500 font-medium">{p.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell><TableCell className="text-right"><div className="flex justify-end gap-1"><Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleCloneProposalClick(p)} title="Clonar Proposta"><Copy className="h-4 w-4" /></Button><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleEditProposalClick(p)} title="Editar"><Pencil className="h-4 w-4" /></Button><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedProposal(p)} title="Imprimir"><Printer className="h-4 w-4" /></Button><Button variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingProposal(p)} title="Excluir"><Trash2 className="h-4 w-4" /></Button></div></TableCell></TableRow> ))}</TableBody></Table></CardContent></Card>
-        
-        <Dialog open={!!selectedProposal} onOpenChange={(open) => !open && setSelectedProposal(null)}>
-          <DialogContent className="sm:max-w-[1000px] h-[95vh] flex flex-col p-0">
-            <DialogHeader className="print-hide p-6 pb-0">
-              <DialogTitle>Pré-visualização da Proposta</DialogTitle>
-            </DialogHeader>
-            {selectedProposal && (
-              <ScrollArea className="flex-1 bg-muted/30 p-8">
-                <div 
-                  id="proposal-preview" 
-                  className="bg-white text-black mx-auto p-12 shadow-sm"
-                  style={{ width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif' }}
-                >
-                  <div className="flex justify-between items-start mb-10 border-b pb-6">
-                    <div className="flex items-center gap-6">
-                      {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="max-h-20 w-auto" />}
-                      <div>
-                        <h1 className="text-xl font-bold uppercase">{companyProfile.name}</h1>
-                        <p className="text-xs text-gray-500">{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                      </div>
-                    </div>
-                    <div className="text-right text-[10px] text-gray-400 max-w-[200px]">
-                      <p>{companyProfile.address}</p>
-                    </div>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form">
+              <Card>
+                <CardHeader className="flex flex-row items-start justify-between">
+                  <div>
+                    <CardTitle>{editingProposal ? `Editando Proposta ${editingProposal.id}` : 'Nova Proposta'}</CardTitle>
+                    <CardDescription>Preencha para gerar o documento.</CardDescription>
                   </div>
-
-                  <div className="text-center mb-10">
-                    <h2 className="text-2xl font-bold uppercase border-b-2 border-black pb-2 inline-block">Proposta Comercial</h2>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-10 mb-10 text-sm">
-                    <div>
-                      <p className="font-bold text-gray-400 uppercase text-[10px] mb-1">Destinatário</p>
-                      <p className="font-bold text-lg">{selectedProposal.clientName}</p>
-                      {selectedProposal.contactName && <p className="font-bold text-primary">A/C: {selectedProposal.contactName}</p>}
-                      <p className="text-gray-500">{formatPhoneNumber(selectedProposal.clientPhone || '')}</p>
-                    </div>
-                    <div className="text-right flex flex-col justify-end">
-                      <p className="text-xs"><strong>Nº Proposta:</strong> {selectedProposal.id}</p>
-                      <p className="text-xs"><strong>Emissão:</strong> {format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
-                      <p className="text-xs text-red-600 font-bold"><strong>Validade:</strong> {format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 text-sm mb-10 leading-relaxed text-gray-700">
-                    <p>Temos a satisfação de apresentar nossa proposta comercial, desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
-                    <p>Com ampla experiência de mercado, a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas. Nosso compromisso é com a qualidade absoluta, desde o primeiro contato até o suporte contínuo.</p>
-                  </div>
-
-                  <div className="mb-10">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="p-3 border-b border-gray-300 font-bold">Item / Descrição</th>
-                          <th className="p-3 border-b border-gray-300 text-center font-bold">Qtd.</th>
-                          <th className="p-3 border-b border-gray-300 text-right font-bold">Unitário</th>
-                          <th className="p-3 border-b border-gray-300 text-right font-bold">Subtotal</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedProposal.items.map((it, i) => (
-                          <tr key={i} className="border-b border-gray-100">
-                            <td className="p-3">
-                              {it.name} 
-                              {it.isMonthly && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded ml-2">MENSAL</span>}
-                            </td>
-                            <td className="p-3 text-center">{it.quantity}</td>
-                            <td className="p-3 text-right">{(Number(it.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                            <td className="p-3 text-right font-bold">{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    
-                    <div className="flex justify-end mt-6">
-                      <div className="w-1/2 space-y-2">
-                        <div className="flex justify-between py-2 border-b">
-                          <span className="text-gray-400 font-bold uppercase text-[10px]">Investimento Único:</span>
-                          <span className="font-bold text-lg">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                        <div className="flex justify-between py-2 bg-emerald-50 px-3 rounded text-emerald-800">
-                          <span className="font-bold uppercase text-[10px]">Recorrência Mensal:</span>
-                          <span className="font-bold text-lg">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-8 mb-10">
-                    <div className="bg-gray-50 p-6 rounded-lg border border-gray-100 text-xs">
-                      <h3 className="font-bold mb-3 uppercase text-gray-400 text-[10px]">Condições de Pagamento</h3>
+                  <div className="flex gap-4">
+                    <FormField control={form.control} name="proposalDate" render={({ field }) => (
                       <div className="space-y-1">
-                        <p><strong>Forma:</strong> {selectedProposal.paymentMethod.toUpperCase()}</p>
-                        <p><strong>Parcelamento:</strong> {selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                        {selectedProposal.firstAsDownPayment && selectedProposal.installments > 1 && <p className="text-primary font-bold">(1ª Parcela como entrada)</p>}
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emissão</Label>
+                        <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[120px] h-8 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
                       </div>
+                    )} />
+                    <FormField control={form.control} name="validityDate" render={({ field }) => (
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Validade</Label>
+                        <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[120px] h-8 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                      </div>
+                    )} />
+                  </div>
+                </CardHeader>
+                <CardContent className="border-t pt-6 space-y-6">
+                  <div className="flex items-center gap-4">
+                    {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="h-12 w-auto object-contain" />}
+                    <div>
+                      <h3 className="font-bold">{companyProfile.name}</h3>
+                      <p className="text-xs text-muted-foreground">{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
                     </div>
-                    {selectedProposal.observations && (
-                      <div className="bg-gray-50 p-6 rounded-lg border border-gray-100 text-xs">
-                        <h3 className="font-bold mb-3 uppercase text-gray-400 text-[10px]">Observações Adicionais</h3>
-                        <p className="whitespace-pre-wrap italic text-gray-600">{selectedProposal.observations}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
+                          <SelectTrigger><SelectValue placeholder="Selecione um cliente..." /></SelectTrigger>
+                          <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <Button type="button" variant="outline" onClick={handleQuickAddClient}><PlusCircle className="mr-2 h-4 w-4" />Avulso</Button>
+                    </div>
+
+                    {isQuickAddingClient && (
+                      <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField control={form.control} name="clientName" render={({ field }) => (
+                            <FormItem><FormLabel>Empresa / Cliente</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                          )} />
+                          <FormField control={form.control} name="contactName" render={({ field }) => (
+                            <FormItem><FormLabel>Pessoa de Contato</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                          )} />
+                        </div>
+                        <FormField control={form.control} name="clientPhone" render={({ field }) => (
+                          <FormItem><FormLabel>Telefone / WhatsApp</FormLabel><FormControl><Input {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} /></FormControl></FormItem>
+                        )} />
+                        <div className="flex items-center justify-between p-3 bg-primary/5 rounded-md">
+                          <div>
+                            <p className="text-xs font-bold text-primary">Salvar nos meus contatos?</p>
+                            <p className="text-[10px] text-muted-foreground">Adiciona à base atual automaticamente.</p>
+                          </div>
+                          <FormField control={form.control} name="saveToContacts" render={({ field }) => (
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          )} />
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-20 pt-10 text-center">
-                    <div className="w-40 h-px bg-gray-300 mx-auto mb-2"></div>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">{companyProfile.name}</p>
+                  <div className="space-y-4 border-t pt-6">
+                    <h4 className="text-sm font-bold">Itens da Proposta</h4>
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead className="w-20">Qtd.</TableHead><TableHead className="w-28">Preço</TableHead><TableHead className="w-24">Recorrência</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {fields.map((it, idx) => (
+                          <TableRow key={it.id}>
+                            <TableCell><Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} /></TableCell>
+                            <TableCell><Input type="number" {...form.register(`items.${idx}.quantity`)} /></TableCell>
+                            <TableCell><Input type="number" step="0.01" {...form.register(`items.${idx}.price`)} /></TableCell>
+                            <TableCell>
+                              <Controller control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (
+                                <Select onValueChange={v => field.onChange(v === 'M')} value={field.value ? 'M' : 'U'}>
+                                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                  <SelectContent><SelectItem value="U">Único</SelectItem><SelectItem value="M">Mensal</SelectItem></SelectContent>
+                                </Select>
+                              )} />
+                            </TableCell>
+                            <TableCell><Button variant="ghost" size="icon" onClick={() => remove(idx)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })}><PlusCircle className="mr-2 h-4 w-4" />Novo Item</Button>
                   </div>
+
+                  <div className="border-t pt-6">
+                    <FormField control={form.control} name="observations" render={({ field }) => (
+                      <FormItem><FormLabel>Observações e Prazos</FormLabel><FormControl><Textarea rows={3} placeholder="Ex: Prazo de entrega: 5 dias..." {...field} /></FormControl></FormItem>
+                    )} />
+                  </div>
+                </CardContent>
+              </Card>
+            </form>
+          </Form>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle>Pagamento e Resumo</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs">Forma de Pagamento</Label>
+                <Controller control={form.control} name="paymentMethod" render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="boleto">Boleto</SelectItem><SelectItem value="pix">PIX</SelectItem><SelectItem value="cartao">Cartão</SelectItem></SelectContent>
+                  </Select>
+                )} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Parcelas</Label>
+                <Controller control={form.control} name="installments" render={({ field }) => (
+                  <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x de {((totals.oneTime / (i+1)) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</SelectItem>)}</SelectContent>
+                  </Select>
+                )} />
+              </div>
+              <Separator />
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between font-bold"><span>Total Único:</span><span className="text-primary">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                <div className="flex justify-between font-bold"><span>Total Mensal:</span><span className="text-emerald-500">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+              </div>
+            </CardContent>
+            <CardFooter><Button type="submit" form="proposal-form" className="w-full">Salvar Proposta</Button></CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4"><CardTitle className="text-xs">Produtos Rápidos</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-60 px-4 pb-4">
+                <div className="space-y-1">
+                  {filteredProducts.map(p => (
+                    <div key={p.id} className="flex items-center justify-between p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => append({ name: p.name, quantity: 1, price: p.price, isMonthly: false })}>
+                      <div className="flex items-center gap-2 truncate">
+                        {p.imageUrl ? <img src={p.imageUrl} className="h-8 w-8 rounded object-cover" /> : <div className="h-8 w-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="h-4 w-4" /></div>}
+                        <div className="truncate"><p className="text-xs font-bold truncate">{p.name}</p><p className="text-[10px] text-muted-foreground">{p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </ScrollArea>
-            )}
-            <DialogFooter className="print-hide border-t p-6 gap-2">
-              <Button variant="outline" onClick={() => setSelectedProposal(null)}>Fechar</Button>
-              <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>
-                {isDownloading ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4" />}
-                Baixar PDF
-              </Button>
-              <Button variant="outline" className="gap-2" onClick={() => handleSendWhatsAppText(selectedProposal!)}>
-                <Send className="h-4 w-4" /> WhatsApp (Texto)
-              </Button>
-              <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => handleSharePdf(selectedProposal!)} disabled={isSharing}>
-                {isSharing ? <Loader2 className="animate-spin h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-                Enviar PDF (WhatsApp)
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
-        <AlertDialog open={!!deletingProposal} onOpenChange={(open) => !open && setDeletingProposal(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir Proposta?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Não</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction}>Sim, Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-        <Dialog open={isProductFormOpen} onOpenChange={setIsProductFormOpen}><DialogContent className="sm:max-w-[450px]"><Form {...productForm}><form onSubmit={productForm.handleSubmit(onProductSubmit)}><DialogHeader><DialogTitle>Gerenciar Produto</DialogTitle></DialogHeader><div className="grid gap-6 py-4"><div className="flex flex-col items-center gap-4"><div className="relative group h-32 w-32 rounded-lg border-2 border-dashed border-primary/20 bg-primary/5 flex items-center justify-center cursor-pointer overflow-hidden hover:bg-primary/10 transition-colors" onClick={() => fileInputRef.current?.click()}>{productImageUrl ? ( <img src={productImageUrl} alt="Preview" className="h-full w-full object-cover" /> ) : ( <div className="flex flex-col items-center gap-1 text-muted-foreground"><UploadCloud className="h-8 w-8" /><span className="text-[10px] font-medium">Add Foto</span></div> )}<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Camera className="h-6 w-6 text-white" /></div><input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} /></div>{productImageUrl && ( <Button type="button" variant="ghost" size="sm" className="h-6 text-xs text-destructive" onClick={() => productForm.setValue('imageUrl', '')}>Remover Foto</Button> )}</div><FormField control={productForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome do Produto</FormLabel><FormControl><Input placeholder="Nome do produto ou serviço" {...field} /></FormControl><FormMessage /></FormItem> )} /><FormField control={productForm.control} name="price" render={({ field }) => ( <FormItem><FormLabel>Preço Base</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem> )} /></div><DialogFooter><Button type="button" variant="outline" onClick={() => setIsProductFormOpen(false)}>Cancelar</Button><Button type="submit">Salvar</Button></DialogFooter></form></Form></DialogContent></Dialog>
-        <AlertDialog open={!!deletingProduct} onOpenChange={(open) => !open && setDeletingProduct(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remover Produto?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteProductAction}>Remover</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <Card className="mt-6">
+        <CardHeader><CardTitle>Propostas Geradas</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Total</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {proposals.map(p => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-bold">#{p.id}</TableCell>
+                  <TableCell>{p.clientName}</TableCell>
+                  <TableCell>{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell className="text-primary font-bold">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                  <TableCell className="text-right flex justify-end gap-1">
+                    <Button variant="outline" size="icon" onClick={() => handleCloneProposalClick(p)}><Copy className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="icon" onClick={() => handleEditProposalClick(p)}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="icon" onClick={() => setSelectedProposal(p)}><Printer className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="icon" className="text-destructive" onClick={() => setDeletingProposal(p)}><Trash2 className="h-4 w-4" /></Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!selectedProposal} onOpenChange={o => !o && setSelectedProposal(null)}>
+        <DialogContent className="sm:max-w-[950px] h-[95vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-0"><DialogTitle>Pré-visualização do PDF (A4)</DialogTitle></DialogHeader>
+          <ScrollArea className="flex-1 bg-muted/30 p-8">
+            <div id="proposal-preview" className="bg-white text-black mx-auto p-12 shadow-md" style={{ width: '210mm', minHeight: '297mm', fontFamily: 'Arial, sans-serif', fontSize: '12pt', lineWeight: '1.5' }}>
+              <div className="flex justify-between items-start mb-10 border-b pb-6">
+                <div className="flex items-center gap-6">
+                  {companyProfile.logoUrl && <img src={companyProfile.logoUrl} className="max-h-16 w-auto" />}
+                  <div>
+                    <h1 className="text-xl font-bold uppercase">{companyProfile.name}</h1>
+                    <p className="text-xs text-gray-500">{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
+                  </div>
+                </div>
+                <div className="text-right text-[9px] text-gray-400 max-w-[250px] uppercase">{companyProfile.address}</div>
+              </div>
+
+              <div className="text-center mb-10"><h2 className="text-2xl font-bold uppercase border-b-2 border-black inline-block pb-1">Proposta Comercial</h2></div>
+
+              <div className="grid grid-cols-2 gap-10 mb-10">
+                <div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Destinatário</p>
+                  <p className="font-bold text-lg">{selectedProposal?.clientName}</p>
+                  {selectedProposal?.contactName && <p className="font-bold text-primary">A/C: {selectedProposal.contactName}</p>}
+                  <p className="text-sm text-gray-500">{formatPhoneNumber(selectedProposal?.clientPhone || '')}</p>
+                </div>
+                <div className="text-right flex flex-col justify-end text-sm">
+                  <p><strong>Nº Proposta:</strong> {selectedProposal?.id}</p>
+                  <p><strong>Emissão:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                  <p className="text-red-600 font-bold"><strong>Validade:</strong> {selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 text-sm mb-10 text-gray-700 leading-relaxed">
+                <p>Temos a satisfação de apresentar nossa proposta comercial, desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
+                <p>Com ampla experiência de mercado, a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas. Nosso compromisso é com a qualidade absoluta, desde o primeiro contato até o suporte contínuo.</p>
+              </div>
+
+              <div className="mb-10">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-gray-100"><tr><th className="p-3 border-b border-gray-300 font-bold">Item / Descrição</th><th className="p-3 border-b border-gray-300 text-center font-bold">Qtd.</th><th className="p-3 border-b border-gray-300 text-right font-bold">Unitário</th><th className="p-3 border-b border-gray-300 text-right font-bold">Subtotal</th></tr></thead>
+                  <tbody>{selectedProposal?.items.map((it, i) => (
+                    <tr key={i} className="border-b border-gray-100"><td className="p-3">{it.name} {it.isMonthly && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded ml-2">MENSAL</span>}</td><td className="p-3 text-center">{it.quantity}</td><td className="p-3 text-right">{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="p-3 text-right font-bold">{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                  ))}</tbody>
+                </table>
+                <div className="flex justify-end mt-6">
+                  <div className="w-1/2 space-y-2">
+                    <div className="flex justify-between py-2 border-b"><span className="text-gray-400 font-bold uppercase text-[10px]">Investimento Único:</span><span className="font-bold text-lg">{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                    <div className="flex justify-between py-2 bg-emerald-50 px-3 rounded text-emerald-800"><span className="font-bold uppercase text-[10px]">Recorrência Mensal:</span><span className="font-bold text-lg">{selectedProposal?.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8 mb-10">
+                <div className="bg-gray-50 p-6 rounded-lg border border-gray-100 text-xs">
+                  <h3 className="font-bold mb-2 uppercase text-gray-400 text-[10px]">Pagamento</h3>
+                  <p><strong>Forma:</strong> {selectedProposal?.paymentMethod.toUpperCase()}</p>
+                  <p><strong>Parcelamento:</strong> {selectedProposal?.installments}x de {(selectedProposal ? selectedProposal.totalOneTime / selectedProposal.installments : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                </div>
+                <div className="bg-gray-50 p-6 rounded-lg border border-gray-100 text-xs">
+                  <h3 className="font-bold mb-2 uppercase text-gray-400 text-[10px]">Notas Adicionais</h3>
+                  <p className="whitespace-pre-wrap italic">{selectedProposal?.observations || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter className="p-6 border-t gap-2">
+            <Button variant="outline" onClick={() => setSelectedProposal(null)}>Fechar</Button>
+            <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>{isDownloading ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4" />} Baixar PDF</Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleSharePdf(selectedProposal!)} disabled={isSharing}><Share2 className="h-4 w-4 mr-2" /> Enviar PDF</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deletingProposal} onOpenChange={o => !o && setDeletingProposal(null)}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir Proposta?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Não</AlertDialogCancel><AlertDialogAction onClick={() => { deleteProposal(deletingProposal!.id); setDeletingProposal(null); }}>Sim, Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
