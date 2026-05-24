@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -111,7 +110,19 @@ const proposalSchema = z.object({
 type ProposalFormValues = z.infer<typeof proposalSchema>;
 
 export default function PropostasPage() {
-  const { companyProfile, customers, products, addProduct, proposals, addProposal, updateProposal, deleteProposal, addCustomer, currentUser } = useSettings();
+  const { 
+    companyProfile, 
+    customers, 
+    products, 
+    addProduct, 
+    proposals, 
+    addProposal, 
+    updateProposal, 
+    deleteProposal, 
+    addCustomer, 
+    currentUser 
+  } = useSettings();
+  
   const { toast } = useToast();
   
   const [productSearch, setProductSearch] = useState('');
@@ -235,9 +246,10 @@ export default function PropostasPage() {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
                   el.style.width = '210mm';
-                  el.style.letterSpacing = "0px";
-                  el.style.wordSpacing = "0px";
+                  el.style.letterSpacing = "normal";
+                  el.style.wordSpacing = "normal";
                   el.style.fontVariantLigatures = "none";
+                  el.style.fontFamily = "Arial, sans-serif";
                 }
             }
         });
@@ -578,7 +590,7 @@ export default function PropostasPage() {
                             <FileText className="h-4 w-4 text-primary" /> Condições e Prazos Adicionais
                         </FormLabel>
                         <FormControl>
-                            <Textarea rows={3} placeholder="Ex: Prazo de entrega: 5 dias úteis após aprovação. Validade de preços enquanto durarem os estoques..." {...field} className="text-xs resize-none" />
+                            <Textarea rows={3} placeholder="Ex: Prazo de entrega: 5 dias úteis após aprovação..." {...field} className="text-xs resize-none" />
                         </FormControl>
                       </FormItem>
                     )} />
@@ -612,7 +624,7 @@ export default function PropostasPage() {
                 )} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Parcelamento (Investimento Único)</Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Parcelamento</Label>
                 <Controller control={form.control} name="installments" render={({ field }) => (
                   <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
@@ -685,9 +697,6 @@ export default function PropostasPage() {
                       </div>
                     </div>
                   ))}
-                  {filteredProducts.length === 0 && (
-                      <p className="text-[10px] text-center text-muted-foreground py-10 italic">Nenhum produto encontrado.</p>
-                  )}
                 </div>
               </ScrollArea>
             </CardContent>
@@ -722,7 +731,7 @@ export default function PropostasPage() {
                   </TableCell>
                   <TableCell className="text-right pr-6">
                     <div className="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCloneProposalClick(p)} title="Duplicar Proposta"><Copy className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCloneProposalClick(p)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditProposalClick(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => setSelectedProposal(p)} title="Visualizar PDF"><Printer className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => setDeletingProposal(p)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
@@ -730,11 +739,6 @@ export default function PropostasPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {proposals.length === 0 && (
-                  <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground italic">Nenhuma proposta gerada ainda.</TableCell>
-                  </TableRow>
-              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -758,19 +762,14 @@ export default function PropostasPage() {
                     fontSize: '11pt',
                     lineHeight: '1.45',
                     color: '#000000',
-                    letterSpacing: '0px',
-                    wordSpacing: '0px',
+                    letterSpacing: 'normal',
+                    wordSpacing: 'normal',
                     fontVariantLigatures: 'none'
                 }}
             >
-              {/* CABEÇALHO COM LOGO AO LADO DO NOME */}
               <div style={{ marginBottom: '35px', display: 'flex', alignItems: 'center', gap: '20px', borderLeft: '4px solid #000', paddingLeft: '20px' }}>
                 {companyProfile.logoUrl && (
-                  <img 
-                    src={companyProfile.logoUrl} 
-                    alt="Logo" 
-                    style={{ maxHeight: '60px', width: 'auto', display: 'block', objectFit: 'contain' }} 
-                  />
+                  <img src={companyProfile.logoUrl} alt="Logo" style={{ maxHeight: '60px', width: 'auto', display: 'block', objectFit: 'contain' }} />
                 )}
                 <div style={{ textAlign: 'left' }}>
                   <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
@@ -779,14 +778,12 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TÍTULO DA PROPOSTA CENTRALIZADO E SUBILINHADO */}
               <div style={{ marginBottom: '40px', textAlign: 'center' }}>
                 <p style={{ fontWeight: 'bold', margin: '0', fontSize: '14pt', textTransform: 'uppercase', textDecoration: 'underline', borderBottom: '1px solid black', display: 'inline-block', paddingBottom: '2px' }}>
                     PROPOSTA COMERCIAL
                 </p>
               </div>
 
-              {/* IDENTIFICAÇÃO DO DESTINATÁRIO (ESTILO IMAGEM) */}
               <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ textAlign: 'left' }}>
                     <p style={{ color: '#94a3b8', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 8px 0' }}>DESTINATÁRIO</p>
@@ -801,14 +798,12 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TEXTO INSTITUCIONAL ORIGINAL */}
               <div style={{ marginBottom: '30px', textAlign: 'left', fontSize: '11pt' }}>
                 <p style={{ marginBottom: '20px' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ marginBottom: '20px' }}>Com ampla experiência de mercado a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
                 <p style={{ marginBottom: '30px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
               </div>
 
-              {/* TABELA DE ITENS */}
               <div style={{ marginBottom: '35px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left' }}>
                   <thead>
@@ -834,7 +829,6 @@ export default function PropostasPage() {
                   </tbody>
                 </table>
                 
-                {/* RESUMO FINANCEIRO */}
                 <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end' }}>
                     <div style={{ width: '300px', padding: '15px', backgroundColor: '#fcfcfc', border: '1px solid #eee', borderRadius: '4px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -851,13 +845,12 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* CONDIÇÕES DE PAGAMENTO */}
               <div style={{ marginTop: '40px', padding: '20px', border: '1px solid #000', borderRadius: '2px', backgroundColor: '#fff' }}>
                 <p style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '11pt', textDecoration: 'underline' }}>CONDIÇÕES DE PAGAMENTO:</p>
                 <div style={{ fontSize: '10.5pt', lineHeight: '1.6' }}>
                     <p style={{ margin: '4px 0' }}>• <strong>Forma de Pagamento:</strong> {selectedProposal?.paymentMethod.toUpperCase()}</p>
                     <p style={{ margin: '4px 0' }}>• <strong>Condição:</strong> {selectedProposal?.installments}x de {(selectedProposal ? selectedProposal.totalOneTime / selectedProposal.installments : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                    {selectedProposal?.firstAsDownPayment && <p style={{ margin: '4px 0', fontStyle: 'italic' }}>• Primeira parcela como entrada (no ato do fechamento).</p>}
+                    {selectedProposal?.firstAsDownPayment && <p style={{ margin: '4px 0', fontStyle: 'italic' }}>• Primeira parcela como entrada.</p>}
                 </div>
                 
                 {selectedProposal?.observations && (
@@ -868,7 +861,6 @@ export default function PropostasPage() {
                 )}
               </div>
 
-              {/* BLOCO DE ASSINATURAS */}
               <div style={{ marginTop: '80px', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '10pt' }}>
                 <div style={{ width: '240px' }}>
                   <div style={{ borderTop: '1px solid #000', marginBottom: '8px' }}></div>
@@ -900,12 +892,12 @@ export default function PropostasPage() {
       <AlertDialog open={!!deletingProposal} onOpenChange={o => !o && setDeletingProposal(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>Excluir Orçamento permanentemente?</AlertDialogTitle>
-                <AlertDialogDescription>Essa ação removerá o registro #{deletingProposal?.id} da sua base de dados e não pode ser desfeita.</AlertDialogDescription>
+                <AlertDialogTitle>Excluir Orçamento?</AlertDialogTitle>
+                <AlertDialogDescription>Essa ação removerá o registro da sua base de dados e não pode ser desfeita.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>Manter Registro</AlertDialogCancel>
-                <AlertDialogAction onClick={() => { deleteProposal(deletingProposal!.id); setDeletingProposal(null); }} className="bg-destructive hover:bg-destructive/90">Confirmar Exclusão</AlertDialogAction>
+                <AlertDialogCancel>Manter</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { deleteProposal(deletingProposal!.id); setDeletingProposal(null); }} className="bg-destructive hover:bg-destructive/90">Confirmar</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
