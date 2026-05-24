@@ -128,6 +128,7 @@ export type Proposal = {
   id: string;
   clientId?: string;
   clientName: string;
+  contactName?: string;
   clientPhone?: string;
   proposalDate: string; // ISO string
   validityDate: string; // ISO string

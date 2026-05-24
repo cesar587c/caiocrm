@@ -60,6 +60,8 @@ import {
   UploadCloud,
   Camera,
   Copy,
+  User,
+  UserPlus,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -87,8 +89,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import type { Product, Proposal } from '@/lib/types';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import type { Product, Proposal, Customer } from '@/lib/types';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 
 const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -100,7 +103,10 @@ const proposalItemSchema = z.object({
 const proposalSchema = z.object({
   clientId: z.string().optional(),
   clientName: z.string().min(1, 'O nome do cliente é obrigatório.'),
+  contactName: z.string().optional(),
   clientPhone: z.string().optional(),
+  saveToContacts: z.boolean().default(false),
+  contactType: z.enum(['lead', 'one_time']).default('lead'),
   proposalDate: z.date(),
   validityDate: z.date(),
   items: z.array(proposalItemSchema).min(1, 'Adicione pelo menos um item.'),
@@ -122,7 +128,7 @@ const productFormSchema = z.object({
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 export default function PropostasPage() {
-  const { companyProfile, customers, products, addProduct, updateProduct, deleteProduct, proposals, addProposal, updateProposal, deleteProposal } = useSettings();
+  const { companyProfile, customers, products, addProduct, updateProduct, deleteProduct, proposals, addProposal, updateProposal, deleteProposal, addCustomer, currentUser } = useSettings();
   const { toast } = useToast();
   const [productSearch, setProductSearch] = useState('');
   const [isQuickAddingClient, setIsQuickAddingClient] = useState(false);
@@ -153,7 +159,10 @@ export default function PropostasPage() {
     resolver: zodResolver(proposalSchema),
     defaultValues: {
       clientName: '',
+      contactName: '',
       clientPhone: '',
+      saveToContacts: false,
+      contactType: 'lead',
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
       items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
@@ -185,6 +194,7 @@ export default function PropostasPage() {
   
   const watchInstallments = form.watch('installments');
   const watchFirstAsDownPayment = form.watch('firstAsDownPayment');
+  const watchSaveToContacts = form.watch('saveToContacts');
   const productImageUrl = productForm.watch('imageUrl');
 
   const totals = useMemo(() => {
@@ -216,6 +226,7 @@ export default function PropostasPage() {
     if (client) {
       form.setValue('clientId', client.id);
       form.setValue('clientName', client.nomeFantasia || client.name);
+      form.setValue('contactName', client.contactName || '');
       form.setValue('clientPhone', formatPhoneNumber(client.telefone || client.phone2 || ''));
       setIsQuickAddingClient(false);
     }
@@ -224,6 +235,7 @@ export default function PropostasPage() {
   const handleQuickAddClient = () => {
     form.setValue('clientId', undefined);
     form.setValue('clientName', '');
+    form.setValue('contactName', '');
     form.setValue('clientPhone', '');
     setIsQuickAddingClient(true);
   }
@@ -290,7 +302,7 @@ export default function PropostasPage() {
         ? ` (sendo a 1ª como entrada)` 
         : '';
 
-    const message = `Olá, ${proposal.clientName}! 👋
+    const message = `Olá, ${proposal.contactName || proposal.clientName}! 👋
 Segue a sua proposta comercial da ${companyProfile.name}.
 
 *Proposta:* ${proposal.id}
@@ -445,7 +457,10 @@ ${formatPhoneNumber(companyProfile.phone)}`;
     form.reset({
       clientId: proposal.clientId,
       clientName: proposal.clientName,
+      contactName: proposal.contactName || '',
       clientPhone: formatPhoneNumber(proposal.clientPhone || ''),
+      saveToContacts: false,
+      contactType: 'lead',
       proposalDate: new Date(proposal.proposalDate),
       validityDate: new Date(proposal.validityDate),
       items: proposal.items,
@@ -463,7 +478,10 @@ ${formatPhoneNumber(companyProfile.phone)}`;
     form.reset({
       clientId: proposal.clientId,
       clientName: proposal.clientName,
+      contactName: proposal.contactName || '',
       clientPhone: formatPhoneNumber(proposal.clientPhone || ''),
+      saveToContacts: false,
+      contactType: 'lead',
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
       items: proposal.items.map(item => ({ ...item })),
@@ -481,7 +499,10 @@ ${formatPhoneNumber(companyProfile.phone)}`;
     setEditingProposal(null);
     form.reset({
       clientName: '',
+      contactName: '',
       clientPhone: '',
+      saveToContacts: false,
+      contactType: 'lead',
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
       items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
@@ -503,13 +524,60 @@ ${formatPhoneNumber(companyProfile.phone)}`;
         },
         { oneTime: 0, monthly: 0 }
     );
+
+    let savedClientId = data.clientId;
+
+    // Lógica para cadastrar novo cliente/lead se solicitado
+    if (isQuickAddingClient && data.saveToContacts && !editingProposal) {
+        const newCustomer: Omit<Customer, 'id'> = {
+            name: data.clientName,
+            nomeFantasia: data.clientName,
+            contactName: data.contactName,
+            telefone: data.clientPhone?.replace(/\D/g, ''),
+            email: '',
+            status: data.contactType === 'lead' ? 'lead' : 'new',
+            type: data.contactType === 'lead' ? 'lead' : 'one_time',
+            responsible: currentUser?.name || 'Admin',
+            potential: 'medium',
+            lastContact: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            interactions: [{
+                id: `int_${Date.now()}`,
+                timestamp: new Date().toISOString(),
+                summary: `Cliente cadastrado automaticamente via Gerador de Propostas.`,
+                userId: currentUser?.id || 'admin',
+                userName: currentUser?.name || 'Admin'
+            }]
+        };
+        // O addCustomer agora é void no contexto, mas o contexto poderia retornar o objeto ou ID
+        // Como o ID é gerado internamente, vamos apenas proceder
+        addCustomer(newCustomer);
+        toast({ title: 'Novo Contato Salvo!', description: `${data.clientName} foi adicionado à sua base como ${data.contactType === 'lead' ? 'Lead' : 'Cliente'}.` });
+    }
+
     if (editingProposal) {
-      const updatedP: Proposal = { ...data, id: editingProposal.id, clientPhone: data.clientPhone ? data.clientPhone.replace(/\D/g, '') : '', proposalDate: data.proposalDate.toISOString(), validityDate: data.validityDate.toISOString(), totalOneTime: currentTotals.oneTime, totalMonthly: currentTotals.monthly };
+      const updatedP: Proposal = { 
+        ...data, 
+        id: editingProposal.id, 
+        clientPhone: data.clientPhone ? data.clientPhone.replace(/\D/g, '') : '', 
+        proposalDate: data.proposalDate.toISOString(), 
+        validityDate: data.validityDate.toISOString(), 
+        totalOneTime: currentTotals.oneTime, 
+        totalMonthly: currentTotals.monthly 
+      };
       updateProposal(updatedP);
       toast({ title: 'Proposta Atualizada!' });
     } else {
       const newId = proposals.length > 0 ? Math.max(0, ...proposals.map(p => Number(p.id))) + 1 : 1;
-      const newP: Proposal = { ...data, id: String(newId), clientPhone: data.clientPhone ? data.clientPhone.replace(/\D/g, '') : '', proposalDate: data.proposalDate.toISOString(), validityDate: data.validityDate.toISOString(), totalOneTime: currentTotals.oneTime, totalMonthly: currentTotals.monthly };
+      const newP: Proposal = { 
+        ...data, 
+        id: String(newId), 
+        clientPhone: data.clientPhone ? data.clientPhone.replace(/\D/g, '') : '', 
+        proposalDate: data.proposalDate.toISOString(), 
+        validityDate: data.validityDate.toISOString(), 
+        totalOneTime: currentTotals.oneTime, 
+        totalMonthly: currentTotals.monthly 
+      };
       addProposal(newP);
       toast({ title: 'Proposta Salva!' });
     }
@@ -542,7 +610,133 @@ ${formatPhoneNumber(companyProfile.phone)}`;
                     <Card className="mt-6">
                         <CardHeader><CardTitle>Dados do Cliente</CardTitle><CardDescription>Selecione um cliente ou preencha manualmente.</CardDescription></CardHeader>
                         <CardContent className="space-y-4">
-                            {!editingProposal ? ( <> <div className="flex gap-2"><div className="flex-1"><Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}><SelectTrigger><SelectValue placeholder="Selecione um cliente..." /></SelectTrigger><SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent></Select></div><Button type="button" variant="outline" onClick={handleQuickAddClient}><PlusCircle className="mr-2 h-4 w-4" />Avulso</Button></div> {isQuickAddingClient && ( <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/20"><div className="space-y-2"><Label>Nome do Cliente</Label><Input {...form.register('clientName')} placeholder="Nome completo" /></div><div className="space-y-2"><Label>Telefone</Label><Input {...form.register('clientPhone')} placeholder="(00) 00000-0000" onChange={(e) => form.setValue('clientPhone', formatPhoneNumber(e.target.value))} /></div></div> )} </> ) : ( <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-md bg-muted/50"><div><span className="font-semibold">Cliente:</span> {form.getValues('clientName')}</div><div><span className="font-semibold">Telefone:</span> {form.getValues('clientPhone')}</div></div> )}
+                            {!editingProposal ? ( 
+                              <> 
+                                <div className="flex gap-2">
+                                  <div className="flex-1">
+                                    <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
+                                      <SelectTrigger><SelectValue placeholder="Selecione um cliente..." /></SelectTrigger>
+                                      <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  </div>
+                                  <Button type="button" variant={isQuickAddingClient ? "secondary" : "outline"} onClick={handleQuickAddClient}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />Avulso
+                                  </Button>
+                                </div> 
+                                {isQuickAddingClient && ( 
+                                  <div className="space-y-4 p-4 border rounded-md bg-muted/20">
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                      <FormField
+                                        control={form.control}
+                                        name="clientName"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel className="flex items-center gap-2"><Building className="h-3.5 w-3.5"/>Empresa / Cliente</FormLabel>
+                                            <FormControl><Input placeholder="Nome completo ou Razão Social" {...field} /></FormControl>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+                                      <FormField
+                                        control={form.control}
+                                        name="contactName"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel className="flex items-center gap-2"><User className="h-3.5 w-3.5"/>Pessoa de Contato</FormLabel>
+                                            <FormControl><Input placeholder="Ex: Sr. Carlos" {...field} /></FormControl>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+                                    </div>
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                      <FormField
+                                        control={form.control}
+                                        name="clientPhone"
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel>Telefone / WhatsApp</FormLabel>
+                                            <FormControl><Input placeholder="(00) 00000-0000" {...field} onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} /></FormControl>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+                                    </div>
+                                    
+                                    <Separator className="my-2" />
+                                    
+                                    <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
+                                      <FormField
+                                        control={form.control}
+                                        name="saveToContacts"
+                                        render={({ field }) => (
+                                          <FormItem className="flex items-center justify-between space-y-0">
+                                            <div className="space-y-0.5">
+                                              <FormLabel className="flex items-center gap-2 text-primary font-bold">
+                                                <UserPlus className="h-4 w-4" />
+                                                Salvar nos meus contatos?
+                                              </FormLabel>
+                                              <FormDescription className="text-[10px]">
+                                                Adiciona automaticamente este cliente à sua base.
+                                              </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                            </FormControl>
+                                          </FormItem>
+                                        )}
+                                      />
+                                      
+                                      {watchSaveToContacts && (
+                                        <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                                          <FormField
+                                            control={form.control}
+                                            name="contactType"
+                                            render={({ field }) => (
+                                              <FormItem className="space-y-3">
+                                                <FormLabel className="text-xs uppercase text-muted-foreground font-bold">Cadastrar como:</FormLabel>
+                                                <FormControl>
+                                                  <RadioGroup
+                                                    onValueChange={field.onChange}
+                                                    defaultValue={field.value}
+                                                    className="flex flex-row space-x-4"
+                                                  >
+                                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                                      <FormControl><RadioGroupItem value="lead" /></FormControl>
+                                                      <FormLabel className="font-normal cursor-pointer">Lead (Funil)</FormLabel>
+                                                    </FormItem>
+                                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                                      <FormControl><RadioGroupItem value="one_time" /></FormControl>
+                                                      <FormLabel className="font-normal cursor-pointer">Cliente</FormLabel>
+                                                    </FormItem>
+                                                  </RadioGroup>
+                                                </FormControl>
+                                              </FormItem>
+                                            )}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div> 
+                                )} 
+                              </> 
+                            ) : ( 
+                              <div className="space-y-2 p-4 border rounded-md bg-muted/50">
+                                <div className="flex justify-between">
+                                  <div>
+                                    <p className="text-xs uppercase font-bold text-muted-foreground">Cliente</p>
+                                    <p className="font-bold">{form.getValues('clientName')}</p>
+                                  </div>
+                                  {form.getValues('contactName') && (
+                                    <div className="text-right">
+                                      <p className="text-xs uppercase font-bold text-muted-foreground">Aos cuidados de</p>
+                                      <p className="font-medium text-primary">{form.getValues('contactName')}</p>
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">{form.getValues('clientPhone')}</p>
+                              </div> 
+                            )}
                         </CardContent>
                     </Card>
                     <Card className="mt-6">
@@ -559,7 +753,7 @@ ${formatPhoneNumber(companyProfile.phone)}`;
         </div>
       </div>
       <Card className="mt-6"><CardHeader><CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5"/>Propostas Geradas</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Investimento</TableHead><TableHead>Mensal</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader><TableBody>{proposals.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center h-20 text-muted-foreground">Vazio</TableCell></TableRow> : proposals.map(p => ( <TableRow key={p.id}><TableCell className="font-bold">#{p.id}</TableCell><TableCell>{p.clientName}</TableCell><TableCell>{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell><TableCell className="text-primary font-medium">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell><TableCell className="text-emerald-500 font-medium">{p.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell><TableCell className="text-right"><div className="flex justify-end gap-1"><Button variant="outline" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleCloneProposalClick(p)} title="Clonar Proposta"><Copy className="h-4 w-4" /></Button><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleEditProposalClick(p)} title="Editar"><Pencil className="h-4 w-4" /></Button><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSelectedProposal(p)} title="Imprimir"><Printer className="h-4 w-4" /></Button><Button variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingProposal(p)} title="Excluir"><Trash2 className="h-4 w-4" /></Button></div></TableCell></TableRow> ))}</TableBody></Table></CardContent></Card>
-        <Dialog open={!!selectedProposal} onOpenChange={(open) => !open && setSelectedProposal(null)}><DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col"><DialogHeader className="print-hide"><DialogTitle>Pré-visualização da Proposta</DialogTitle></DialogHeader>{selectedProposal && ( <ScrollArea className="flex-1 -mx-6 px-6"><div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto my-8 border" style={{ fontFamily: 'Arial, sans-serif', letterSpacing: '0.01em' }}><div className="flex justify-between items-start mb-6" style={{ minHeight: '80px' }}><div className="flex items-center gap-5">{companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="max-h-16 w-auto" />}<div><h1 className="text-2xl font-bold uppercase leading-none" style={{ margin: '0' }}>{companyProfile.name}</h1></div></div><div className="text-right text-[10px] leading-relaxed text-gray-500"><p>{companyProfile.address}</p><p>{companyProfile.email}</p><p>{formatPhoneNumber(companyProfile.phone)}</p></div></div><div className="w-full h-px bg-gray-300 my-6"></div><div className="text-center mb-10"><h2 className="text-2xl font-bold uppercase tracking-widest border-b-2 border-black pb-2 inline-block">Proposta Comercial</h2></div><div className="grid grid-cols-2 gap-8 mb-10 text-sm"><div><p className="font-bold text-gray-500 uppercase text-[10px] mb-1">Para:</p><p className="font-bold text-lg leading-tight mb-1">{selectedProposal.clientName}</p><p className="text-gray-600">{formatPhoneNumber(selectedProposal.clientPhone || '')}</p></div><div className="text-right flex flex-col justify-end space-y-1"><p className="leading-none"><span className="font-bold">Nº Proposta:</span> #{selectedProposal.id}</p><p className="leading-none"><span className="font-bold">Emissão:</span> {format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p><p className="leading-none"><span className="font-bold">Validade:</span> {format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p></div></div><div className="space-y-4 text-sm mb-10 leading-relaxed text-justify"><p>Com mais de 18 anos de experiência, somos a junção de Soluções especializada em tecnologia.</p><p>Na área de Consultoria da Tecnologia dispomos das mais modernas ferramentas e profissionais altamente qualificados.</p><p>A Active Representações conta hoje com a parceria de grandes empresas para atender seus clientes de forma ágil e com grande qualidade profissional no mínimo de tempo e passa por rigor de análise em vários critérios, a começar pelo atendimento ao cliente.</p></div><table className="w-full text-left text-sm mb-10 border-collapse"><thead className="bg-gray-100"><tr><th className="p-3 font-bold border-b border-gray-300">Item</th><th className="p-3 text-center font-bold border-b border-gray-300">Qtd.</th><th className="p-3 text-right font-bold border-b border-gray-300">Preço Unit.</th><th className="p-3 text-right font-bold border-b border-gray-300">Subtotal</th></tr></thead><tbody>{selectedProposal.items.map((it, i) => ( <tr key={i} className="border-b border-gray-200"><td className="p-3">{it.name} {it.isMonthly && <span className="text-[10px] font-bold text-emerald-600">(mensal)</span>}</td><td className="p-3 text-center">{it.quantity}</td><td className="p-3 text-right">{(Number(it.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="p-3 text-right font-medium">{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr> ))}</tbody></table><div className="flex justify-end mb-10"><div className="w-1/2 space-y-2"><div className="flex justify-between text-sm py-1 border-b border-gray-100"><span className="font-medium">Total Único:</span> <span className="font-bold text-lg">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div><div className="flex justify-between text-sm text-emerald-700 py-1"><span className="font-medium">Total Mensal:</span> <span className="font-bold text-lg">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10"><div className="bg-gray-50 p-5 rounded-lg text-sm border border-gray-200 h-full"><h3 className="font-bold mb-4 uppercase text-[10px] text-gray-500 tracking-wider">Condições de Pagamento</h3><div className="space-y-2"><p className="flex items-baseline gap-2"><span className="font-bold text-gray-700">Forma:</span> <span className="uppercase">{selectedProposal.paymentMethod}</span></p><p className="flex items-baseline gap-2 flex-wrap"><span className="font-bold text-gray-700">Parcelas:</span> <span>{selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>{selectedProposal.firstAsDownPayment && selectedProposal.installments > 1 && ( <span className="text-[10px] font-bold text-primary">(Sendo a 1ª como entrada)</span> )}</p></div></div>{selectedProposal.observations && ( <div className="bg-gray-50 p-5 rounded-lg text-sm border border-gray-200 h-full"><h3 className="font-bold mb-4 uppercase text-[10px] text-gray-500 tracking-wider">Observações Gerais</h3><p className="whitespace-pre-wrap italic text-gray-700 leading-relaxed text-xs">{selectedProposal.observations}</p></div> )}</div><div className="mt-20 text-center"><div className="w-1/2 h-px bg-gray-300 mx-auto mb-2"></div><p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest">{companyProfile.name}</p></div></div></ScrollArea> )}<DialogFooter className="print-hide border-t pt-4 flex-wrap gap-2"><Button variant="outline" onClick={() => setSelectedProposal(null)}>Fechar</Button><Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>{isDownloading ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4" />} PDF</Button><Button variant="outline" className="gap-2" onClick={() => handleSendWhatsAppText(selectedProposal!)} title="Enviar resumo como texto"><Send className="h-4 w-4" /> WhatsApp (Texto)</Button><Button className="gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => handleSharePdf(selectedProposal!)} disabled={isSharing}>{isSharing ? <Loader2 className="animate-spin h-4 w-4" /> : <Share2 className="h-4 w-4" />} Enviar PDF (WhatsApp)</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={!!selectedProposal} onOpenChange={(open) => !open && setSelectedProposal(null)}><DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col"><DialogHeader className="print-hide"><DialogTitle>Pré-visualização da Proposta</DialogTitle></DialogHeader>{selectedProposal && ( <ScrollArea className="flex-1 -mx-6 px-6"><div id="proposal-preview" className="bg-white text-black p-12 shadow-lg max-w-2xl mx-auto my-8 border" style={{ fontFamily: 'Arial, sans-serif', letterSpacing: '0.01em' }}><div className="flex justify-between items-start mb-6" style={{ minHeight: '80px' }}><div className="flex items-center gap-5">{companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="max-h-16 w-auto" />}<div><h1 className="text-2xl font-bold uppercase leading-none" style={{ margin: '0' }}>{companyProfile.name}</h1></div></div><div className="text-right text-[10px] leading-relaxed text-gray-500"><p>{companyProfile.address}</p><p>{companyProfile.email}</p><p>{formatPhoneNumber(companyProfile.phone)}</p></div></div><div className="w-full h-px bg-gray-300 my-6"></div><div className="text-center mb-10"><h2 className="text-2xl font-bold uppercase tracking-widest border-b-2 border-black pb-2 inline-block">Proposta Comercial</h2></div><div className="grid grid-cols-2 gap-8 mb-10 text-sm"><div><p className="font-bold text-gray-500 uppercase text-[10px] mb-1">Para:</p><p className="font-bold text-lg leading-tight mb-0.5">{selectedProposal.clientName}</p>{selectedProposal.contactName && ( <p className="text-sm font-semibold text-primary mb-1">A/C: {selectedProposal.contactName}</p> )}<p className="text-gray-600">{formatPhoneNumber(selectedProposal.clientPhone || '')}</p></div><div className="text-right flex flex-col justify-end space-y-1"><p className="leading-none"><span className="font-bold">Nº Proposta:</span> #{selectedProposal.id}</p><p className="leading-none"><span className="font-bold">Emissão:</span> {format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p><p className="leading-none"><span className="font-bold">Validade:</span> {format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p></div></div><div className="space-y-4 text-sm mb-10 leading-relaxed text-justify"><p>Com mais de 18 anos de experiência, somos a junção de Soluções especializada em tecnologia.</p><p>Na área de Consultoria da Tecnologia dispomos das mais modernas ferramentas e profissionais altamente qualificados.</p><p>A Active Representações conta hoje com a parceria de grandes empresas para atender seus clientes de forma ágil e com grande qualidade profissional no mínimo de tempo e passa por rigor de análise em vários critérios, a começar pelo atendimento ao cliente.</p></div><table className="w-full text-left text-sm mb-10 border-collapse"><thead className="bg-gray-100"><tr><th className="p-3 font-bold border-b border-gray-300">Item</th><th className="p-3 text-center font-bold border-b border-gray-300">Qtd.</th><th className="p-3 text-right font-bold border-b border-gray-300">Preço Unit.</th><th className="p-3 text-right font-bold border-b border-gray-300">Subtotal</th></tr></thead><tbody>{selectedProposal.items.map((it, i) => ( <tr key={i} className="border-b border-gray-200"><td className="p-3">{it.name} {it.isMonthly && <span className="text-[10px] font-bold text-emerald-600">(mensal)</span>}</td><td className="p-3 text-center">{it.quantity}</td><td className="p-3 text-right">{(Number(it.price) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="p-3 text-right font-medium">{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr> ))}</tbody></table><div className="flex justify-end mb-10"><div className="w-1/2 space-y-2"><div className="flex justify-between text-sm py-1 border-b border-gray-100"><span className="font-medium">Total Único:</span> <span className="font-bold text-lg">{selectedProposal.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div><div className="flex justify-between text-sm text-emerald-700 py-1"><span className="font-medium">Total Mensal:</span> <span className="font-bold text-lg">{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10"><div className="bg-gray-50 p-5 rounded-lg text-sm border border-gray-200 h-full"><h3 className="font-bold mb-4 uppercase text-[10px] text-gray-500 tracking-wider">Condições de Pagamento</h3><div className="space-y-2"><p className="flex items-baseline gap-2"><span className="font-bold text-gray-700">Forma:</span> <span className="uppercase">{selectedProposal.paymentMethod}</span></p><p className="flex items-baseline gap-2 flex-wrap"><span className="font-bold text-gray-700">Parcelas:</span> <span>{selectedProposal.installments}x de {(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>{selectedProposal.firstAsDownPayment && selectedProposal.installments > 1 && ( <span className="text-[10px] font-bold text-primary">(Sendo a 1ª como entrada)</span> )}</p></div></div>{selectedProposal.observations && ( <div className="bg-gray-50 p-5 rounded-lg text-sm border border-gray-200 h-full"><h3 className="font-bold mb-4 uppercase text-[10px] text-gray-500 tracking-wider">Observações Gerais</h3><p className="whitespace-pre-wrap italic text-gray-700 leading-relaxed text-xs">{selectedProposal.observations}</p></div> )}</div><div className="mt-20 text-center"><div className="w-1/2 h-px bg-gray-300 mx-auto mb-2"></div><p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest">{companyProfile.name}</p></div></div></ScrollArea> )}<DialogFooter className="print-hide border-t pt-4 flex-wrap gap-2"><Button variant="outline" onClick={() => setSelectedProposal(null)}>Fechar</Button><Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading}>{isDownloading ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4" />} PDF</Button><Button variant="outline" className="gap-2" onClick={() => handleSendWhatsAppText(selectedProposal!)} title="Enviar resumo como texto"><Send className="h-4 w-4" /> WhatsApp (Texto)</Button><Button className="gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={() => handleSharePdf(selectedProposal!)} disabled={isSharing}>{isSharing ? <Loader2 className="animate-spin h-4 w-4" /> : <Share2 className="h-4 w-4" />} Enviar PDF (WhatsApp)</Button></DialogFooter></DialogContent></Dialog>
         <AlertDialog open={!!deletingProposal} onOpenChange={(open) => !open && setDeletingProposal(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir Proposta?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Não</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteAction}>Sim, Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         <Dialog open={isProductFormOpen} onOpenChange={setIsProductFormOpen}><DialogContent className="sm:max-w-[450px]"><Form {...productForm}><form onSubmit={productForm.handleSubmit(onProductSubmit)}><DialogHeader><DialogTitle>Gerenciar Produto</DialogTitle></DialogHeader><div className="grid gap-6 py-4"><div className="flex flex-col items-center gap-4"><div className="relative group h-32 w-32 rounded-lg border-2 border-dashed border-primary/20 bg-primary/5 flex items-center justify-center cursor-pointer overflow-hidden hover:bg-primary/10 transition-colors" onClick={() => fileInputRef.current?.click()}>{productImageUrl ? ( <img src={productImageUrl} alt="Preview" className="h-full w-full object-cover" /> ) : ( <div className="flex flex-col items-center gap-1 text-muted-foreground"><UploadCloud className="h-8 w-8" /><span className="text-[10px] font-medium">Add Foto</span></div> )}<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Camera className="h-6 w-6 text-white" /></div><input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} /></div>{productImageUrl && ( <Button type="button" variant="ghost" size="sm" className="h-6 text-xs text-destructive" onClick={() => productForm.setValue('imageUrl', '')}>Remover Foto</Button> )}</div><FormField control={productForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome do Produto</FormLabel><FormControl><Input placeholder="Nome do produto ou serviço" {...field} /></FormControl><FormMessage /></FormItem> )} /><FormField control={productForm.control} name="price" render={({ field }) => ( <FormItem><FormLabel>Preço Base</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem> )} /></div><DialogFooter><Button type="button" variant="outline" onClick={() => setIsProductFormOpen(false)}>Cancelar</Button><Button type="submit">Salvar</Button></DialogFooter></form></Form></DialogContent></Dialog>
         <AlertDialog open={!!deletingProduct} onOpenChange={(open) => !open && setDeletingProduct(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remover Produto?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteProductAction}>Remover</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
