@@ -276,7 +276,9 @@ export default function PropostasPage() {
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
                         node.style.letterSpacing = '0.3pt';
+                        node.style.wordSpacing = 'normal';
                         node.style.fontVariantLigatures = 'none';
+                        node.style.webkitFontSmoothing = 'antialiased';
                     });
                 }
             }
@@ -739,16 +741,17 @@ export default function PropostasPage() {
                     fontVariantLigatures: 'none'
                 }}
             >
+              {/* Estrutura de Cabeçalho via Tabela para estabilidade total */}
               <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr>
                     <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
-                    <td style={{ padding: '0 25px', width: '110px', verticalAlign: 'top' }}>
+                    <td style={{ padding: '0 25px', width: '150px', verticalAlign: 'top' }}>
                       {companyProfile.logoUrl && (
                         <img 
                           src={companyProfile.logoUrl} 
                           alt="Logo" 
-                          style={{ maxHeight: '100px', width: 'auto', display: 'block', objectFit: 'contain' }} 
+                          style={{ maxHeight: '140px', width: 'auto', display: 'block', objectFit: 'contain' }} 
                         />
                       )}
                     </td>
