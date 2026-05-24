@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import jsPDF from 'jspdf';
+import jspdf from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -242,20 +242,10 @@ export default function PropostasPage() {
             useCORS: true, 
             backgroundColor: "#ffffff",
             logging: false,
-            onclone: (clonedDoc) => {
-                const el = clonedDoc.getElementById('proposal-preview');
-                if (el) {
-                  el.style.width = '210mm';
-                  el.style.letterSpacing = "normal";
-                  el.style.wordSpacing = "normal";
-                  el.style.fontVariantLigatures = "none";
-                  el.style.fontFamily = "Arial, sans-serif";
-                }
-            }
         });
         
         const imgData = canvas.toDataURL('image/png', 1.0);
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         pdf.save(`proposta-${selectedProposal.id}.pdf`);
     } catch (e) {
@@ -277,7 +267,7 @@ export default function PropostasPage() {
             backgroundColor: "#ffffff"
         });
         const imgData = canvas.toDataURL('image/png', 1.0);
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         const pdfBlob = pdf.output('blob');
         const file = new File([pdfBlob], `proposta-${proposal.id}.pdf`, { type: 'application/pdf' });
@@ -388,7 +378,7 @@ export default function PropostasPage() {
       <div className="flex items-center justify-between">
         <div>
             <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gerador de Propostas</h2>
-            <p className="text-muted-foreground">Crie orçamentos profissionais em PDF com tabelas organizadas.</p>
+            <p className="text-muted-foreground">Crie orçamentos profissionais em PDF com layout limpo.</p>
         </div>
       </div>
 
@@ -666,41 +656,6 @@ export default function PropostasPage() {
                 </Button>
             </CardFooter>
           </Card>
-
-          <Card className="shadow-md">
-            <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-xs uppercase font-extrabold tracking-widest text-muted-foreground flex items-center gap-2">
-                    <ImageIcon className="h-3 w-3" /> Catálogo Rápido
-                </CardTitle>
-                <div className="relative mt-3">
-                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input placeholder="Buscar produto..." className="h-8 pl-8 text-[11px]" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
-                </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[280px] px-4 pb-4">
-                <div className="space-y-1.5 mt-2">
-                  {filteredProducts.map(p => (
-                    <div key={p.id} className="flex items-center justify-between p-2 hover:bg-muted/50 border rounded-lg cursor-pointer transition-colors group" onClick={() => append({ name: p.name, quantity: 1, price: p.price, isMonthly: false })}>
-                      <div className="flex items-center gap-3 truncate">
-                        {p.imageUrl ? (
-                            <img src={p.imageUrl} className="h-9 w-9 rounded-md object-cover border" alt="" />
-                        ) : (
-                            <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center border">
-                                <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
-                            </div>
-                        )}
-                        <div className="truncate">
-                            <p className="text-[11px] font-bold truncate group-hover:text-primary transition-colors">{p.name}</p>
-                            <p className="text-[10px] text-muted-foreground font-medium">{p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
@@ -747,10 +702,12 @@ export default function PropostasPage() {
       <Dialog open={!!selectedProposal} onOpenChange={o => !o && setSelectedProposal(null)}>
         <DialogContent className="sm:max-w-[950px] h-[95vh] flex flex-col p-0 overflow-hidden bg-background border-none shadow-2xl">
           <DialogHeader className="p-6 pb-0 border-b bg-muted/20 flex flex-row items-center justify-between space-y-0">
-            <DialogTitle className="text-xl">Pré-visualização do Documento</DialogTitle>
+            <DialogTitle className="text-xl">Visualização da Proposta</DialogTitle>
             <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(null)} className="h-8 w-8 rounded-full"><XCircle className="h-5 w-5" /></Button>
           </DialogHeader>
+          
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
+            {/* O DOCUMENTO PDF ABAIXO É O CORAÇÃO DO AJUSTE DE TEXTO */}
             <div 
                 id="proposal-preview" 
                 className="bg-white text-black mx-auto shadow-2xl" 
@@ -760,130 +717,146 @@ export default function PropostasPage() {
                     padding: '25mm',
                     fontFamily: 'Arial, sans-serif',
                     fontSize: '11pt',
-                    lineHeight: '1.45',
+                    lineHeight: '1.4',
                     color: '#000000',
-                    letterSpacing: 'normal',
+                    letterSpacing: '0px', // CRÍTICO: Impede fusão de palavras
                     wordSpacing: 'normal',
                     fontVariantLigatures: 'none'
                 }}
             >
-              <div style={{ marginBottom: '35px', display: 'flex', alignItems: 'center', gap: '20px', borderLeft: '4px solid #000', paddingLeft: '20px' }}>
+              {/* CABEÇALHO ESTILO IMAGEM */}
+              <div style={{ marginBottom: '35px', display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+                <div style={{ borderLeft: '4px solid #000', height: '60px', marginRight: '10px' }}></div>
                 {companyProfile.logoUrl && (
                   <img src={companyProfile.logoUrl} alt="Logo" style={{ maxHeight: '60px', width: 'auto', display: 'block', objectFit: 'contain' }} />
                 )}
                 <div style={{ textAlign: 'left' }}>
-                  <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
-                  <p style={{ margin: '4px 0 2px 0', fontSize: '10pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                  <p style={{ margin: '0', fontSize: '10pt', color: '#555' }}>{companyProfile.address}</p>
+                  <h2 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
+                  <p style={{ margin: '2px 0', fontSize: '9.5pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
+                  <p style={{ margin: '0', fontSize: '9pt', color: '#555' }}>{companyProfile.address}</p>
                 </div>
               </div>
 
+              {/* TÍTULO CENTRALIZADO E SUBILINHADO */}
               <div style={{ marginBottom: '40px', textAlign: 'center' }}>
-                <p style={{ fontWeight: 'bold', margin: '0', fontSize: '14pt', textTransform: 'uppercase', textDecoration: 'underline', borderBottom: '1px solid black', display: 'inline-block', paddingBottom: '2px' }}>
+                <p style={{ 
+                    fontWeight: 'bold', 
+                    margin: '0', 
+                    fontSize: '14pt', 
+                    textTransform: 'uppercase', 
+                    borderBottom: '2px solid black', 
+                    display: 'inline-block', 
+                    paddingBottom: '2px',
+                    letterSpacing: '1px'
+                }}>
                     PROPOSTA COMERCIAL
                 </p>
               </div>
 
+              {/* IDENTIFICAÇÃO DO CLIENTE E DADOS À DIREITA */}
               <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ textAlign: 'left' }}>
-                    <p style={{ color: '#94a3b8', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 8px 0' }}>DESTINATÁRIO</p>
-                    <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', lineHeight: '1.2' }}>{selectedProposal?.clientName}</h1>
-                    <p style={{ color: '#6366f1', fontWeight: 'bold', margin: '6px 0 2px 0', fontSize: '11pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
-                    {selectedProposal?.clientPhone && <p style={{ color: '#64748b', margin: '0', fontSize: '10.5pt' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
+                    <p style={{ color: '#94a3b8', fontSize: '8pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 5px 0' }}>DESTINATÁRIO</p>
+                    <h1 style={{ fontSize: '14pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', lineHeight: '1.1' }}>{selectedProposal?.clientName}</h1>
+                    <p style={{ color: '#6366f1', fontWeight: 'bold', margin: '5px 0 2px 0', fontSize: '11pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
+                    {selectedProposal?.clientPhone && <p style={{ color: '#64748b', margin: '0', fontSize: '10pt' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '10.5pt', display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '35px' }}>
-                    <p style={{ margin: '0' }}><strong>Nº Proposta:</strong> {selectedProposal?.id}</p>
-                    <p style={{ margin: '0' }}><strong>Emissão:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
-                    <p style={{ margin: '0' }}><strong>Validade:</strong> <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
+                <div style={{ textAlign: 'right', fontSize: '10pt', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <p style={{ margin: '0' }}><strong>Nº Proposta</strong> {selectedProposal?.id}</p>
+                    <p style={{ margin: '0' }}><strong>Emissão</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                    <p style={{ margin: '0' }}><strong>Validade</strong> <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
                 </div>
               </div>
 
-              <div style={{ marginBottom: '30px', textAlign: 'left', fontSize: '11pt' }}>
+              {/* TEXTO INSTITUCIONAL COM ESPAÇAMENTO CONTROLADO */}
+              <div style={{ marginBottom: '30px', textAlign: 'left', fontSize: '10.5pt', lineHeight: '1.5' }}>
                 <p style={{ marginBottom: '20px' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ marginBottom: '20px' }}>Com ampla experiência de mercado a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
                 <p style={{ marginBottom: '30px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
               </div>
 
-              <div style={{ marginBottom: '35px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left' }}>
+              {/* TABELA DE ITENS COM CABEÇALHO SUBILINHADO */}
+              <div style={{ marginBottom: '30px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ backgroundColor: '#f4f4f4', borderBottom: '2px solid #000' }}>
-                      <th style={{ padding: '12px 10px', fontWeight: 'bold' }}>Item / Descrição do Serviço ou Produto</th>
-                      <th style={{ padding: '12px 10px', textAlign: 'center', width: '60px', fontWeight: 'bold' }}>Qtd.</th>
-                      <th style={{ padding: '12px 10px', textAlign: 'right', width: '110px', fontWeight: 'bold' }}>Preço Unit.</th>
-                      <th style={{ padding: '12px 10px', textAlign: 'right', width: '110px', fontWeight: 'bold' }}>Subtotal</th>
+                    <tr style={{ borderBottom: '2px solid #000' }}>
+                      <th style={{ padding: '10px 5px', fontWeight: 'bold' }}>Item / Descrição do Serviço ou Produto</th>
+                      <th style={{ padding: '10px 5px', textAlign: 'center', width: '50px', fontWeight: 'bold' }}>Qtd.</th>
+                      <th style={{ padding: '10px 5px', textAlign: 'right', width: '100px', fontWeight: 'bold' }}>Preço Unit.</th>
+                      <th style={{ padding: '10px 5px', textAlign: 'right', width: '100px', fontWeight: 'bold' }}>Subtotal</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedProposal?.items.map((it, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #efefef' }}>
-                        <td style={{ padding: '10px' }}>
-                            <div style={{ fontWeight: 'bold' }}>{it.name}</div>
-                            {it.isMonthly && <div style={{ fontSize: '8pt', color: '#059669', fontStyle: 'italic' }}>Recorrência Mensal</div>}
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center' }}>{it.quantity}</td>
-                        <td style={{ padding: '10px', textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '8px 5px', fontWeight: 'bold' }}>{it.name.toUpperCase()}</td>
+                        <td style={{ padding: '8px 5px', textAlign: 'center' }}>{it.quantity}</td>
+                        <td style={{ padding: '8px 5px', textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                        <td style={{ padding: '8px 5px', textAlign: 'right', fontWeight: 'bold' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 
-                <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <div style={{ width: '300px', padding: '15px', backgroundColor: '#fcfcfc', border: '1px solid #eee', borderRadius: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                            <span style={{ fontSize: '10pt', fontWeight: 'bold' }}>Total Investimento:</span>
-                            <span style={{ fontSize: '11pt', fontWeight: 'bold' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                        </div>
-                        {selectedProposal && selectedProposal.totalMonthly > 0 && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #ddd', paddingTop: '8px' }}>
-                                <span style={{ fontSize: '10pt', fontWeight: 'bold', color: '#059669' }}>Total Recorrência:</span>
-                                <span style={{ fontSize: '11pt', fontWeight: 'bold', color: '#059669' }}>{selectedProposal.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                            </div>
-                        )}
+                {/* TOTAL INVESTIMENTO BOX */}
+                <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{ 
+                        padding: '12px 20px', 
+                        backgroundColor: '#f8fafc', 
+                        border: '1px solid #e2e8f0', 
+                        borderRadius: '6px',
+                        display: 'flex',
+                        gap: '30px',
+                        alignItems: 'center'
+                    }}>
+                        <span style={{ fontSize: '10pt', fontWeight: 'bold', textTransform: 'uppercase' }}>Total Investimento</span>
+                        <span style={{ fontSize: '12pt', fontWeight: 'bold' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                     </div>
                 </div>
               </div>
 
-              <div style={{ marginTop: '40px', padding: '20px', border: '1px solid #000', borderRadius: '2px', backgroundColor: '#fff' }}>
-                <p style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '11pt', textDecoration: 'underline' }}>CONDIÇÕES DE PAGAMENTO:</p>
-                <div style={{ fontSize: '10.5pt', lineHeight: '1.6' }}>
-                    <p style={{ margin: '4px 0' }}>• <strong>Forma de Pagamento:</strong> {selectedProposal?.paymentMethod.toUpperCase()}</p>
-                    <p style={{ margin: '4px 0' }}>• <strong>Condição:</strong> {selectedProposal?.installments}x de {(selectedProposal ? selectedProposal.totalOneTime / selectedProposal.installments : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                    {selectedProposal?.firstAsDownPayment && <p style={{ margin: '4px 0', fontStyle: 'italic' }}>• Primeira parcela como entrada.</p>}
+              {/* CONDIÇÕES DE PAGAMENTO BOX */}
+              <div style={{ marginTop: '40px', padding: '15px', border: '1px solid #000', borderRadius: '4px' }}>
+                <p style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '10.5pt', textDecoration: 'underline', textTransform: 'uppercase' }}>CONDIÇÕES DE PAGAMENTO</p>
+                <div style={{ fontSize: '10pt', lineHeight: '1.4' }}>
+                    <p style={{ margin: '3px 0' }}>• Forma de Pagamento: {selectedProposal?.paymentMethod.toUpperCase()}</p>
+                    <p style={{ margin: '3px 0' }}>• Condição: {selectedProposal?.installments}x de {(selectedProposal ? selectedProposal.totalOneTime / selectedProposal.installments : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    {selectedProposal?.firstAsDownPayment && <p style={{ margin: '3px 0', fontStyle: 'italic' }}>• Primeira parcela como entrada.</p>}
                 </div>
                 
                 {selectedProposal?.observations && (
-                    <div style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '10.5pt' }}>OBSERVAÇÕES E PRAZOS:</p>
-                        <p style={{ fontSize: '10pt', whiteSpace: 'pre-wrap', color: '#333' }}>{selectedProposal.observations}</p>
+                    <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+                        <p style={{ fontWeight: 'bold', marginBottom: '5px', fontSize: '10pt' }}>OBSERVAÇÕES E PRAZOS:</p>
+                        <p style={{ fontSize: '9.5pt', whiteSpace: 'pre-wrap' }}>{selectedProposal.observations}</p>
                     </div>
                 )}
               </div>
 
-              <div style={{ marginTop: '80px', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '10pt' }}>
-                <div style={{ width: '240px' }}>
-                  <div style={{ borderTop: '1px solid #000', marginBottom: '8px' }}></div>
+              {/* ASSINATURAS NO RODAPÉ */}
+              <div style={{ marginTop: '70px', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '9pt' }}>
+                <div style={{ width: '220px' }}>
+                  <div style={{ borderTop: '1px solid #000', marginBottom: '5px' }}></div>
                   <p style={{ fontWeight: 'bold', margin: '0' }}>{companyProfile.name}</p>
-                  <p style={{ fontSize: '9pt', color: '#555' }}>Emitente Responsável</p>
+                  <p style={{ color: '#666' }}>Emitente Responsável</p>
                 </div>
-                <div style={{ width: '240px' }}>
-                  <div style={{ borderTop: '1px solid #000', marginBottom: '8px' }}></div>
+                <div style={{ width: '220px' }}>
+                  <div style={{ borderTop: '1px solid #000', marginBottom: '5px' }}></div>
                   <p style={{ fontWeight: 'bold', margin: '0' }}>{selectedProposal?.clientName}</p>
-                  <p style={{ fontSize: '9pt', color: '#555' }}>Aceite do Cliente</p>
+                  <p style={{ color: '#666' }}>Aceite do Cliente</p>
                 </div>
               </div>
             </div>
           </ScrollArea>
+          
           <DialogFooter className="p-6 border-t bg-muted/20 gap-3">
-            <Button variant="outline" onClick={() => setSelectedProposal(null)} className="h-11">Cancelar</Button>
-            <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading} className="h-11 gap-2 shadow-sm">
+            <Button variant="outline" onClick={() => setSelectedProposal(null)}>Cancelar</Button>
+            <Button variant="secondary" onClick={handleDownloadPdf} disabled={isDownloading} className="gap-2">
                 {isDownloading ? <Loader2 className="animate-spin h-4 w-4" /> : <Printer className="h-4 w-4" />} 
-                Baixar Documento (PDF)
+                Baixar PDF
             </Button>
-            <Button className="bg-emerald-600 hover:bg-emerald-700 h-11 gap-2 shadow-md" onClick={() => handleSharePdf(selectedProposal!)} disabled={isSharing}>
+            <Button className="bg-emerald-600 hover:bg-emerald-700 gap-2" onClick={() => handleSharePdf(selectedProposal!)} disabled={isSharing}>
                 <Share2 className="h-4 w-4" /> 
-                {isSharing ? 'Gerando...' : 'Enviar por WhatsApp'}
+                {isSharing ? 'Processando...' : 'Enviar WhatsApp'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -892,12 +865,12 @@ export default function PropostasPage() {
       <AlertDialog open={!!deletingProposal} onOpenChange={o => !o && setDeletingProposal(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>Excluir Orçamento?</AlertDialogTitle>
-                <AlertDialogDescription>Essa ação removerá o registro da sua base de dados e não pode ser desfeita.</AlertDialogDescription>
+                <AlertDialogTitle>Excluir Proposta?</AlertDialogTitle>
+                <AlertDialogDescription>Essa ação não pode ser desfeita.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>Manter</AlertDialogCancel>
-                <AlertDialogAction onClick={() => { deleteProposal(deletingProposal!.id); setDeletingProposal(null); }} className="bg-destructive hover:bg-destructive/90">Confirmar</AlertDialogAction>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { deleteProposal(deletingProposal!.id); setDeletingProposal(null); }} className="bg-destructive">Confirmar</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
