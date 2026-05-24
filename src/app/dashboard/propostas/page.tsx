@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { jsPDF } from 'jspdf';
+import jspdf from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -52,7 +52,6 @@ import {
   FileText,
   Calendar as CalendarIcon,
   User,
-  Phone,
   Settings,
   CreditCard,
   TrendingUp,
@@ -245,14 +244,14 @@ export default function PropostasPage() {
             onclone: (clonedDoc) => {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
+                    el.style.fontVariantLigatures = 'none';
                     el.style.letterSpacing = '0px';
-                    el.style.wordSpacing = 'normal';
                 }
             }
         });
         
         const imgData = canvas.toDataURL('image/png', 1.0);
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         pdf.save(`proposta-${selectedProposal.id}.pdf`);
     } catch (e) {
@@ -272,16 +271,9 @@ export default function PropostasPage() {
             scale: 2.5, 
             useCORS: true, 
             backgroundColor: "#ffffff",
-            onclone: (clonedDoc) => {
-                const el = clonedDoc.getElementById('proposal-preview');
-                if (el) {
-                    el.style.letterSpacing = '0px';
-                    el.style.wordSpacing = 'normal';
-                }
-            }
         });
         const imgData = canvas.toDataURL('image/png', 1.0);
-        const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const pdf = new jspdf({ orientation: 'p', unit: 'mm', format: 'a4' });
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         const pdfBlob = pdf.output('blob');
         const file = new File([pdfBlob], `proposta-${proposal.id}.pdf`, { type: 'application/pdf' });
@@ -592,10 +584,11 @@ export default function PropostasPage() {
                       <FormItem>
                         <FormLabel className="font-bold flex items-center gap-2">
                             <FileText className="h-4 w-4 text-primary" /> Condições e Prazos Adicionais
-                        </Label>
+                        </FormLabel>
                         <FormControl>
                             <Textarea rows={3} placeholder="Ex: Prazo de entrega: 5 dias úteis após aprovação..." {...field} className="text-xs resize-none" />
                         </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )} />
                   </div>
@@ -737,7 +730,7 @@ export default function PropostasPage() {
                     fontVariantLigatures: 'none'
                 }}
             >
-              {/* CABEÇALHO BARRA LATERAL */}
+              {/* Header com Logo e Barra Lateral */}
               <div style={{ marginBottom: '35px', display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
                 <div style={{ borderLeft: '5px solid #000000', height: '65px', minWidth: '5px' }}></div>
                 {companyProfile.logoUrl && (
@@ -754,7 +747,7 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TÍTULO CENTRALIZADO */}
+              {/* Título Centralizado e Sublinhado */}
               <div style={{ marginBottom: '45px', textAlign: 'center' }}>
                 <p style={{ 
                     fontWeight: 'bold', 
@@ -770,7 +763,7 @@ export default function PropostasPage() {
                 </p>
               </div>
 
-              {/* IDENTIFICAÇÃO DO CLIENTE */}
+              {/* Bloco de Destinatário e Infos de Controle */}
               <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ textAlign: 'left' }}>
                     <p style={{ color: '#666666', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 6px 0' }}>DESTINATÁRIO</p>
@@ -785,14 +778,14 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TEXTO INSTITUCIONAL */}
+              {/* Texto Institucional Original */}
               <div style={{ marginBottom: '35px', textAlign: 'left', fontSize: '11pt', lineHeight: '1.5' }}>
                 <p style={{ marginBottom: '20px' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ marginBottom: '20px' }}>Com ampla experiência de mercado a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
                 <p style={{ marginBottom: '30px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
               </div>
 
-              {/* TABELA DE ITENS */}
+              {/* Tabela de Itens */}
               <div style={{ marginBottom: '35px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left' }}>
                   <thead>
@@ -815,7 +808,7 @@ export default function PropostasPage() {
                   </tbody>
                 </table>
                 
-                {/* TOTAL BOX */}
+                {/* Total Alinhado à Direita */}
                 <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end' }}>
                     <div style={{ 
                         padding: '15px 25px', 
@@ -832,7 +825,7 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* CONDIÇÕES DE PAGAMENTO */}
+              {/* Condições de Pagamento */}
               <div style={{ marginTop: '45px', padding: '20px', border: '1.5px solid #000000', borderRadius: '5px' }}>
                 <p style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '11pt', textDecoration: 'underline', textTransform: 'uppercase' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <div style={{ fontSize: '10.5pt', lineHeight: '1.5' }}>
@@ -849,7 +842,7 @@ export default function PropostasPage() {
                 )}
               </div>
 
-              {/* ASSINATURAS */}
+              {/* Assinaturas */}
               <div style={{ marginTop: '80px', display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: '9.5pt' }}>
                 <div style={{ width: '230px' }}>
                   <div style={{ borderTop: '1.5px solid #000000', marginBottom: '6px' }}></div>
