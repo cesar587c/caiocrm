@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import jsPDF from 'jsPDF';
+import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 import { Button } from '@/components/ui/button';
@@ -235,8 +235,8 @@ export default function PropostasPage() {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
                   el.style.width = '210mm';
-                  el.style.letterSpacing = "normal";
-                  el.style.wordSpacing = "normal";
+                  el.style.letterSpacing = "0px";
+                  el.style.wordSpacing = "0px";
                   el.style.fontVariantLigatures = "none";
                 }
             }
@@ -758,8 +758,8 @@ export default function PropostasPage() {
                     fontSize: '11pt',
                     lineHeight: '1.45',
                     color: '#000000',
-                    letterSpacing: 'normal',
-                    wordSpacing: 'normal',
+                    letterSpacing: '0px',
+                    wordSpacing: '0px',
                     fontVariantLigatures: 'none'
                 }}
             >
