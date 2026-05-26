@@ -55,6 +55,8 @@ import {
   Settings,
   CreditCard,
   TrendingUp,
+  AlertCircle,
+  LayoutGrid,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -100,6 +102,8 @@ const proposalSchema = z.object({
   proposalDate: z.date(),
   validityDate: z.date(),
   items: z.array(proposalItemSchema).min(1, 'Adicione pelo menos um item.'),
+  hasAlternative: z.boolean().default(false),
+  alternativeItems: z.array(proposalItemSchema).optional(),
   paymentMethod: z.string(),
   installments: z.coerce.number().min(1).max(12),
   firstAsDownPayment: z.boolean(),
@@ -155,6 +159,8 @@ export default function PropostasPage() {
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
       items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
+      hasAlternative: false,
+      alternativeItems: [],
       paymentMethod: 'boleto',
       installments: 1,
       firstAsDownPayment: false,
@@ -162,16 +168,22 @@ export default function PropostasPage() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: fieldsA, append: appendA, remove: removeA } = useFieldArray({
     control: form.control,
     name: 'items',
   });
 
-  const watchItems = useWatch({ control: form.control, name: "items" });
-  const watchInstallments = form.watch('installments');
+  const { fields: fieldsB, append: appendB, remove: removeB } = useFieldArray({
+    control: form.control,
+    name: 'alternativeItems',
+  });
 
-  const totals = useMemo(() => {
-    return (watchItems || []).reduce(
+  const watchItemsA = useWatch({ control: form.control, name: "items" });
+  const watchItemsB = useWatch({ control: form.control, name: "alternativeItems" });
+  const watchHasAlternative = form.watch('hasAlternative');
+
+  const totalsA = useMemo(() => {
+    return (watchItemsA || []).reduce(
         (acc, item) => {
             const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
             if (item.isMonthly) acc.monthly += subtotal;
@@ -180,7 +192,20 @@ export default function PropostasPage() {
         },
         { oneTime: 0, monthly: 0 }
     );
-  }, [watchItems]);
+  }, [watchItemsA]);
+
+  const totalsB = useMemo(() => {
+    if (!watchHasAlternative) return { oneTime: 0, monthly: 0 };
+    return (watchItemsB || []).reduce(
+        (acc, item) => {
+            const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
+            if (item.isMonthly) acc.monthly += subtotal;
+            else acc.oneTime += subtotal;
+            return acc;
+        },
+        { oneTime: 0, monthly: 0 }
+    );
+  }, [watchItemsB, watchHasAlternative]);
 
   const handleClientSelect = (clientId: string) => {
     const client = customers.find(c => c.id === clientId);
@@ -201,21 +226,24 @@ export default function PropostasPage() {
     setIsQuickAddingClient(true);
   }
 
-  const handleItemNameBlur = (index: number) => {
-      const itemName = form.getValues(`items.${index}.name`);
+  const handleItemNameBlur = (index: number, isAlt: boolean = false) => {
+      const fieldName = isAlt ? `alternativeItems.${index}.name` : `items.${index}.name`;
+      const priceName = isAlt ? `alternativeItems.${index}.price` : `items.${index}.price`;
+      
+      const itemName = form.getValues(fieldName as any);
       if (!itemName) return;
       const existingProduct = products.find(p => p.name.toLowerCase().trim() === itemName.toLowerCase().trim());
       if (existingProduct) {
-          form.setValue(`items.${index}.price`, existingProduct.price, { shouldDirty: true, shouldTouch: true });
-          form.trigger(`items.${index}.price`);
+          form.setValue(priceName as any, existingProduct.price, { shouldDirty: true, shouldTouch: true });
+          form.trigger(priceName as any);
       } else {
-          const itemPrice = form.getValues(`items.${index}.price`);
+          const itemPrice = form.getValues(priceName as any);
           toast({
               title: 'Cadastrar Novo Item?',
               description: `Deseja salvar "${itemName}" na sua lista de produtos?`,
               action: (
                   <ToastAction altText="Cadastrar" onClick={() => {
-                      addProduct({ name: itemName, price: itemPrice || 0 });
+                      addProduct({ name: itemName, price: Number(itemPrice) || 0 });
                       toast({ title: "Item Cadastrado!" });
                   }}>Cadastrar</ToastAction>
               ),
@@ -314,6 +342,8 @@ export default function PropostasPage() {
       proposalDate: new Date(p.proposalDate),
       validityDate: new Date(p.validityDate),
       items: p.items,
+      hasAlternative: p.hasAlternative || false,
+      alternativeItems: p.alternativeItems || [],
       paymentMethod: p.paymentMethod,
       installments: p.installments,
       firstAsDownPayment: p.firstAsDownPayment,
@@ -336,7 +366,16 @@ export default function PropostasPage() {
   };
 
   const onSubmit = (data: ProposalFormValues) => {
-    const currentTotals = data.items.reduce(
+    const currentTotalsA = data.items.reduce(
+        (acc, item) => {
+            const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
+            if (item.isMonthly) acc.monthly += subtotal;
+            else acc.oneTime += subtotal;
+            return acc;
+        }, { oneTime: 0, monthly: 0 }
+    );
+
+    const currentTotalsB = (data.alternativeItems || []).reduce(
         (acc, item) => {
             const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
             if (item.isMonthly) acc.monthly += subtotal;
@@ -362,28 +401,23 @@ export default function PropostasPage() {
         });
     }
 
+    const proposalData: Proposal = {
+        ...data,
+        id: editingProposal ? editingProposal.id : String(proposals.length > 0 ? Math.max(0, ...proposals.map(p => Number(p.id))) + 1 : 1),
+        clientPhone: data.clientPhone?.replace(/\D/g, ''),
+        proposalDate: data.proposalDate.toISOString(),
+        validityDate: data.validityDate.toISOString(),
+        totalOneTime: currentTotalsA.oneTime,
+        totalMonthly: currentTotalsA.monthly,
+        totalOneTimeAlt: data.hasAlternative ? currentTotalsB.oneTime : undefined,
+        totalMonthlyAlt: data.hasAlternative ? currentTotalsB.monthly : undefined,
+    } as Proposal;
+
     if (editingProposal) {
-      updateProposal({ 
-        ...data, 
-        id: editingProposal.id, 
-        clientPhone: data.clientPhone?.replace(/\D/g, ''), 
-        proposalDate: data.proposalDate.toISOString(), 
-        validityDate: data.validityDate.toISOString(), 
-        totalOneTime: currentTotals.oneTime, 
-        totalMonthly: currentTotals.monthly 
-      } as Proposal);
+      updateProposal(proposalData);
       toast({ title: 'Proposta Atualizada!' });
     } else {
-      const newId = proposals.length > 0 ? Math.max(0, ...proposals.map(p => Number(p.id))) + 1 : 1;
-      addProposal({ 
-        ...data, 
-        id: String(newId), 
-        clientPhone: data.clientPhone?.replace(/\D/g, ''), 
-        proposalDate: data.proposalDate.toISOString(), 
-        validityDate: data.validityDate.toISOString(), 
-        totalOneTime: currentTotals.oneTime, 
-        totalMonthly: currentTotals.monthly 
-      } as Proposal);
+      addProposal(proposalData);
       toast({ title: 'Proposta Salva!' });
     }
     setEditingProposal(null);
@@ -401,7 +435,7 @@ export default function PropostasPage() {
       <div className="flex items-center justify-between">
         <div>
             <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gerador de Propostas</h2>
-            <p className="text-muted-foreground">Crie orçamentos profissionais em PDF com layout limpo.</p>
+            <p className="text-muted-foreground">Crie orçamentos profissionais em PDF com layout limpo e opções alternativas.</p>
         </div>
       </div>
 
@@ -547,10 +581,10 @@ export default function PropostasPage() {
                   <div className="space-y-4 border-t pt-8">
                     <div className="flex items-center justify-between">
                         <h4 className="text-sm font-bold flex items-center gap-2">
-                            <ImageIcon className="h-4 w-4 text-primary" /> Itens do Orçamento
+                            <LayoutGrid className="h-4 w-4 text-primary" /> Opção de Itens Principal (Opção A)
                         </h4>
-                        <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })} className="h-8 gap-2">
-                            <PlusCircle className="h-3.5 w-3.5" /> Adicionar Manualmente
+                        <Button type="button" variant="outline" size="sm" onClick={() => appendA({ name: '', quantity: 1, price: 0, isMonthly: false })} className="h-8 gap-2">
+                            <PlusCircle className="h-3.5 w-3.5" /> Adicionar Item
                         </Button>
                     </div>
                     <div className="rounded-xl border overflow-hidden">
@@ -565,10 +599,10 @@ export default function PropostasPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {fields.map((it, idx) => (
+                            {fieldsA.map((it, idx) => (
                             <TableRow key={it.id} className="hover:bg-transparent">
                                 <TableCell className="py-2">
-                                    <Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} list="proposal-products-list" className="h-8 text-xs border-none bg-muted/20 focus-visible:ring-1" />
+                                    <Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx, false)} list="proposal-products-list" className="h-8 text-xs border-none bg-muted/20 focus-visible:ring-1" />
                                 </TableCell>
                                 <TableCell className="py-2">
                                     <Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs border-none bg-muted/20 text-center" />
@@ -585,7 +619,7 @@ export default function PropostasPage() {
                                 )} />
                                 </TableCell>
                                 <TableCell className="py-2 text-right">
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} className="h-8 w-8 text-destructive/50 hover:text-destructive">
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeA(idx)} className="h-8 w-8 text-destructive/50 hover:text-destructive">
                                         <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                 </TableCell>
@@ -595,6 +629,79 @@ export default function PropostasPage() {
                         </Table>
                     </div>
                   </div>
+
+                  <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
+                    <div className="space-y-1">
+                        <Label className="font-bold flex items-center gap-2 cursor-pointer" htmlFor="has-alt">
+                           <Copy className="h-4 w-4 text-primary" /> Oferecer Alternativa (Opção B)
+                        </Label>
+                        <p className="text-xs text-muted-foreground">Adiciona uma segunda opção completa ("OU") na mesma proposta.</p>
+                    </div>
+                    <FormField control={form.control} name="hasAlternative" render={({ field }) => (
+                        <Switch id="has-alt" checked={field.value} onCheckedChange={field.onChange} />
+                    )} />
+                  </div>
+
+                  {watchHasAlternative && (
+                    <div className="space-y-4 border-t pt-8 animate-in slide-in-from-top-4 duration-300">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold flex items-center gap-2 text-orange-500">
+                                <LayoutGrid className="h-4 w-4" /> Opção Alternativa (Opção B)
+                            </h4>
+                            <Button type="button" variant="outline" size="sm" onClick={() => appendB({ name: '', quantity: 1, price: 0, isMonthly: false })} className="h-8 gap-2 border-orange-500/30 text-orange-500">
+                                <PlusCircle className="h-3.5 w-3.5" /> Adicionar Item B
+                            </Button>
+                        </div>
+                        <div className="rounded-xl border border-orange-500/20 overflow-hidden">
+                            <Table>
+                            <TableHeader className="bg-orange-500/5">
+                                <TableRow>
+                                    <TableHead className="text-xs">Descrição do Item B</TableHead>
+                                    <TableHead className="w-20 text-xs">Qtd.</TableHead>
+                                    <TableHead className="w-28 text-xs">Preço Unit.</TableHead>
+                                    <TableHead className="w-24 text-xs">Faturamento</TableHead>
+                                    <TableHead className="w-10"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {fieldsB.map((it, idx) => (
+                                <TableRow key={it.id} className="hover:bg-transparent">
+                                    <TableCell className="py-2">
+                                        <Input {...form.register(`alternativeItems.${idx}.name` as any)} onBlur={() => handleItemNameBlur(idx, true)} list="proposal-products-list" className="h-8 text-xs border-none bg-orange-500/5 focus-visible:ring-1 focus-visible:ring-orange-500/50" />
+                                    </TableCell>
+                                    <TableCell className="py-2">
+                                        <Input type="number" {...form.register(`alternativeItems.${idx}.quantity` as any)} className="h-8 text-xs border-none bg-orange-500/5 text-center" />
+                                    </TableCell>
+                                    <TableCell className="py-2">
+                                        <Input type="number" step="0.01" {...form.register(`alternativeItems.${idx}.price` as any)} className="h-8 text-xs border-none bg-orange-500/5 text-right" />
+                                    </TableCell>
+                                    <TableCell className="py-2">
+                                    <Controller control={form.control} name={`alternativeItems.${idx}.isMonthly` as any} render={({ field }) => (
+                                        <Select onValueChange={v => field.onChange(v === 'M')} value={field.value ? 'M' : 'U'}>
+                                        <SelectTrigger className="h-8 text-[10px] uppercase font-bold border-none bg-orange-500/10"><SelectValue /></SelectTrigger>
+                                        <SelectContent><SelectItem value="U">Único</SelectItem><SelectItem value="M">Mensal</SelectItem></SelectContent>
+                                        </Select>
+                                    )} />
+                                    </TableCell>
+                                    <TableCell className="py-2 text-right">
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeB(idx)} className="h-8 w-8 text-destructive/50 hover:text-destructive">
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                                ))}
+                                {fieldsB.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-16 text-center text-xs text-muted-foreground italic">
+                                            Nenhum item adicionado na Opção B.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                  )}
 
                   <div className="border-t pt-8">
                     <FormField control={form.control} name="observations" render={({ field }) => (
@@ -616,7 +723,7 @@ export default function PropostasPage() {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-          <Card className="shadow-lg border-primary/10 overflow-hidden">
+          <Card className="shadow-lg border-primary/10 overflow-hidden sticky top-4">
             <CardHeader className="bg-primary/5 pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" /> Faturamento
@@ -638,14 +745,14 @@ export default function PropostasPage() {
                 )} />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Parcelamento</Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Parcelamento (Ref. Opção A)</Label>
                 <Controller control={form.control} name="installments" render={({ field }) => (
                   <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
                     <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         {[...Array(12)].map((_, i) => (
                             <SelectItem key={i+1} value={String(i+1)}>
-                                {i+1}x de {((totals.oneTime / (i+1)) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                {i+1}x de {((totalsA.oneTime / (i+1)) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -661,15 +768,34 @@ export default function PropostasPage() {
               
               <Separator />
               
-              <div className="space-y-3">
-                <div className="flex justify-between items-center bg-primary/5 p-3 rounded-lg border border-primary/10">
-                    <span className="text-xs font-bold text-primary">Investimento Único:</span>
-                    <span className="text-lg font-bold text-primary">{totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Resumo Opção A:</p>
+                    <div className="flex justify-between items-center bg-primary/5 p-3 rounded-lg border border-primary/10">
+                        <span className="text-xs font-bold text-primary">Venda A:</span>
+                        <span className="text-sm font-bold text-primary">{totalsA.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    </div>
+                    {totalsA.monthly > 0 && (
+                        <div className="flex justify-between items-center bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10">
+                            <span className="text-[10px] font-bold text-emerald-600">Mensal A:</span>
+                            <span className="text-xs font-bold text-emerald-600">{totalsA.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                    )}
                 </div>
-                {totals.monthly > 0 && (
-                    <div className="flex justify-between items-center bg-emerald-500/5 p-3 rounded-lg border border-emerald-500/10">
-                        <span className="text-xs font-bold text-emerald-600">Recorrência Mensal:</span>
-                        <span className="text-lg font-bold text-emerald-600">{totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+
+                {watchHasAlternative && (
+                    <div className="space-y-2 border-t border-orange-500/20 pt-4">
+                        <p className="text-[10px] uppercase font-bold text-orange-500">Resumo Opção B:</p>
+                        <div className="flex justify-between items-center bg-orange-500/5 p-3 rounded-lg border border-orange-500/20">
+                            <span className="text-xs font-bold text-orange-600">Venda B:</span>
+                            <span className="text-sm font-bold text-orange-600">{totalsB.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                        {totalsB.monthly > 0 && (
+                            <div className="flex justify-between items-center bg-orange-500/5 p-2 rounded-lg border border-orange-500/10">
+                                <span className="text-[10px] font-bold text-orange-600">Mensal B:</span>
+                                <span className="text-xs font-bold text-orange-600">{totalsB.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                        )}
                     </div>
                 )}
               </div>
@@ -695,7 +821,8 @@ export default function PropostasPage() {
                     <TableHead className="w-24 pl-6">Nº ID</TableHead>
                     <TableHead>Cliente Destinatário</TableHead>
                     <TableHead>Data Emissão</TableHead>
-                    <TableHead className="text-right pr-6">Investimento</TableHead>
+                    <TableHead>Modo</TableHead>
+                    <TableHead className="text-right pr-6">Investimento (A)</TableHead>
                     <TableHead className="text-right w-40 pr-6">Ações</TableHead>
                 </TableRow>
             </TableHeader>
@@ -705,6 +832,13 @@ export default function PropostasPage() {
                   <TableCell className="font-mono font-bold pl-6 text-primary">#{p.id}</TableCell>
                   <TableCell className="font-medium">{p.clientName}</TableCell>
                   <TableCell className="text-muted-foreground text-xs">{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>
+                    {p.hasAlternative ? (
+                        <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-[9px] font-bold">2 OPÇÕES (OU)</Badge>
+                    ) : (
+                        <Badge variant="outline" className="text-[9px]">PADRÃO</Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right font-bold pr-6">
                     {p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </TableCell>
@@ -718,6 +852,9 @@ export default function PropostasPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {proposals.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground italic">Nenhuma proposta gerada ainda.</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -747,25 +884,26 @@ export default function PropostasPage() {
                     fontVariantLigatures: 'none'
                 }}
             >
+              {/* Estrutura de Cabeçalho via Tabela para estabilidade total */}
               <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
                 <tbody>
-                  <tr>
-                    <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
-                    <td style={{ padding: '0 25px', width: '150px', verticalAlign: 'top' }}>
-                      {companyProfile.logoUrl && (
-                        <img 
-                          src={companyProfile.logoUrl} 
-                          alt="Logo" 
-                          style={{ maxHeight: '140px', width: 'auto', display: 'block', objectFit: 'contain' }} 
-                        />
-                      )}
-                    </td>
-                    <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
-                      <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
-                      <p style={{ margin: '2px 0', fontSize: '10pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                      <p style={{ margin: '0', fontSize: '9.5pt', color: '#555' }}>{companyProfile.address}</p>
-                    </td>
-                  </tr>
+                    <tr>
+                        <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
+                        <td style={{ padding: '0 25px', width: '150px', verticalAlign: 'top' }}>
+                        {companyProfile.logoUrl && (
+                            <img 
+                            src={companyProfile.logoUrl} 
+                            alt="Logo" 
+                            style={{ maxHeight: '140px', width: 'auto', display: 'block', objectFit: 'contain' }} 
+                            />
+                        )}
+                        </td>
+                        <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
+                            <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
+                            <p style={{ margin: '2px 0', fontSize: '10pt', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
+                            <p style={{ margin: '0', fontSize: '9.5pt', color: '#555' }}>{companyProfile.address}</p>
+                        </td>
+                    </tr>
                 </tbody>
               </table>
 
@@ -786,29 +924,33 @@ export default function PropostasPage() {
 
               <table style={{ width: '100%', marginBottom: '40px', borderCollapse: 'collapse' }}>
                 <tbody>
-                  <tr>
-                    <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
-                      <p style={{ color: '#666666', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 6px 0' }}>DESTINATÁRIO</p>
-                      <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', lineHeight: '1.2' }}>{selectedProposal?.clientName}</h1>
-                      <p style={{ color: '#4F46E5', fontWeight: 'bold', margin: '6px 0 2px 0', fontSize: '11.5pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
-                      {selectedProposal?.clientPhone && <p style={{ color: '#666666', margin: '0', fontSize: '10.5pt' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
-                    </td>
-                    <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '10.5pt', width: '200px' }}>
-                      <p style={{ margin: '4px 0' }}><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
-                      <p style={{ margin: '4px 0' }}><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
-                      <p style={{ margin: '4px 0' }}><strong>VALIDADE:</strong> <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
-                    </td>
-                  </tr>
+                    <tr>
+                        <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
+                            <p style={{ color: '#666666', fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', margin: '0 0 6px 0' }}>DESTINATÁRIO</p>
+                            <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase', lineHeight: '1.2' }}>{selectedProposal?.clientName}</h1>
+                            <p style={{ color: '#4F46E5', fontWeight: 'bold', margin: '6px 0 2px 0', fontSize: '11.5pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
+                            {selectedProposal?.clientPhone && <p style={{ color: '#666666', margin: '0', fontSize: '10.5pt' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
+                        </td>
+                        <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '10.5pt', width: '200px' }}>
+                            <p style={{ margin: '4px 0' }}><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
+                            <p style={{ margin: '4px 0' }}><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                            <p style={{ margin: '4px 0' }}><strong>VALIDADE:</strong> <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
+                        </td>
+                    </tr>
                 </tbody>
               </table>
 
               <div style={{ marginBottom: '35px', textAlign: 'left', fontSize: '11pt', lineHeight: '1.5' }}>
                 <p style={{ marginBottom: '20px' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ marginBottom: '20px' }}>Com ampla experiência de mercado a {companyProfile.name} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
-                <p style={{ marginBottom: '30px' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
               </div>
 
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left', marginBottom: '35px' }}>
+              {/* OPÇÃO 01 */}
+              {selectedProposal?.hasAlternative && (
+                  <p style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '11pt', color: '#4F46E5', borderLeft: '4px solid #4F46E5', paddingLeft: '10px' }}>OPÇÃO 01:</p>
+              )}
+              
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left', marginBottom: '15px' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #000000' }}>
                     <th style={{ padding: '12px 5px', fontWeight: 'bold' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</th>
@@ -828,25 +970,80 @@ export default function PropostasPage() {
                   ))}
                 </tbody>
               </table>
-              
-              <div style={{ textAlign: 'right', marginBottom: '45px' }}>
+
+              <div style={{ textAlign: 'right', marginBottom: selectedProposal?.hasAlternative ? '30px' : '45px' }}>
                 <div style={{ 
-                    padding: '15px 25px', 
+                    padding: '10px 20px', 
                     backgroundColor: '#F8FAFC', 
                     border: '1.5px solid #E2E8F0', 
                     borderRadius: '6px',
                     display: 'inline-block'
                 }}>
-                    <span style={{ fontSize: '10.5pt', fontWeight: 'bold', textTransform: 'uppercase', marginRight: '40px' }}>TOTAL INVESTIMENTO</span>
-                    <span style={{ fontSize: '13pt', fontWeight: 'bold', color: '#000000' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    <span style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'uppercase', marginRight: '30px' }}>TOTAL OPÇÃO 01</span>
+                    <span style={{ fontSize: '12pt', fontWeight: 'bold', color: '#000000' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </div>
               </div>
+
+              {/* DIVISOR "OU" SE HOUVER ALTERNATIVA */}
+              {selectedProposal?.hasAlternative && (
+                  <>
+                    <div style={{ textAlign: 'center', margin: '40px 0', position: 'relative' }}>
+                        <div style={{ borderTop: '1px dashed #A0AEC0', width: '100%', position: 'absolute', top: '50%' }}></div>
+                        <span style={{ 
+                            position: 'relative', 
+                            backgroundColor: '#FFFFFF', 
+                            padding: '0 20px', 
+                            fontWeight: 'bold', 
+                            fontSize: '14pt', 
+                            color: '#EF4444',
+                            zIndex: '1',
+                            letterSpacing: '2px'
+                        }}>OU</span>
+                    </div>
+
+                    <p style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '11pt', color: '#4F46E5', borderLeft: '4px solid #4F46E5', paddingLeft: '10px' }}>OPÇÃO 02:</p>
+                    
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5pt', textAlign: 'left', marginBottom: '15px' }}>
+                        <thead>
+                        <tr style={{ borderBottom: '2px solid #000000' }}>
+                            <th style={{ padding: '12px 5px', fontWeight: 'bold' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</th>
+                            <th style={{ padding: '12px 5px', textAlign: 'center', width: '60px', fontWeight: 'bold' }}>QTD.</th>
+                            <th style={{ padding: '12px 5px', textAlign: 'right', width: '110px', fontWeight: 'bold' }}>PREÇO UNIT.</th>
+                            <th style={{ padding: '12px 5px', textAlign: 'right', width: '110px', fontWeight: 'bold' }}>SUBTOTAL</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {(selectedProposal?.alternativeItems || []).map((it, i) => (
+                            <tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}>
+                            <td style={{ padding: '10px 5px', fontWeight: 'bold' }}>{it.name.toUpperCase()}</td>
+                            <td style={{ padding: '10px 5px', textAlign: 'center' }}>{it.quantity}</td>
+                            <td style={{ padding: '10px 5px', textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            <td style={{ padding: '10px 5px', textAlign: 'right', fontWeight: 'bold' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+
+                    <div style={{ textAlign: 'right', marginBottom: '45px' }}>
+                        <div style={{ 
+                            padding: '10px 20px', 
+                            backgroundColor: '#F8FAFC', 
+                            border: '1.5px solid #E2E8F0', 
+                            borderRadius: '6px',
+                            display: 'inline-block'
+                        }}>
+                            <span style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'uppercase', marginRight: '30px' }}>TOTAL OPÇÃO 02</span>
+                            <span style={{ fontSize: '12pt', fontWeight: 'bold', color: '#000000' }}>{selectedProposal?.totalOneTimeAlt?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                    </div>
+                  </>
+              )}
 
               <div style={{ padding: '20px', border: '1.5px solid #000000', borderRadius: '5px', marginBottom: '80px' }}>
                 <p style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '11pt', textDecoration: 'underline', textTransform: 'uppercase' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <div style={{ fontSize: '10.5pt', lineHeight: '1.5' }}>
                     <p style={{ margin: '4px 0' }}>• FORMA DE PAGAMENTO: {selectedProposal?.paymentMethod.toUpperCase()}</p>
-                    <p style={{ margin: '4px 0' }}>• CONDIÇÃO: {selectedProposal?.installments}X DE {(selectedProposal ? selectedProposal.totalOneTime / selectedProposal.installments : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    <p style={{ margin: '4px 0' }}>• CONDIÇÃO: {selectedProposal?.installments}X SEM JUROS.</p>
                     {selectedProposal?.firstAsDownPayment && <p style={{ margin: '4px 0', fontStyle: 'italic' }}>• PRIMEIRA PARCELA COMO ENTRADA.</p>}
                 </div>
                 

@@ -133,11 +133,15 @@ export type Proposal = {
   proposalDate: string; // ISO string
   validityDate: string; // ISO string
   items: ProposalItem[];
+  hasAlternative?: boolean;
+  alternativeItems?: ProposalItem[];
   paymentMethod: string;
   installments: number;
   firstAsDownPayment: boolean;
   totalOneTime: number;
   totalMonthly: number;
+  totalOneTimeAlt?: number;
+  totalMonthlyAlt?: number;
   observations?: string;
 };
 
