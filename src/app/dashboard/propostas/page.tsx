@@ -242,7 +242,7 @@ export default function PropostasPage() {
                 if (el) {
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
-                        // REGRAS DE BLINDAGEM DO ESPECIALISTA - GRAVADO
+                        // REGRA DE OURO - BLINDADO PARA ESPECIALISTA
                         node.style.letterSpacing = '0.3pt';
                         node.style.wordSpacing = 'normal';
                         node.style.fontVariantLigatures = 'none';

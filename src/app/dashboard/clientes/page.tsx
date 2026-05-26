@@ -20,7 +20,8 @@ import {
   DollarSign,
   User,
   Eye,
-  EyeOff
+  EyeOff,
+  XCircle
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -274,14 +275,12 @@ export default function ClientesPage() {
       <div className="flex items-center justify-between">
         <div>
             <h2 className="text-3xl font-bold tracking-tight font-headline">Clientes e Leads</h2>
-            <p className="text-muted-foreground">Gestão completa da carteira e funil comercial.</p>
+            <p className="text-muted-foreground">Gestão da carteira por segmentos e modalidades.</p>
         </div>
         <div className="flex gap-2">
-            {isAdmin && (
-                <Button variant="outline" size="icon" onClick={() => setShowFinancials(!showFinancials)} title={showFinancials ? "Ocultar Valores" : "Mostrar Valores"}>
-                    {showFinancials ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-            )}
+            <Button variant="outline" size="icon" onClick={() => setShowFinancials(!showFinancials)} title={showFinancials ? "Ocultar Valores" : "Mostrar Valores"}>
+                {showFinancials ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
             <Button className="gap-2 shadow-md" onClick={handleOpenNew}>
                 <PlusCircle className="h-4 w-4" /> Novo Registro
             </Button>
@@ -308,8 +307,8 @@ export default function ClientesPage() {
                     <TableHeader className="bg-muted/20">
                         <TableRow>
                             <TableHead className="pl-6">Identificação / Cliente</TableHead>
-                            <TableHead>Tipo / Categoria</TableHead>
-                            <TableHead>Faturamento</TableHead>
+                            <TableHead>Modalidade</TableHead>
+                            <TableHead>Segmentos / Serviços</TableHead>
                             <TableHead className="text-right pr-6">Ações</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -332,41 +331,46 @@ export default function ClientesPage() {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex items-center gap-1.5">
-                                            {customer.type === 'lead' && <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30 gap-1"><Tag className="h-3 w-3" /> Lead</Badge>}
-                                            {customer.type === 'active_contract' && <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 gap-1"><FileText className="h-3 w-3" /> Contrato</Badge>}
-                                            {customer.type === 'one_time' && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 gap-1"><UserCheck className="h-3 w-3" /> Avulso</Badge>}
-                                        </div>
-                                        <div className="flex flex-wrap gap-1">
-                                            {customer.serviceCategories?.map(catId => {
-                                                const cat = SERVICE_CATEGORIES.find(s => s.id === catId);
-                                                return cat ? <span key={catId} className={cn("text-[9px] px-1.5 rounded-sm font-bold uppercase", cat.color)}>{cat.label}</span> : null;
-                                            })}
-                                        </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        {customer.type === 'lead' && <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30 gap-1 w-fit"><Tag className="h-3 w-3" /> Lead</Badge>}
+                                        {customer.type === 'active_contract' && <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 gap-1 w-fit"><FileText className="h-3 w-3" /> Contrato</Badge>}
+                                        {customer.type === 'one_time' && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 gap-1 w-fit"><UserCheck className="h-3 w-3" /> Avulso</Badge>}
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex flex-col gap-0.5 min-w-[120px]">
-                                        {!showFinancials ? (
-                                            <span className="text-[11px] text-muted-foreground italic flex items-center gap-1">
-                                                <DollarSign className="h-3 w-3" /> R$ ****
-                                            </span>
-                                        ) : (
-                                            <>
-                                                {customer.monthlyValue ? (
-                                                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                                                        <Repeat className="h-3 w-3" /> {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
-                                                    </span>
-                                                ) : null}
-                                                {customer.oneTimeValue ? (
-                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                        <DollarSign className="h-3 w-3" /> Venda: {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                    </span>
-                                                ) : null}
-                                                {!customer.monthlyValue && !customer.oneTimeValue && <span className="text-[10px] text-muted-foreground italic">Não informado</span>}
-                                            </>
-                                        )}
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex flex-wrap gap-1">
+                                            {customer.serviceCategories?.length ? (
+                                                customer.serviceCategories.map(catId => {
+                                                    const cat = SERVICE_CATEGORIES.find(s => s.id === catId);
+                                                    return cat ? <span key={catId} className={cn("text-[9px] px-1.5 rounded-sm font-bold uppercase", cat.color)}>{cat.label}</span> : null;
+                                                })
+                                            ) : (
+                                                <span className="text-[10px] text-muted-foreground italic">Nenhum segmento</span>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Faturamento oculto por padrão, visível sob demanda */}
+                                        <div className="flex flex-col gap-0.5 mt-1 border-t border-muted pt-1">
+                                            {!showFinancials ? (
+                                                <span className="text-[9px] text-muted-foreground italic flex items-center gap-1">
+                                                    <DollarSign className="h-2.5 w-2.5" /> R$ ****
+                                                </span>
+                                            ) : (
+                                                <div className="flex gap-3">
+                                                    {customer.monthlyValue ? (
+                                                        <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                                                            <Repeat className="h-2.5 w-2.5" /> {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                                                        </span>
+                                                    ) : null}
+                                                    {customer.oneTimeValue ? (
+                                                        <span className="text-[10px] text-primary font-bold flex items-center gap-1">
+                                                            <DollarSign className="h-2.5 w-2.5" /> {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-right pr-6 py-4">
