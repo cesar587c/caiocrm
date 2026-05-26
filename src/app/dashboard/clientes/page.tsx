@@ -17,7 +17,10 @@ import {
   UserCheck,
   Briefcase,
   Layers,
-  DollarSign
+  DollarSign,
+  User,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -120,6 +123,7 @@ export default function ClientesPage() {
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
   const [searchTermTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [showFinancials, setShowFinancials] = useState(false);
 
   const { toast } = useToast();
 
@@ -257,6 +261,8 @@ export default function ClientesPage() {
     form.reset();
   }
 
+  const isAdmin = currentUser?.role === 'admin';
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-background/50">
       <div className="flex items-center justify-between">
@@ -264,9 +270,16 @@ export default function ClientesPage() {
             <h2 className="text-3xl font-bold tracking-tight font-headline">Clientes e Leads</h2>
             <p className="text-muted-foreground">Gestão completa da carteira e funil comercial.</p>
         </div>
-        <Button className="gap-2 shadow-md" onClick={() => { setEditingCustomer(null); form.reset(); setIsFormDialogOpen(true); }}>
-            <PlusCircle className="h-4 w-4" /> Novo Registro
-        </Button>
+        <div className="flex gap-2">
+            {isAdmin && (
+                <Button variant="outline" size="icon" onClick={() => setShowFinancials(!showFinancials)} title={showFinancials ? "Ocultar Valores" : "Mostrar Valores"}>
+                    {showFinancials ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+            )}
+            <Button className="gap-2 shadow-md" onClick={() => { setEditingCustomer(null); form.reset(); setIsFormDialogOpen(true); }}>
+                <PlusCircle className="h-4 w-4" /> Novo Registro
+            </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="all" onValueChange={setActiveTab} className="space-y-6">
@@ -299,9 +312,14 @@ export default function ClientesPage() {
                             <TableRow key={customer.id} onClick={() => handleEditClick(customer)} className="cursor-pointer hover:bg-muted/40 transition-colors">
                                 <TableCell className="pl-6 py-4">
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-base">{customer.nomeFantasia || customer.name}</span>
-                                        <span className="text-[10px] text-muted-foreground uppercase">{customer.name}</span>
-                                        <div className="flex items-center gap-3 mt-1">
+                                        <span className="font-bold text-base leading-tight">{customer.nomeFantasia || customer.name}</span>
+                                        {customer.contactName && (
+                                            <span className="text-[11px] text-primary font-semibold flex items-center gap-1 mt-0.5">
+                                                <User className="h-3 w-3" /> Contato: {customer.contactName}
+                                            </span>
+                                        )}
+                                        <span className="text-[10px] text-muted-foreground uppercase mt-1">{customer.name}</span>
+                                        <div className="flex items-center gap-3 mt-1.5">
                                             {customer.telefone && <span className="text-[10px] flex items-center gap-1"><Phone className="h-3 w-3" /> {formatPhoneNumber(customer.telefone)}</span>}
                                             {customer.cnpj && <span className="text-[10px] font-mono">{formatDocument(customer.cnpj)}</span>}
                                         </div>
@@ -323,21 +341,29 @@ export default function ClientesPage() {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex flex-col gap-0.5">
-                                        {customer.monthlyValue ? (
-                                            <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                                                <Repeat className="h-3 w-3" /> {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                                    <div className="flex flex-col gap-0.5 min-w-[120px]">
+                                        {!showFinancials ? (
+                                            <span className="text-[11px] text-muted-foreground italic flex items-center gap-1">
+                                                <DollarSign className="h-3 w-3" /> R$ ****
                                             </span>
-                                        ) : null}
-                                        {customer.oneTimeValue ? (
-                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                <DollarSign className="h-3 w-3" /> Venda: {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </span>
-                                        ) : null}
-                                        {!customer.monthlyValue && !customer.oneTimeValue && <span className="text-[10px] text-muted-foreground italic">Não informado</span>}
+                                        ) : (
+                                            <>
+                                                {customer.monthlyValue ? (
+                                                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                                                        <Repeat className="h-3 w-3" /> {customer.monthlyValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                                                    </span>
+                                                ) : null}
+                                                {customer.oneTimeValue ? (
+                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                        <DollarSign className="h-3 w-3" /> Venda: {customer.oneTimeValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </span>
+                                                ) : null}
+                                                {!customer.monthlyValue && !customer.oneTimeValue && <span className="text-[10px] text-muted-foreground italic">Não informado</span>}
+                                            </>
+                                        )}
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-right pr-6">
+                                <TableCell className="text-right pr-6 py-4">
                                     <div className="flex justify-end gap-1 opacity-20 hover:opacity-100 transition-opacity">
                                         <Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeletingCustomer(customer); }}><Trash2 className="h-4 w-4" /></Button>
@@ -413,6 +439,9 @@ export default function ClientesPage() {
                                     <FormField control={form.control} name="nomeFantasia" render={({ field }) => (
                                         <FormItem><FormLabel>Nome Fantasia (Opcional)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                                     )} />
+                                    <FormField control={form.control} name="contactName" render={({ field }) => (
+                                        <FormItem><FormLabel>Pessoa de Contato Principal</FormLabel><FormControl><Input placeholder="Ex: Sr. Carlos" {...field} /></FormControl></FormItem>
+                                    )} />
                                 </div>
                             </div>
 
@@ -437,12 +466,12 @@ export default function ClientesPage() {
                                             ))}
                                         </div>
                                     </FormItem>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-4 p-3 bg-primary/5 rounded-lg border border-primary/10">
                                         <FormField control={form.control} name="oneTimeValue" render={({ field }) => (
-                                            <FormItem><FormLabel>Vlr. Venda (R$)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                                            <FormItem><FormLabel className="text-primary font-bold">Vlr. Venda (R$)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
                                         )} />
                                         <FormField control={form.control} name="monthlyValue" render={({ field }) => (
-                                            <FormItem><FormLabel>Vlr. Mensal (R$)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                                            <FormItem><FormLabel className="text-emerald-600 font-bold">Vlr. Mensal (R$)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
                                         )} />
                                     </div>
                                     <FormField control={form.control} name="telefone" render={({ field }) => (
@@ -450,6 +479,9 @@ export default function ClientesPage() {
                                     )} />
                                     <FormField control={form.control} name="email" render={({ field }) => (
                                         <FormItem><FormLabel>E-mail Comercial</FormLabel><FormControl><Input type="email" {...field} /></FormControl></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="endereco" render={({ field }) => (
+                                        <FormItem><FormLabel>Endereço Completo</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
                                     )} />
                                 </div>
                             </div>

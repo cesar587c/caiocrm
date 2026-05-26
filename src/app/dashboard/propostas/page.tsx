@@ -242,6 +242,7 @@ export default function PropostasPage() {
                 if (el) {
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
+                        // REGRAS DE BLINDAGEM DO ESPECIALISTA - GRAVADO
                         node.style.letterSpacing = '0.3pt';
                         node.style.wordSpacing = 'normal';
                         node.style.fontVariantLigatures = 'none';
@@ -489,7 +490,9 @@ export default function PropostasPage() {
                   <div className="border-t pt-8">
                     <FormField control={form.control} name="observations" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-bold flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> Condições e Prazos Adicionais</FormLabel>
+                        <FormLabel className="font-bold flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-primary" /> Condições e Prazos Adicionais
+                        </FormLabel>
                         <FormControl><Textarea rows={3} placeholder="Ex: Prazo de entrega: 5 dias úteis..." {...field} className="text-xs" /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -523,6 +526,7 @@ export default function PropostasPage() {
             <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(null)}><XCircle className="h-5 w-5" /></Button>
           </DialogHeader>
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
+            {/* O DOCUMENTO ABAIXO SEGUE AS MARGENS DE 1,5CM E LOGO DE 160PX - BLINDADO */}
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
               <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
                 <tbody>
@@ -550,20 +554,40 @@ export default function PropostasPage() {
                             <p style={{ color: '#666666', fontSize: '8.5pt', fontWeight: 'bold', margin: '0 0 6px 0' }}>DESTINATÁRIO</p>
                             <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0' }}>{selectedProposal?.clientName}</h1>
                             <p style={{ color: '#4F46E5', fontWeight: 'bold', margin: '6px 0', fontSize: '11.5pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
+                            {selectedProposal?.clientPhone && <p style={{ fontSize: '10pt', margin: '0' }}>Tel: {formatPhoneNumber(selectedProposal.clientPhone)}</p>}
                         </td>
                         <td style={{ verticalAlign: 'top', textAlign: 'right', width: '200px' }}>
                             <p><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
                             <p><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                            <p><strong>VALIDADE:</strong> {selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
                         </td>
                     </tr>
                 </tbody>
               </table>
 
-              {selectedProposal?.hasAlternative && <p style={{ fontWeight: 'bold', color: '#4F46E5', borderLeft: '4px solid #4F46E5', paddingLeft: '10px' }}>OPÇÃO 01:</p>}
+              {selectedProposal?.hasAlternative && <p style={{ fontWeight: 'bold', color: '#4F46E5', borderLeft: '4px solid #4F46E5', paddingLeft: '10px', marginBottom: '10px' }}>OPÇÃO 01:</p>}
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
-                <thead><tr style={{ borderBottom: '2px solid #000000' }}><th style={{ padding: '12px 5px', textAlign: 'left' }}>DESCRIÇÃO</th><th style={{ textAlign: 'center' }}>QTD.</th><th style={{ textAlign: 'right' }}>VALOR</th></tr></thead>
-                <tbody>{selectedProposal?.items.map((it, i) => (<tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}><td style={{ padding: '10px 5px' }}>{it.name.toUpperCase()}</td><td style={{ textAlign: 'center' }}>{it.quantity}</td><td style={{ textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>))}</tbody>
+                <thead>
+                    <tr style={{ borderBottom: '2px solid #000000' }}>
+                        <th style={{ padding: '12px 5px', textAlign: 'left' }}>DESCRIÇÃO</th>
+                        <th style={{ textAlign: 'center', width: '60px' }}>QTD.</th>
+                        <th style={{ textAlign: 'right', width: '110px' }}>VALOR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {selectedProposal?.items.map((it, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}>
+                            <td style={{ padding: '10px 5px' }}>{it.name.toUpperCase()}</td>
+                            <td style={{ textAlign: 'center' }}>{it.quantity}</td>
+                            <td style={{ textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                        </tr>
+                    ))}
+                </tbody>
               </table>
+              <div style={{ textAlign: 'right', marginBottom: '30px' }}>
+                <p style={{ fontWeight: 'bold', fontSize: '12pt' }}>TOTAL INVESTIMENTO: {selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                {selectedProposal?.totalMonthly! > 0 && <p style={{ fontSize: '10pt', color: '#4F46E5' }}>TAXA MENSAL: {selectedProposal?.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+              </div>
 
               {selectedProposal?.hasAlternative && (
                   <>
@@ -571,10 +595,22 @@ export default function PropostasPage() {
                         <div style={{ borderTop: '1px dashed #A0AEC0', width: '100%', position: 'absolute', top: '50%' }}></div>
                         <span style={{ position: 'relative', backgroundColor: '#FFFFFF', padding: '0 20px', fontWeight: 'bold', fontSize: '14pt', color: '#EF4444' }}>OU</span>
                     </div>
-                    <p style={{ fontWeight: 'bold', color: '#4F46E5', borderLeft: '4px solid #4F46E5', paddingLeft: '10px' }}>OPÇÃO 02:</p>
+                    <p style={{ fontWeight: 'bold', color: '#4F46E5', borderLeft: '4px solid #4F46E5', paddingLeft: '10px', marginBottom: '10px' }}>OPÇÃO 02:</p>
                     <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
-                        <tbody>{(selectedProposal?.alternativeItems || []).map((it, i) => (<tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}><td style={{ padding: '10px 5px' }}>{it.name.toUpperCase()}</td><td style={{ textAlign: 'center' }}>{it.quantity}</td><td style={{ textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>))}</tbody>
+                        <tbody>
+                            {(selectedProposal?.alternativeItems || []).map((it, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}>
+                                    <td style={{ padding: '10px 5px' }}>{it.name.toUpperCase()}</td>
+                                    <td style={{ textAlign: 'center', width: '60px' }}>{it.quantity}</td>
+                                    <td style={{ textAlign: 'right', width: '110px' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                </tr>
+                            ))}
+                        </tbody>
                     </table>
+                    <div style={{ textAlign: 'right', marginBottom: '30px' }}>
+                        <p style={{ fontWeight: 'bold', fontSize: '12pt' }}>TOTAL INVESTIMENTO: {selectedProposal?.totalOneTimeAlt?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        {selectedProposal?.totalMonthlyAlt! > 0 && <p style={{ fontSize: '10pt', color: '#4F46E5' }}>TAXA MENSAL: {selectedProposal?.totalMonthlyAlt?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+                    </div>
                   </>
               )}
 
@@ -582,7 +618,7 @@ export default function PropostasPage() {
                 <p style={{ fontWeight: 'bold', textDecoration: 'underline' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <p>• FORMA: {selectedProposal?.paymentMethod.toUpperCase()}</p>
                 <p>• CONDIÇÃO: {selectedProposal?.installments}X SEM JUROS.</p>
-                {selectedProposal?.observations && <p style={{ marginTop: '10px', fontSize: '10pt' }}>OBS: {selectedProposal.observations}</p>}
+                {selectedProposal?.observations && <p style={{ marginTop: '10px', fontSize: '10pt', whiteSpace: 'pre-wrap' }}>OBS: {selectedProposal.observations}</p>}
               </div>
             </div>
           </ScrollArea>
