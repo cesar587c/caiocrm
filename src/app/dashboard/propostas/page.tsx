@@ -55,7 +55,6 @@ import {
   Settings,
   CreditCard,
   TrendingUp,
-  AlertCircle,
   LayoutGrid,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -874,7 +873,7 @@ export default function PropostasPage() {
                 style={{ 
                     width: '210mm', 
                     minHeight: '297mm', 
-                    padding: '25mm',
+                    padding: '15mm',
                     fontFamily: 'Arial, sans-serif',
                     fontSize: '11pt',
                     lineHeight: '1.4',
@@ -889,7 +888,7 @@ export default function PropostasPage() {
                 <tbody>
                     <tr>
                         <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
-                        <td style={{ padding: '0 25px', width: '150px', verticalAlign: 'top' }}>
+                        <td style={{ padding: '0 20px', width: '150px', verticalAlign: 'top' }}>
                         {companyProfile.logoUrl && (
                             <img 
                             src={companyProfile.logoUrl} 
