@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -77,19 +77,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { lookupCnpj } from "@/app/actions";
 import { Checkbox } from "@/components/ui/checkbox";
-
-const statusMap: Record<string, string> = {
-  active: "Ativo",
-  inactive: "Inativo",
-  new: "Novo",
-  lead: "Lead",
-  discarded: "Descartado",
-  won: "Ganho",
-  lost: "Perdido",
-  opportunity: "Oportunidade",
-  proposal: "Proposta",
-  negotiation: "Negociação"
-};
 
 const SERVICE_CATEGORIES = [
   { id: "ponto", label: "Ponto", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
@@ -228,6 +215,26 @@ export default function ClientesPage() {
     setIsFormDialogOpen(true);
   };
 
+  const handleOpenNew = () => {
+    setEditingCustomer(null);
+    form.reset({
+      cnpj: "",
+      razaoSocial: "",
+      nomeFantasia: "",
+      contactName: "",
+      telefone: "",
+      email: "",
+      endereco: "",
+      isLead: false,
+      tipoCliente: "one_time",
+      serviceCategories: [],
+      observations: "",
+      oneTimeValue: 0,
+      monthlyValue: 0,
+    });
+    setIsFormDialogOpen(true);
+  };
+
   function onSubmit(values: z.infer<typeof formSchema>) {
     const payload = {
         name: values.razaoSocial,
@@ -258,7 +265,6 @@ export default function ClientesPage() {
     }
     setIsFormDialogOpen(false);
     setEditingCustomer(null);
-    form.reset();
   }
 
   const isAdmin = currentUser?.role === 'admin';
@@ -276,7 +282,7 @@ export default function ClientesPage() {
                     {showFinancials ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
             )}
-            <Button className="gap-2 shadow-md" onClick={() => { setEditingCustomer(null); form.reset(); setIsFormDialogOpen(true); }}>
+            <Button className="gap-2 shadow-md" onClick={handleOpenNew}>
                 <PlusCircle className="h-4 w-4" /> Novo Registro
             </Button>
         </div>
