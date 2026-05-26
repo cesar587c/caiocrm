@@ -44,7 +44,8 @@ import {
   BellRing,
   CheckCircle2,
   AlertTriangle,
-  Mail
+  Mail,
+  Pencil
 } from "lucide-react";
 import { format, startOfDay, endOfDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";

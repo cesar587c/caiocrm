@@ -888,12 +888,12 @@ export default function PropostasPage() {
                 <tbody>
                     <tr>
                         <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
-                        <td style={{ padding: '0 20px', width: '150px', verticalAlign: 'top' }}>
+                        <td style={{ padding: '0 20px', width: '170px', verticalAlign: 'top' }}>
                         {companyProfile.logoUrl && (
                             <img 
                             src={companyProfile.logoUrl} 
                             alt="Logo" 
-                            style={{ maxHeight: '140px', width: 'auto', display: 'block', objectFit: 'contain' }} 
+                            style={{ maxHeight: '160px', width: 'auto', display: 'block', objectFit: 'contain' }} 
                             />
                         )}
                         </td>
