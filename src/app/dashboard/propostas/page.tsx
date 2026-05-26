@@ -526,7 +526,7 @@ export default function PropostasPage() {
             <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(null)}><XCircle className="h-5 w-5" /></Button>
           </DialogHeader>
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
-            {/* O DOCUMENTO ABAIXO SEGUE AS MARGENS DE 1,5CM E LOGO DE 160PX - BLINDADO */}
+            {/* DOCUMENTO BLINDADO: MARGENS 15mm, LOGO 160px, SPACING 0.3pt */}
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
               <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
                 <tbody>

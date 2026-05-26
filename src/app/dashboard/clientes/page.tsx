@@ -21,7 +21,8 @@ import {
   User,
   Eye,
   EyeOff,
-  XCircle
+  XCircle,
+  MessageSquare
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -350,7 +351,6 @@ export default function ClientesPage() {
                                             )}
                                         </div>
                                         
-                                        {/* Faturamento oculto por padrão, visível sob demanda */}
                                         <div className="flex flex-col gap-0.5 mt-1 border-t border-muted pt-1">
                                             {!showFinancials ? (
                                                 <span className="text-[9px] text-muted-foreground italic flex items-center gap-1">
@@ -495,6 +495,25 @@ export default function ClientesPage() {
                                     )} />
                                 </div>
                             </div>
+                        </div>
+
+                        <div className="mt-8 border-t pt-8">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2 mb-4">
+                                <MessageSquare className="h-4 w-4" /> Serviços Prestados e Observações
+                            </h3>
+                            <FormField control={form.control} name="observations" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Serviços, Sistemas e Produtos (Descrição)</FormLabel>
+                                    <FormControl>
+                                        <Textarea 
+                                            placeholder="Descreva aqui quais serviços são prestados, qual sistema é utilizado (se houver) e quais produtos foram fornecidos ao cliente..." 
+                                            className="min-h-[120px] resize-none"
+                                            {...field} 
+                                        />
+                                    </FormControl>
+                                    <FormDescription>Utilize este espaço para documentar a infraestrutura técnica do cliente.</FormDescription>
+                                </FormItem>
+                            )} />
                         </div>
                     </ScrollArea>
                     <DialogFooter className="p-6 border-t bg-muted/20">
