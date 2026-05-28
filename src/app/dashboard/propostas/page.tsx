@@ -84,7 +84,7 @@ import { Separator } from '@/components/ui/separator';
 import type { Proposal, Product, Customer } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from 'tabs';
 
 const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -330,6 +330,23 @@ export default function PropostasPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleCloneProposal = (p: Proposal) => {
+    setEditingProposal(null);
+    form.reset({
+      ...p,
+      proposalDate: new Date(),
+      validityDate: addDays(new Date(), 10),
+      clientPhone: formatPhoneNumber(p.clientPhone || ''),
+    });
+    setIsQuickAddingClient(!p.clientId);
+    setActiveTab('gerador');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast({ 
+        title: 'Proposta Clonada!', 
+        description: 'Os dados foram carregados no gerador. Ajuste o necessário e salve para criar uma nova proposta.' 
+    });
+  };
+
   const onSubmit = (data: ProposalFormValues) => {
     if (isQuickAddingClient && data.saveToContacts && !editingProposal) {
         addCustomer({
@@ -565,7 +582,7 @@ export default function PropostasPage() {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Histórico de Propostas</CardTitle>
-                            <CardDescription>Visualize, edite ou exporte orçamentos realizados anteriormente.</CardDescription>
+                            <CardDescription>Visualize, clone, edite ou exporte orçamentos realizados anteriormente.</CardDescription>
                         </div>
                         <div className="relative w-full md:w-72">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -607,6 +624,9 @@ export default function PropostasPage() {
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => setSelectedProposal(p)} title="Visualizar/Imprimir">
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500" onClick={() => handleCloneProposal(p)} title="Clonar Proposta">
+                                                    <Copy className="h-4 w-4" />
+                                                </Button>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditProposalClick(p)} title="Editar">
                                                     <Pencil className="h-4 w-4" />
                                                 </Button>
@@ -636,7 +656,7 @@ export default function PropostasPage() {
             <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(null)}><XCircle className="h-5 w-5" /></Button>
           </DialogHeader>
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
-            {/* DOCUMENTO BLINDADO: MARGENS 15mm, LOGO 160px, SPACING 0.3pt */}
+            {/* DOCUMENTO BLINDADO PARA ESPECIALISTA: MARGENS 15mm, LOGO 160px, SPACING 0.3pt */}
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
               <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
                 <tbody>
