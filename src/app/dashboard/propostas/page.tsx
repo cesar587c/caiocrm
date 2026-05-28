@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -44,25 +45,17 @@ import {
   Loader2,
   Pencil,
   Copy,
-  Image as ImageIcon,
   Share2,
   XCircle,
   FileText,
-  Calendar as CalendarIcon,
-  User,
-  Settings,
-  CreditCard,
-  TrendingUp,
   LayoutGrid,
   History,
   Eye,
   Search,
-  CheckCircle2,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useSettings } from '@/contexts/SettingsContext';
-import { ToastAction } from '@/components/ui/toast';
 import {
   Dialog,
   DialogContent,
@@ -81,10 +74,8 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import type { Proposal, Product, Customer } from '@/lib/types';
+import type { Proposal, ProposalItem } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const proposalItemSchema = z.object({
@@ -119,7 +110,6 @@ export default function PropostasPage() {
     companyProfile, 
     customers, 
     products, 
-    addProduct, 
     proposals, 
     addProposal, 
     updateProposal, 
@@ -342,7 +332,7 @@ export default function PropostasPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     toast({ 
         title: 'Proposta Clonada!', 
-        description: 'Os dados foram carregados no gerador. Ajuste o necessário e salve para criar uma nova proposta.' 
+        description: 'Dados carregados para nova proposta.' 
     });
   };
 
@@ -365,7 +355,7 @@ export default function PropostasPage() {
 
     const proposalData: Proposal = {
         ...data,
-        id: editingProposal ? editingProposal.id : String(Date.now()),
+        id: editingProposal ? editingProposal.id : String(Date.now()).slice(-6),
         clientPhone: data.clientPhone?.replace(/\D/g, ''),
         proposalDate: data.proposalDate.toISOString(),
         validityDate: data.validityDate.toISOString(),
@@ -411,7 +401,7 @@ export default function PropostasPage() {
       <div className="flex items-center justify-between">
         <div>
             <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gerador de Propostas</h2>
-            <p className="text-muted-foreground">Crie orçamentos profissionais com alternativas e layout blindado.</p>
+            <p className="text-muted-foreground">Layout SALVAR Ativado - Blindagem de Especialista.</p>
         </div>
       </div>
 
@@ -428,131 +418,79 @@ export default function PropostasPage() {
                     <form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form">
                     <Card className="shadow-lg border-primary/10">
                         <CardHeader className="flex flex-row items-start justify-between pb-6">
-                        <div className="space-y-1">
                             <CardTitle className="text-xl flex items-center gap-2">
                                 <FileText className="h-5 w-5 text-primary" />
                                 {editingProposal ? `Editar Proposta #${editingProposal.id}` : 'Configurar Orçamento'}
                             </CardTitle>
-                        </div>
-                        <div className="flex gap-4">
-                            <FormField control={form.control} name="proposalDate" render={({ field }) => (
-                            <div className="space-y-1">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emissão</Label>
-                                <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[125px] h-9 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                            <div className="flex gap-4">
+                                <FormField control={form.control} name="proposalDate" render={({ field }) => (
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emissão</Label>
+                                        <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[125px] h-9 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                    </div>
+                                )} />
+                                <FormField control={form.control} name="validityDate" render={({ field }) => (
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Validade</Label>
+                                        <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[125px] h-9 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                    </div>
+                                )} />
                             </div>
-                            )} />
-                            <FormField control={form.control} name="validityDate" render={({ field }) => (
-                            <div className="space-y-1">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Validade</Label>
-                                <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[125px] h-9 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
-                            </div>
-                            )} />
-                        </div>
                         </CardHeader>
                         <CardContent className="border-t pt-8 space-y-8">
-                        <div className="flex items-center gap-5 p-4 rounded-xl bg-muted/30 border">
-                            {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" className="h-14 w-auto object-contain rounded" />}
-                            <div className="space-y-0.5">
-                            <h3 className="font-bold text-lg leading-none">{companyProfile.name}</h3>
-                            <p className="text-xs text-muted-foreground">{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2"><Label className="text-sm font-semibold">Cliente Destinatário</Label></div>
-                            <div className="flex gap-3">
-                            <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
-                                <SelectTrigger className="flex-1"><SelectValue placeholder="Buscar cliente..." /></SelectTrigger>
-                                <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Button type="button" variant="secondary" onClick={() => setIsQuickAddingClient(true)} className="gap-2"><PlusCircle className="h-4 w-4" /> Outro</Button>
-                            </div>
-
-                            {isQuickAddingClient && (
-                            <div className="p-5 border rounded-xl bg-muted/20 space-y-5">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Empresa / Cliente</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>Pessoa de Contato</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                            <div className="space-y-4">
+                                <Label className="text-sm font-semibold">Selecione o Cliente</Label>
+                                <div className="flex gap-3">
+                                <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
+                                    <SelectTrigger className="flex-1"><SelectValue placeholder="Buscar na base..." /></SelectTrigger>
+                                    <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                                <Button type="button" variant="secondary" onClick={() => setIsQuickAddingClient(true)} className="gap-2"><PlusCircle className="h-4 w-4" /> Digitar Novo</Button>
                                 </div>
-                                <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border">
-                                <div className="space-y-0.5"><p className="text-xs font-bold text-primary">Salvar nos contatos?</p></div>
-                                <FormField control={form.control} name="saveToContacts" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
+
+                                {isQuickAddingClient && (
+                                <div className="p-5 border rounded-xl bg-muted/20 space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Empresa / Cliente</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>A/C (Contato)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                    </div>
+                                    <FormField control={form.control} name="clientPhone" render={({ field }) => (<FormItem><FormLabel>Telefone</FormLabel><FormControl><Input {...field} onChange={e => field.onChange(formatPhoneNumber(e.target.value))} /></FormControl></FormItem>)} />
+                                    <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border">
+                                    <div className="space-y-0.5"><p className="text-xs font-bold text-primary">Salvar na base de contatos?</p></div>
+                                    <FormField control={form.control} name="saveToContacts" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
+                                    </div>
                                 </div>
+                                )}
                             </div>
-                            )}
-                        </div>
 
-                        <div className="space-y-4 border-t pt-8">
-                            <div className="flex items-center justify-between">
-                                <h4 className="text-sm font-bold">Opção Principal (Opção A)</h4>
-                                <Button type="button" variant="outline" size="sm" onClick={() => appendA({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Adicionar Manualmente</Button>
-                            </div>
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Descrição do Item</TableHead><TableHead className="w-20">Qtd.</TableHead><TableHead className="w-28">Preço Unit.</TableHead><TableHead className="w-24">Tipo</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {fieldsA.map((it, idx) => (
-                                    <TableRow key={it.id}>
-                                        <TableCell><Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx, false)} list="proposal-products-list" className="h-8 text-xs" /></TableCell>
-                                        <TableCell><Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs" /></TableCell>
-                                        <TableCell><Input type="number" step="0.01" {...form.register(`items.${idx}.price`)} className="h-8 text-xs" /></TableCell>
-                                        <TableCell>
-                                            <Controller control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (
-                                                <Select onValueChange={v => field.onChange(v === 'M')} value={field.value ? 'M' : 'U'}>
-                                                    <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                                                    <SelectContent><SelectItem value="U">Único</SelectItem><SelectItem value="M">Mensal</SelectItem></SelectContent>
-                                                </Select>
-                                            )} />
-                                        </TableCell>
-                                        <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeA(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
-                                    </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-
-                        <div className="p-4 bg-primary/5 rounded-xl border flex items-center justify-between">
-                            <Label className="font-bold">Oferecer Alternativa (Opção B)</Label>
-                            <FormField control={form.control} name="hasAlternative" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
-                        </div>
-
-                        {watchHasAlternative && (
                             <div className="space-y-4 border-t pt-8">
-                                <div className="flex items-center justify-between"><h4 className="text-sm font-bold text-orange-500">Opção Alternativa (Opção B)</h4><Button type="button" variant="outline" size="sm" onClick={() => appendB({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2 text-orange-500"><PlusCircle className="h-3.5 w-3.5" /> Adicionar Manualmente B</Button></div>
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-bold">Itens da Proposta</h4>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => appendA({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Item</Button>
+                                </div>
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Descrição do Item B</TableHead><TableHead className="w-20">Qtd.</TableHead><TableHead className="w-28">Preço Unit.</TableHead><TableHead className="w-24">Tipo</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead className="w-16">Qtd</TableHead><TableHead className="w-28">Preço</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
                                     <TableBody>
-                                        {fieldsB.map((it, idx) => (
+                                        {fieldsA.map((it, idx) => (
                                         <TableRow key={it.id}>
-                                            <TableCell><Input {...form.register(`alternativeItems.${idx}.name` as any)} onBlur={() => handleItemNameBlur(idx, true)} list="proposal-products-list" className="h-8 text-xs" /></TableCell>
-                                            <TableCell><Input type="number" {...form.register(`alternativeItems.${idx}.quantity` as any)} className="h-8 text-xs" /></TableCell>
-                                            <TableCell><Input type="number" step="0.01" {...form.register(`alternativeItems.${idx}.price` as any)} className="h-8 text-xs" /></TableCell>
-                                            <TableCell>
-                                                <Controller control={form.control} name={`alternativeItems.${idx}.isMonthly` as any} render={({ field }) => (
-                                                    <Select onValueChange={v => field.onChange(v === 'M')} value={field.value ? 'M' : 'U'}>
-                                                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                                                        <SelectContent><SelectItem value="U">Único</SelectItem><SelectItem value="M">Mensal</SelectItem></SelectContent>
-                                                    </Select>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeB(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                                            <TableCell><Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} list="proposal-products-list" className="h-8 text-xs" /></TableCell>
+                                            <TableCell><Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs" /></TableCell>
+                                            <TableCell><Input type="number" step="0.01" {...form.register(`items.${idx}.price`)} className="h-8 text-xs" /></TableCell>
+                                            <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeA(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                                         </TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
                             </div>
-                        )}
 
-                        <div className="border-t pt-8">
-                            <FormField control={form.control} name="observations" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="font-bold flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-primary" /> Condições e Prazos Adicionais
-                                </FormLabel>
-                                <FormControl><Textarea rows={3} placeholder="Ex: Prazo de entrega: 5 dias úteis..." {...field} className="text-xs" /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )} />
-                        </div>
+                            <div className="border-t pt-8">
+                                <FormField control={form.control} name="observations" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="font-bold">Observações e Prazos</FormLabel>
+                                    <FormControl><Textarea rows={3} placeholder="Ex: Prazo de entrega 10 dias úteis..." {...field} className="text-xs" /></FormControl>
+                                </FormItem>
+                                )} />
+                            </div>
                         </CardContent>
                     </Card>
                     </form>
@@ -560,29 +498,21 @@ export default function PropostasPage() {
                 </div>
 
                 <div className="lg:col-span-1 space-y-6">
-                <Card className="shadow-lg sticky top-4">
-                    <CardHeader className="bg-primary/5 pb-4"><CardTitle className="text-lg">Faturamento</CardTitle></CardHeader>
-                    <CardContent className="space-y-6 pt-6">
-                    <div className="space-y-2">
-                        <Label className="text-xs font-bold text-muted-foreground">Parcelamento (Ref. Opção A)</Label>
-                        <Controller control={form.control} name="installments" render={({ field }) => (<Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x de {((totalsA.oneTime / (i+1)) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</SelectItem>)}</SelectContent></Select>)} />
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                        <div className="space-y-0.5">
-                            <Label className="text-xs font-bold">Primeira como Entrada?</Label>
-                            <p className="text-[10px] text-muted-foreground">Ex: Entrada + 2x</p>
+                    <Card className="shadow-lg sticky top-4">
+                        <CardHeader className="bg-primary/5 pb-4"><CardTitle className="text-lg">Finalização</CardTitle></CardHeader>
+                        <CardContent className="space-y-6 pt-6">
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold text-muted-foreground">Parcelas</Label>
+                            <Controller control={form.control} name="installments" render={({ field }) => (<Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x</SelectItem>)}</SelectContent></Select>)} />
                         </div>
-                        <FormField control={form.control} name="firstAsDownPayment" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="p-3 bg-primary/5 rounded-lg border border-primary/10"><span className="text-xs font-bold text-primary">Venda A: {totalsA.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                        {watchHasAlternative && <div className="p-3 bg-orange-500/5 rounded-lg border border-orange-500/20"><span className="text-xs font-bold text-orange-600">Venda B: {totalsB.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>}
-                    </div>
-                    <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">Finalizar e Salvar</Button>
-                    </CardContent>
-                </Card>
+                        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                            <div className="space-y-0.5"><Label className="text-xs font-bold">Entrada?</Label></div>
+                            <FormField control={form.control} name="firstAsDownPayment" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
+                        </div>
+                        <div className="p-3 bg-primary/5 rounded-lg border border-primary/10"><span className="text-sm font-bold text-primary">Total: {totalsA.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                        <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">SALVAR PROPOSTA</Button>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </TabsContent>
@@ -590,69 +520,34 @@ export default function PropostasPage() {
         <TabsContent value="historico">
             <Card className="shadow-lg">
                 <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Histórico de Propostas</CardTitle>
-                            <CardDescription>Visualize, clone, edite ou exporte orçamentos realizados anteriormente.</CardDescription>
-                        </div>
-                        <div className="relative w-full md:w-72">
+                    <div className="flex items-center justify-between">
+                        <CardTitle>Histórico de Orçamentos</CardTitle>
+                        <div className="relative w-72">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Buscar por cliente ou nº..." className="pl-10" value={proposalSearch} onChange={(e) => setProposalSearch(e.target.value)} />
+                            <Input placeholder="Buscar..." className="pl-10" value={proposalSearch} onChange={(e) => setProposalSearch(e.target.value)} />
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Proposta</TableHead>
-                                <TableHead>Cliente</TableHead>
-                                <TableHead>Data</TableHead>
-                                <TableHead>Investimento</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
-                            </TableRow>
-                        </TableHeader>
+                        <TableHeader><TableRow><TableHead>Nº</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Valor</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {filteredProposals.length > 0 ? (
-                                filteredProposals.map(p => (
-                                    <TableRow key={p.id}>
-                                        <TableCell className="font-bold">#{p.id.slice(-6)}</TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold">{p.clientName}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase">{p.contactName || 'Setor Responsável'}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-xs">{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-primary">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                                                {p.totalMonthly > 0 && <span className="text-[10px] text-emerald-600 font-semibold">{p.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês</span>}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => setSelectedProposal(p)} title="Visualizar/Imprimir">
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500" onClick={() => handleCloneProposal(p)} title="Clonar Proposta">
-                                                    <Copy className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditProposalClick(p)} title="Editar">
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingProposal(p)} title="Excluir">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground italic">Nenhuma proposta encontrada.</TableCell>
+                            {filteredProposals.map(p => (
+                                <TableRow key={p.id}>
+                                    <TableCell className="font-bold">#{p.id}</TableCell>
+                                    <TableCell>{p.clientName}</TableCell>
+                                    <TableCell className="text-xs">{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell className="font-bold">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-1">
+                                            <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(p)} title="Ver PDF"><Eye className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleCloneProposal(p)} title="Clonar"><Copy className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleEditProposalClick(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => setDeletingProposal(p)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                        </div>
+                                    </TableCell>
                                 </TableRow>
-                            )}
+                            ))}
                         </TableBody>
                     </Table>
                 </CardContent>
@@ -662,113 +557,117 @@ export default function PropostasPage() {
 
       <Dialog open={!!selectedProposal} onOpenChange={o => !o && setSelectedProposal(null)}>
         <DialogContent className="sm:max-w-[950px] h-[95vh] flex flex-col p-0 bg-background border-none shadow-2xl">
-          <DialogHeader className="p-6 pb-0 border-b bg-muted/20 flex flex-row items-center justify-between space-y-0">
-            <DialogTitle>Visualização da Proposta comercial</DialogTitle>
+          <DialogHeader className="p-6 border-b bg-muted/20 flex flex-row items-center justify-between space-y-0">
+            <DialogTitle>Visualização do Documento</DialogTitle>
             <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(null)}><XCircle className="h-5 w-5" /></Button>
           </DialogHeader>
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
-            {/* DOCUMENTO BLINDADO: MARGENS 15mm, LOGO 160px, SPACING 0.3pt */}
+            {/* LAYOUT SALVAR - BLINDAGEM DE ESPECIALISTA */}
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
-              <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
-                <tbody>
-                    <tr>
-                        <td style={{ width: '5px', backgroundColor: '#000000', padding: '0' }}></td>
-                        <td style={{ padding: '0 20px', width: '170px', verticalAlign: 'top' }}>
-                            {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" style={{ maxHeight: '160px', width: 'auto', display: 'block' }} />}
-                        </td>
-                        <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
-                            <h2 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0' }}>{companyProfile.name}</h2>
-                            <p style={{ margin: '2px 0', fontSize: '10pt' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                        </td>
-                    </tr>
-                </tbody>
-              </table>
-
-              <div style={{ marginBottom: '45px', textAlign: 'center' }}>
-                <p style={{ fontWeight: 'bold', margin: '0', fontSize: '15pt', borderBottom: '2.5px solid black', display: 'inline-block', paddingBottom: '3px' }}>PROPOSTA COMERCIAL</p>
+              
+              {/* HEADER CONFORME IMAGEM */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '40px' }}>
+                <div style={{ width: '4px', height: '60px', backgroundColor: '#000000', marginRight: '15px' }}></div>
+                <div style={{ marginRight: '20px' }}>
+                    {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" style={{ maxHeight: '60px', width: 'auto' }} />}
+                </div>
+                <div style={{ flex: 1 }}>
+                    <h2 style={{ fontSize: '13pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
+                    <p style={{ fontSize: '8.5pt', margin: '2px 0', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
+                    <p style={{ fontSize: '8.5pt', margin: '0', color: '#333' }}>{companyProfile.address}</p>
+                </div>
               </div>
 
-              <table style={{ width: '100%', marginBottom: '40px', borderCollapse: 'collapse' }}>
-                <tbody>
-                    <tr>
-                        <td style={{ verticalAlign: 'top' }}>
-                            <p style={{ color: '#666666', fontSize: '8.5pt', fontWeight: 'bold', margin: '0 0 6px 0' }}>DESTINATÁRIO</p>
-                            <h1 style={{ fontSize: '15pt', fontWeight: 'bold', margin: '0' }}>{selectedProposal?.clientName}</h1>
-                            <p style={{ color: '#4F46E5', fontWeight: 'bold', margin: '6px 0', fontSize: '11.5pt' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
-                            {selectedProposal?.clientPhone && <p style={{ fontSize: '10pt', margin: '0' }}>Tel: {formatPhoneNumber(selectedProposal.clientPhone)}</p>}
-                        </td>
-                        <td style={{ verticalAlign: 'top', textAlign: 'right', width: '200px' }}>
-                            <p><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
-                            <p><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
-                            <p><strong>VALIDADE:</strong> {selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</p>
-                        </td>
-                    </tr>
-                </tbody>
-              </table>
+              {/* TITULO CENTRALIZADO E SUBINHADO */}
+              <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                <span style={{ fontSize: '13pt', fontWeight: 'bold', borderBottom: '2px solid black', paddingBottom: '2px', textTransform: 'uppercase' }}>
+                    PROPOSTA COMERCIAL
+                </span>
+              </div>
 
-              {selectedProposal?.hasAlternative && <p style={{ fontWeight: 'bold', color: '#4F46E5', borderLeft: '4px solid #4F46E5', paddingLeft: '10px', marginBottom: '10px' }}>OPÇÃO 01:</p>}
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
+              {/* DESTINATÁRIO E METADADOS */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '35px' }}>
+                <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: '8pt', color: '#666', fontWeight: 'bold', margin: '0 0 4px 0', textTransform: 'uppercase' }}>DESTINATÁRIO</p>
+                    <h1 style={{ fontSize: '13pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{selectedProposal?.clientName}</h1>
+                    <p style={{ fontSize: '10pt', color: '#4F46E5', fontWeight: 'bold', margin: '4px 0' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
+                    {selectedProposal?.clientPhone && <p style={{ fontSize: '9pt', margin: '0' }}>({selectedProposal.clientPhone.slice(0,2)}) {selectedProposal.clientPhone.slice(2,7)}-{selectedProposal.clientPhone.slice(7)}</p>}
+                </div>
+                <div style={{ textAlign: 'right', minWidth: '180px' }}>
+                    <p style={{ margin: '0', fontSize: '9.5pt' }}><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
+                    <p style={{ margin: '2px 0', fontSize: '9.5pt' }}><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
+                    <p style={{ margin: '0', fontSize: '9.5pt' }}><strong>VALIDADE:</strong> <span style={{ color: '#E11D48', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
+                </div>
+              </div>
+
+              {/* TEXTO DE INTRODUÇÃO */}
+              <div style={{ marginBottom: '35px', fontSize: '10pt', textAlign: 'justify' }}>
+                <p style={{ margin: '0 0 12px 0' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
+                <p style={{ margin: '0 0 12px 0' }}>Com ampla experiência de mercado a {companyProfile.name.toUpperCase()} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
+                <p style={{ margin: '0' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
+              </div>
+
+              {/* TABELA DE ITENS ESTILO IMAGEM */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
                 <thead>
-                    <tr style={{ borderBottom: '2px solid #000000' }}>
-                        <th style={{ padding: '12px 5px', textAlign: 'left' }}>DESCRIÇÃO</th>
-                        <th style={{ textAlign: 'center', width: '60px' }}>QTD.</th>
-                        <th style={{ textAlign: 'right', width: '110px' }}>VALOR</th>
+                    <tr style={{ borderBottom: '1.5px solid #000' }}>
+                        <th style={{ textAlign: 'left', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</th>
+                        <th style={{ textAlign: 'center', width: '50px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>QTD.</th>
+                        <th style={{ textAlign: 'right', width: '100px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>PREÇO UNIT.</th>
+                        <th style={{ textAlign: 'right', width: '110px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>SUBTOTAL</th>
                     </tr>
                 </thead>
                 <tbody>
                     {selectedProposal?.items.map((it, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}>
-                            <td style={{ padding: '10px 5px' }}>{it.name.toUpperCase()}</td>
-                            <td style={{ textAlign: 'center' }}>{it.quantity}</td>
-                            <td style={{ textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                        <tr key={i} style={{ borderBottom: '0.5px solid #eee' }}>
+                            <td style={{ padding: '12px 5px', fontSize: '9pt', textTransform: 'uppercase' }}>{it.name}</td>
+                            <td style={{ textAlign: 'center', padding: '12px 5px', fontSize: '9pt' }}>{it.quantity}</td>
+                            <td style={{ textAlign: 'right', padding: '12px 5px', fontSize: '9pt' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            <td style={{ textAlign: 'right', padding: '12px 5px', fontSize: '9pt', fontWeight: 'bold' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                         </tr>
                     ))}
                 </tbody>
               </table>
               
-              <div style={{ textAlign: 'right', marginBottom: '40px' }}>
-                <p style={{ fontWeight: 'bold', fontSize: '14pt', margin: '0' }}>TOTAL INVESTIMENTO: {selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                {selectedProposal?.totalMonthly! > 0 && <p style={{ fontSize: '11pt', color: '#4F46E5', margin: '2px 0 0 0' }}>TAXA MENSAL: {selectedProposal?.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+              {/* BOX DE TOTAL INVESTIMENTO */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '40px' }}>
+                <div style={{ backgroundColor: '#F8FAFC', padding: '12px 25px', borderRadius: '6px', border: '1px solid #E2E8F0', display: 'flex', gap: '30px', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '10pt', textTransform: 'uppercase' }}>TOTAL INVESTIMENTO</span>
+                    <span style={{ fontWeight: 'bold', fontSize: '12pt' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                </div>
               </div>
 
-              {selectedProposal?.hasAlternative && (
-                  <>
-                    <div style={{ textAlign: 'center', margin: '40px 0', position: 'relative' }}>
-                        <div style={{ borderTop: '1px dashed #A0AEC0', width: '100%', position: 'absolute', top: '50%' }}></div>
-                        <span style={{ position: 'relative', backgroundColor: '#FFFFFF', padding: '0 20px', fontWeight: 'bold', fontSize: '14pt', color: '#EF4444' }}>OU</span>
-                    </div>
-                    <p style={{ fontWeight: 'bold', color: '#4F46E5', borderLeft: '4px solid #4F46E5', paddingLeft: '10px', marginBottom: '10px' }}>OPÇÃO 02:</p>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
-                        <tbody>
-                            {(selectedProposal?.alternativeItems || []).map((it, i) => (
-                                <tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}>
-                                    <td style={{ padding: '10px 5px' }}>{it.name.toUpperCase()}</td>
-                                    <td style={{ textAlign: 'center' }}>{it.quantity}</td>
-                                    <td style={{ textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <div style={{ textAlign: 'right', marginBottom: '40px' }}>
-                        <p style={{ fontWeight: 'bold', fontSize: '14pt', margin: '0' }}>TOTAL INVESTIMENTO: {selectedProposal?.totalOneTimeAlt?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                        {selectedProposal?.totalMonthlyAlt! > 0 && <p style={{ fontSize: '11pt', color: '#4F46E5', margin: '2px 0 0 0' }}>TAXA MENSAL: {selectedProposal?.totalMonthlyAlt?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
-                    </div>
-                  </>
-              )}
-
-              <div style={{ marginTop: '50px', padding: '20px', border: '1.5px solid #000000' }}>
-                <p style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '12px', fontSize: '12pt' }}>CONDIÇÕES DE PAGAMENTO</p>
-                <p style={{ margin: '4px 0' }}>• FORMA: {selectedProposal?.paymentMethod.toUpperCase()}</p>
-                <p style={{ margin: '4px 0' }}>• CONDIÇÃO: {selectedProposal?.firstAsDownPayment 
-                    ? `ENTRADA + ${(selectedProposal?.installments || 1) - 1}X SEM JUROS.` 
-                    : `${selectedProposal?.installments}X SEM JUROS.`}</p>
+              {/* QUADRO DE CONDIÇÕES CONFORME IMAGEM */}
+              <div style={{ border: '1.5px solid #333', padding: '20px', borderRadius: '4px', marginBottom: '60px' }}>
+                <p style={{ fontWeight: 'bold', fontSize: '11pt', margin: '0 0 15px 0', textTransform: 'uppercase' }}>CONDIÇÕES DE PAGAMENTO</p>
+                <div style={{ fontSize: '9.5pt', lineHeight: '1.8' }}>
+                    <p style={{ margin: '0' }}>• FORMA DE PAGAMENTO: {selectedProposal?.paymentMethod.toUpperCase()}</p>
+                    <p style={{ margin: '0' }}>• CONDIÇÃO: {selectedProposal?.installments}X DE {((selectedProposal?.totalOneTime || 0) / (selectedProposal?.installments || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    {selectedProposal?.firstAsDownPayment && (
+                        <p style={{ margin: '0', fontStyle: 'italic' }}>• PRIMEIRA PARCELA COMO ENTRADA.</p>
+                    )}
+                </div>
                 
-                {selectedProposal?.observations && (
-                    <p style={{ marginTop: '15px', fontSize: '10.5pt', whiteSpace: 'pre-wrap' }}>
-                        OBS: {selectedProposal.observations.toUpperCase()}
-                    </p>
-                )}
+                <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '0.5px solid #DDD' }}>
+                    <p style={{ fontWeight: 'bold', fontSize: '9pt', margin: '0 0 5px 0', textTransform: 'uppercase' }}>OBSERVAÇÕES E PRAZOS:</p>
+                    <p style={{ fontSize: '9pt', margin: '0', textTransform: 'uppercase' }}>{selectedProposal?.observations || 'SEM OBSERVAÇÕES ADICIONAIS.'}</p>
+                </div>
               </div>
+
+              {/* ASSINATURAS NO RODAPÉ */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '60px', marginTop: 'auto', paddingTop: '40px' }}>
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{ borderTop: '1px solid #000', width: '100%', marginBottom: '6px' }}></div>
+                    <p style={{ fontSize: '9pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</p>
+                    <p style={{ fontSize: '7.5pt', color: '#777', margin: '0', textTransform: 'uppercase' }}>EMITENTE RESPONSÁVEL</p>
+                </div>
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{ borderTop: '1px solid #000', width: '100%', marginBottom: '6px' }}></div>
+                    <p style={{ fontSize: '9pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{selectedProposal?.clientName}</p>
+                    <p style={{ fontSize: '7.5pt', color: '#777', margin: '0', textTransform: 'uppercase' }}>ACEITE DO CLIENTE</p>
+                </div>
+              </div>
+
             </div>
           </ScrollArea>
           <DialogFooter className="p-6 border-t bg-muted/20 gap-3">
@@ -780,16 +679,14 @@ export default function PropostasPage() {
 
       <AlertDialog open={!!deletingProposal} onOpenChange={o => !o && setDeletingProposal(null)}>
         <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Excluir Proposta?</AlertDialogTitle>
-                <AlertDialogDescription>Esta ação removerá permanentemente este orçamento do seu histórico.</AlertDialogDescription>
-            </AlertDialogHeader>
+            <AlertDialogHeader><AlertDialogTitle>Excluir Proposta?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Voltar</AlertDialogCancel>
-                <AlertDialogAction className="bg-destructive" onClick={() => { if(deletingProposal) deleteProposal(deletingProposal.id); setDeletingProposal(null); }}>Confirmar Exclusão</AlertDialogAction>
+                <AlertDialogAction className="bg-destructive" onClick={() => { if(deletingProposal) deleteProposal(deletingProposal.id); setDeletingProposal(null); }}>Confirmar</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
   );
 }
+
