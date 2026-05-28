@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -164,10 +163,14 @@ export default function PropostasPage() {
     name: 'items',
   });
 
-  // MOTOR DE SOMA BLINDADO (useWatch garante a reatividade total)
   const watchItems = useWatch({
     control: form.control,
     name: 'items',
+  });
+
+  const watchInstallments = useWatch({
+    control: form.control,
+    name: 'installments',
   });
 
   const totals = useMemo(() => {
@@ -188,12 +191,18 @@ export default function PropostasPage() {
     );
   }, [watchItems]);
 
+  const installmentValue = useMemo(() => {
+    const total = totals.oneTime;
+    const count = watchInstallments || 1;
+    return total / count;
+  }, [totals.oneTime, watchInstallments]);
+
   const filteredProposals = useMemo(() => {
     const term = proposalSearch.toLowerCase();
     return (proposals || []).filter(p => 
       p.clientName.toLowerCase().includes(term) || 
       p.id.toLowerCase().includes(term)
-    ).sort((a, b) => new Date(b.proposalDate).getTime() - new Date(a.proposalDate).getTime());
+    ).sort((a, b) => parseInt(b.id) - parseInt(a.id));
   }, [proposals, proposalSearch]);
 
   const handleClientSelect = (clientId: string) => {
@@ -341,21 +350,20 @@ export default function PropostasPage() {
         });
     }
 
-    const proposalData: Proposal = {
+    const proposalData = {
         ...data,
-        id: editingProposal ? editingProposal.id : String(Date.now()).slice(-6),
         clientPhone: data.clientPhone?.replace(/\D/g, ''),
         proposalDate: data.proposalDate.toISOString(),
         validityDate: data.validityDate.toISOString(),
         totalOneTime: totals.oneTime,
         totalMonthly: totals.monthly,
-    } as Proposal;
+    };
 
     if (editingProposal) {
-      updateProposal(proposalData);
+      updateProposal({ ...proposalData, id: editingProposal.id } as Proposal);
       toast({ title: 'Proposta Atualizada!' });
     } else {
-      addProposal(proposalData);
+      addProposal(proposalData as any);
       toast({ title: 'Proposta Salva!' });
     }
     setEditingProposal(null);
@@ -494,6 +502,7 @@ export default function PropostasPage() {
                         </div>
                         <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
                             <p className="text-xs font-bold text-primary">Venda: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            <p className="text-[10px] text-muted-foreground italic">Condição: {watchInstallments}x de {installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                             {totals.monthly > 0 && <p className="text-xs font-bold text-emerald-500">Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
                         </div>
                         <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">FINALIZAR E SALVAR</Button>

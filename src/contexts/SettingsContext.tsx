@@ -52,7 +52,7 @@ interface SettingsContextType {
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
   proposals: Proposal[];
-  addProposal: (proposal: Proposal) => void;
+  addProposal: (proposal: Omit<Proposal, 'id'> & { id?: string }) => void;
   updateProposal: (proposal: Proposal) => void;
   deleteProposal: (id: string) => void;
   rolePermissions: RolePermissions;
@@ -400,9 +400,13 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [saveData]);
 
-  const addProposal = useCallback((proposal: Proposal) => {
+  const addProposal = useCallback((proposal: Omit<Proposal, 'id'> & { id?: string }) => {
     setProposals(prev => {
-        const updated = [proposal, ...prev];
+        const nextIdNum = prev.length > 0 
+            ? (Math.max(...prev.map(p => parseInt(p.id, 10) || 0)) + 1) 
+            : 1;
+        const newProposal = { ...proposal, id: proposal.id || nextIdNum.toString() };
+        const updated = [newProposal as Proposal, ...prev];
         saveData('proposals', updated);
         return updated;
     });
