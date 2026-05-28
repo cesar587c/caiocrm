@@ -159,31 +159,34 @@ export default function PropostasPage() {
     },
   });
 
-  const { fields: fieldsA, append: appendA, remove: removeA } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'items',
   });
 
-  // Engrenagem de Soma Blindada (useWatch garante reatividade total)
-  const watchItemsA = useWatch({
+  // MOTOR DE SOMA BLINDADO (useWatch garante a reatividade total)
+  const watchItems = useWatch({
     control: form.control,
     name: 'items',
   });
 
-  const totalsA = useMemo(() => {
-    const items = watchItemsA || [];
+  const totals = useMemo(() => {
+    const items = watchItems || [];
     return items.reduce(
       (acc, item) => {
-        const qty = Number(item.quantity) || 0;
-        const prc = Number(item.price) || 0;
+        const qty = parseFloat(String(item?.quantity)) || 0;
+        const prc = parseFloat(String(item?.price)) || 0;
         const subtotal = qty * prc;
-        if (item.isMonthly) acc.monthly += subtotal;
-        else acc.oneTime += subtotal;
+        if (item?.isMonthly) {
+          acc.monthly += subtotal;
+        } else {
+          acc.oneTime += subtotal;
+        }
         return acc;
       },
       { oneTime: 0, monthly: 0 }
     );
-  }, [watchItemsA]);
+  }, [watchItems]);
 
   const filteredProposals = useMemo(() => {
     const term = proposalSearch.toLowerCase();
@@ -344,8 +347,8 @@ export default function PropostasPage() {
         clientPhone: data.clientPhone?.replace(/\D/g, ''),
         proposalDate: data.proposalDate.toISOString(),
         validityDate: data.validityDate.toISOString(),
-        totalOneTime: totalsA.oneTime,
-        totalMonthly: totalsA.monthly,
+        totalOneTime: totals.oneTime,
+        totalMonthly: totals.monthly,
     } as Proposal;
 
     if (editingProposal) {
@@ -434,12 +437,12 @@ export default function PropostasPage() {
                             <div className="space-y-4 border-t pt-8">
                                 <div className="flex items-center justify-between">
                                     <h4 className="text-sm font-bold">Itens da Proposta</h4>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => appendA({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Item</Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Item</Button>
                                 </div>
                                 <Table>
                                     <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead className="w-16 text-center">Qtd</TableHead><TableHead className="w-28">Preço</TableHead><TableHead className="w-10 text-center">Rec.</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
                                     <TableBody>
-                                        {fieldsA.map((it, idx) => (
+                                        {fields.map((it, idx) => (
                                         <TableRow key={it.id}>
                                             <TableCell><Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} list="proposal-products-list" className="h-8 text-xs" /></TableCell>
                                             <TableCell><Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs text-center" /></TableCell>
@@ -449,7 +452,7 @@ export default function PropostasPage() {
                                                     <Checkbox checked={field.value} onCheckedChange={field.onChange} className="h-4 w-4" />
                                                 )} />
                                             </TableCell>
-                                            <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeA(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                                            <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                                         </TableRow>
                                         ))}
                                     </TableBody>
@@ -490,8 +493,8 @@ export default function PropostasPage() {
                             )} />
                         </div>
                         <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
-                            <p className="text-xs font-bold text-primary">Venda: {totalsA.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                            {totalsA.monthly > 0 && <p className="text-xs font-bold text-emerald-500">Mensal: {totalsA.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+                            <p className="text-xs font-bold text-primary">Venda: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            {totals.monthly > 0 && <p className="text-xs font-bold text-emerald-500">Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
                         </div>
                         <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">FINALIZAR E SALVAR</Button>
                         </CardContent>
@@ -630,7 +633,7 @@ export default function PropostasPage() {
                         <span style={{ fontSize: '10pt', fontWeight: 'bold', textTransform: 'uppercase', marginRight: '20px' }}>TOTAL INVESTIMENTO:</span>
                         <span style={{ fontSize: '13pt', fontWeight: 'bold' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                     </div>
-                    {selectedProposal?.totalMonthly > 0 && (
+                    {(selectedProposal?.totalMonthly || 0) > 0 && (
                         <div>
                             <span style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'uppercase', marginRight: '20px', color: '#4F46E5' }}>TAXA MENSAL (SUPORTE):</span>
                             <span style={{ fontSize: '11pt', fontWeight: 'bold', color: '#4F46E5' }}>{selectedProposal?.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
@@ -688,4 +691,3 @@ export default function PropostasPage() {
     </div>
   );
 }
-
