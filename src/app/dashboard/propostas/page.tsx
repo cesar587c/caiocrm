@@ -84,7 +84,7 @@ import { Separator } from '@/components/ui/separator';
 import type { Proposal, Product, Customer } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from 'tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -211,7 +211,7 @@ export default function PropostasPage() {
 
   const filteredProposals = useMemo(() => {
     const term = proposalSearch.toLowerCase();
-    return proposals.filter(p => 
+    return (proposals || []).filter(p => 
       p.clientName.toLowerCase().includes(term) || 
       p.id.toLowerCase().includes(term)
     );
@@ -256,11 +256,12 @@ export default function PropostasPage() {
                 if (el) {
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
-                        // REGRA DE OURO - BLINDADO PARA ESPECIALISTA
+                        // REGRA DE OURO - BLINDADO PARA ESPECIALISTA CONTRA FUSÃO DE PALAVRAS
                         node.style.letterSpacing = '0.3pt';
                         node.style.wordSpacing = 'normal';
                         node.style.fontVariantLigatures = 'none';
                         node.style.webkitFontSmoothing = 'antialiased';
+                        node.style.textRendering = 'optimizeLegibility';
                     });
                 }
             }
@@ -293,7 +294,6 @@ export default function PropostasPage() {
                     allElements.forEach((node: any) => {
                         // REGRA DE OURO - BLINDADO PARA ESPECIALISTA
                         node.style.letterSpacing = '0.3pt';
-                        node.style.wordSpacing = 'normal';
                         node.style.fontVariantLigatures = 'none';
                     });
                 }
@@ -731,8 +731,8 @@ export default function PropostasPage() {
                             {(selectedProposal?.alternativeItems || []).map((it, i) => (
                                 <tr key={i} style={{ borderBottom: '1px solid #DDDDDD' }}>
                                     <td style={{ padding: '10px 5px' }}>{it.name.toUpperCase()}</td>
-                                    <td style={{ textAlign: 'center', width: '60px' }}>{it.quantity}</td>
-                                    <td style={{ textAlign: 'right', width: '110px' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                    <td style={{ textAlign: 'center' }}>{it.quantity}</td>
+                                    <td style={{ textAlign: 'right' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                                 </tr>
                             ))}
                         </tbody>
