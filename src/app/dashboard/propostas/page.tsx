@@ -257,7 +257,6 @@ export default function PropostasPage() {
                 if (el) {
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
-                        // REGRA DE OURO - BLINDADO PARA ESPECIALISTA CONTRA FUSÃO DE PALAVRAS
                         node.style.letterSpacing = '0.3pt';
                         node.style.wordSpacing = 'normal';
                         node.style.fontVariantLigatures = 'none';
@@ -293,7 +292,6 @@ export default function PropostasPage() {
                 if (el) {
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
-                        // REGRA DE OURO - BLINDADO PARA ESPECIALISTA
                         node.style.letterSpacing = '0.3pt';
                         node.style.fontVariantLigatures = 'none';
                     });
@@ -669,7 +667,7 @@ export default function PropostasPage() {
             <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(null)}><XCircle className="h-5 w-5" /></Button>
           </DialogHeader>
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
-            {/* DOCUMENTO BLINDADO PARA ESPECIALISTA: MARGENS 15mm, LOGO 160px, SPACING 0.3pt */}
+            {/* DOCUMENTO BLINDADO: MARGENS 15mm, LOGO 160px, SPACING 0.3pt */}
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
               <table style={{ width: '100%', marginBottom: '35px', borderCollapse: 'collapse' }}>
                 <tbody>
@@ -727,9 +725,11 @@ export default function PropostasPage() {
                     ))}
                 </tbody>
               </table>
-              <div style={{ textAlign: 'right', marginBottom: '30px' }}>
-                <p style={{ fontWeight: 'bold', fontSize: '12pt' }}>TOTAL INVESTIMENTO: {selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                {selectedProposal?.totalMonthly! > 0 && <p style={{ fontSize: '10pt', color: '#4F46E5' }}>TAXA MENSAL: {selectedProposal?.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+              
+              {/* NOVO LAYOUT DE TOTAIS: ALINHADO À DIREITA (MODELO 2) */}
+              <div style={{ textAlign: 'right', marginBottom: '40px' }}>
+                <p style={{ fontWeight: 'bold', fontSize: '14pt', margin: '0' }}>TOTAL INVESTIMENTO: {selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                {selectedProposal?.totalMonthly! > 0 && <p style={{ fontSize: '11pt', color: '#4F46E5', margin: '2px 0 0 0' }}>TAXA MENSAL: {selectedProposal?.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
               </div>
 
               {selectedProposal?.hasAlternative && (
@@ -750,20 +750,26 @@ export default function PropostasPage() {
                             ))}
                         </tbody>
                     </table>
-                    <div style={{ textAlign: 'right', marginBottom: '30px' }}>
-                        <p style={{ fontWeight: 'bold', fontSize: '12pt' }}>TOTAL INVESTIMENTO: {selectedProposal?.totalOneTimeAlt?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                        {selectedProposal?.totalMonthlyAlt! > 0 && <p style={{ fontSize: '10pt', color: '#4F46E5' }}>TAXA MENSAL: {selectedProposal?.totalMonthlyAlt?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+                    <div style={{ textAlign: 'right', marginBottom: '40px' }}>
+                        <p style={{ fontWeight: 'bold', fontSize: '14pt', margin: '0' }}>TOTAL INVESTIMENTO: {selectedProposal?.totalOneTimeAlt?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        {selectedProposal?.totalMonthlyAlt! > 0 && <p style={{ fontSize: '11pt', color: '#4F46E5', margin: '2px 0 0 0' }}>TAXA MENSAL: {selectedProposal?.totalMonthlyAlt?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
                     </div>
                   </>
               )}
 
+              {/* NOVO BOX DE CONDIÇÕES (MODELO 2) */}
               <div style={{ marginTop: '50px', padding: '20px', border: '1.5px solid #000000' }}>
-                <p style={{ fontWeight: 'bold', textDecoration: 'underline' }}>CONDIÇÕES DE PAGAMENTO</p>
-                <p>• FORMA: {selectedProposal?.paymentMethod.toUpperCase()}</p>
-                <p>• CONDIÇÃO: {selectedProposal?.firstAsDownPayment 
+                <p style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '12px', fontSize: '12pt' }}>CONDIÇÕES DE PAGAMENTO</p>
+                <p style={{ margin: '4px 0' }}>• FORMA: {selectedProposal?.paymentMethod.toUpperCase()}</p>
+                <p style={{ margin: '4px 0' }}>• CONDIÇÃO: {selectedProposal?.firstAsDownPayment 
                     ? `ENTRADA + ${(selectedProposal?.installments || 1) - 1}X SEM JUROS.` 
                     : `${selectedProposal?.installments}X SEM JUROS.`}</p>
-                {selectedProposal?.observations && <p style={{ marginTop: '10px', fontSize: '10pt', whiteSpace: 'pre-wrap' }}>OBS: {selectedProposal.observations}</p>}
+                
+                {selectedProposal?.observations && (
+                    <p style={{ marginTop: '15px', fontSize: '10.5pt', whiteSpace: 'pre-wrap' }}>
+                        OBS: {selectedProposal.observations.toUpperCase()}
+                    </p>
+                )}
               </div>
             </div>
           </ScrollArea>
