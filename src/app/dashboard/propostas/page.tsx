@@ -726,7 +726,6 @@ export default function PropostasPage() {
                 </tbody>
               </table>
               
-              {/* NOVO LAYOUT DE TOTAIS: ALINHADO À DIREITA (MODELO 2) */}
               <div style={{ textAlign: 'right', marginBottom: '40px' }}>
                 <p style={{ fontWeight: 'bold', fontSize: '14pt', margin: '0' }}>TOTAL INVESTIMENTO: {selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                 {selectedProposal?.totalMonthly! > 0 && <p style={{ fontSize: '11pt', color: '#4F46E5', margin: '2px 0 0 0' }}>TAXA MENSAL: {selectedProposal?.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
@@ -757,7 +756,6 @@ export default function PropostasPage() {
                   </>
               )}
 
-              {/* NOVO BOX DE CONDIÇÕES (MODELO 2) */}
               <div style={{ marginTop: '50px', padding: '20px', border: '1.5px solid #000000' }}>
                 <p style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '12px', fontSize: '12pt' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <p style={{ margin: '4px 0' }}>• FORMA: {selectedProposal?.paymentMethod.toUpperCase()}</p>
