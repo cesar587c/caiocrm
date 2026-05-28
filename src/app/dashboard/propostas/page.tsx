@@ -77,6 +77,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Proposal, ProposalItem } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -95,8 +97,6 @@ const proposalSchema = z.object({
   proposalDate: z.date(),
   validityDate: z.date(),
   items: z.array(proposalItemSchema).min(1, 'Adicione pelo menos um item.'),
-  hasAlternative: z.boolean().default(false),
-  alternativeItems: z.array(proposalItemSchema).optional(),
   paymentMethod: z.string(),
   installments: z.coerce.number().min(1).max(12),
   firstAsDownPayment: z.boolean().default(false),
@@ -152,8 +152,6 @@ export default function PropostasPage() {
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
       items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
-      hasAlternative: false,
-      alternativeItems: [],
       paymentMethod: 'boleto',
       installments: 1,
       firstAsDownPayment: false,
@@ -166,7 +164,7 @@ export default function PropostasPage() {
     name: 'items',
   });
 
-  // Observação explícita para garantir a soma correta
+  // Engrenagem de Soma Blindada (useWatch garante reatividade total)
   const watchItemsA = useWatch({
     control: form.control,
     name: 'items',
@@ -192,13 +190,12 @@ export default function PropostasPage() {
     return (proposals || []).filter(p => 
       p.clientName.toLowerCase().includes(term) || 
       p.id.toLowerCase().includes(term)
-    );
+    ).sort((a, b) => new Date(b.proposalDate).getTime() - new Date(a.proposalDate).getTime());
   }, [proposals, proposalSearch]);
 
   const handleClientSelect = (clientId: string) => {
     const client = customers.find(c => c.id === clientId);
     if (client) {
-      form.setValue('clientId', client.id);
       form.setValue('clientName', client.nomeFantasia || client.name);
       form.setValue('contactName', client.contactName || '');
       form.setValue('clientPhone', formatPhoneNumber(client.telefone || ''));
@@ -318,10 +315,10 @@ export default function PropostasPage() {
       validityDate: addDays(new Date(), 10),
       clientPhone: formatPhoneNumber(p.clientPhone || ''),
     });
-    setIsQuickAddingClient(!p.clientId);
+    setIsQuickAddingClient(true);
     setActiveTab('gerador');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    toast({ title: 'Proposta Clonada!', description: 'Dados carregados para nova proposta.' });
+    toast({ title: 'Proposta Clonada!', description: 'Dados carregados para novo orçamento.' });
   };
 
   const onSubmit = (data: ProposalFormValues) => {
@@ -440,14 +437,18 @@ export default function PropostasPage() {
                                     <Button type="button" variant="outline" size="sm" onClick={() => appendA({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Item</Button>
                                 </div>
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead className="w-16">Qtd</TableHead><TableHead className="w-28">Preço</TableHead><TableHead className="w-10">Rec.</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead className="w-16 text-center">Qtd</TableHead><TableHead className="w-28">Preço</TableHead><TableHead className="w-10 text-center">Rec.</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {fieldsA.map((it, idx) => (
                                         <TableRow key={it.id}>
                                             <TableCell><Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} list="proposal-products-list" className="h-8 text-xs" /></TableCell>
-                                            <TableCell><Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs" /></TableCell>
+                                            <TableCell><Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs text-center" /></TableCell>
                                             <TableCell><Input type="number" step="0.01" {...form.register(`items.${idx}.price`)} className="h-8 text-xs" /></TableCell>
-                                            <TableCell><FormField control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (<Checkbox checked={field.value} onCheckedChange={field.onChange} className="h-4 w-4" />)} /></TableCell>
+                                            <TableCell className="text-center">
+                                                <FormField control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (
+                                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} className="h-4 w-4" />
+                                                )} />
+                                            </TableCell>
                                             <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeA(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                                         </TableRow>
                                         ))}
@@ -471,15 +472,22 @@ export default function PropostasPage() {
 
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="shadow-lg sticky top-4">
-                        <CardHeader className="bg-primary/5 pb-4"><CardTitle className="text-lg">Finalização</CardTitle></CardHeader>
+                        <CardHeader className="bg-primary/5 pb-4"><CardTitle className="text-lg">Faturamento</CardTitle></CardHeader>
                         <CardContent className="space-y-6 pt-6">
                         <div className="space-y-2">
-                            <Label className="text-xs font-bold text-muted-foreground">Parcelas</Label>
-                            <Controller control={form.control} name="installments" render={({ field }) => (<Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x</SelectItem>)}</SelectContent></Select>)} />
+                            <Label className="text-xs font-bold text-muted-foreground">Parcelamento</Label>
+                            <Controller control={form.control} name="installments" render={({ field }) => (
+                                <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x</SelectItem>)}</SelectContent>
+                                </Select>
+                            )} />
                         </div>
                         <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
                             <div className="space-y-0.5"><Label className="text-xs font-bold">Primeira como Entrada?</Label></div>
-                            <FormField control={form.control} name="firstAsDownPayment" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
+                            <FormField control={form.control} name="firstAsDownPayment" render={({ field }) => (
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            )} />
                         </div>
                         <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
                             <p className="text-xs font-bold text-primary">Venda: {totalsA.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
@@ -499,7 +507,7 @@ export default function PropostasPage() {
                         <CardTitle>Histórico de Orçamentos</CardTitle>
                         <div className="relative w-72">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Buscar..." className="pl-10" value={proposalSearch} onChange={(e) => setProposalSearch(e.target.value)} />
+                            <Input placeholder="Buscar por cliente ou ID..." className="pl-10" value={proposalSearch} onChange={(e) => setProposalSearch(e.target.value)} />
                         </div>
                     </div>
                 </CardHeader>
@@ -508,21 +516,24 @@ export default function PropostasPage() {
                         <TableHeader><TableRow><TableHead>Nº</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Venda</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {filteredProposals.map(p => (
-                                <TableRow key={p.id}>
+                                <TableRow key={p.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedProposal(p)}>
                                     <TableCell className="font-bold">#{p.id}</TableCell>
                                     <TableCell>{p.clientName}</TableCell>
                                     <TableCell className="text-xs">{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell>
                                     <TableCell className="font-bold">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-1">
+                                        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                                             <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(p)} title="Ver PDF"><Eye className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleCloneProposal(p)} title="Clonar"><Copy className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleCloneProposal(p)} title="Clonar Orçamento"><Copy className="h-4 w-4" /></Button>
                                             <Button variant="ghost" size="icon" onClick={() => handleEditProposalClick(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
                                             <Button variant="ghost" size="icon" onClick={() => setDeletingProposal(p)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
+                            {filteredProposals.length === 0 && (
+                                <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground italic">Nenhum orçamento encontrado.</TableCell></TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
@@ -530,6 +541,7 @@ export default function PropostasPage() {
         </TabsContent>
       </Tabs>
 
+      {/* PDF BLINDADO SALVAR - MODELO DE ESPECIALISTA (FIEL À IMAGEM) */}
       <Dialog open={!!selectedProposal} onOpenChange={o => !o && setSelectedProposal(null)}>
         <DialogContent className="sm:max-w-[950px] h-[95vh] flex flex-col p-0 bg-background border-none shadow-2xl">
           <DialogHeader className="p-6 border-b bg-muted/20 flex flex-row items-center justify-between space-y-0">
@@ -539,11 +551,11 @@ export default function PropostasPage() {
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
               
-              {/* HEADER TÉCNICO MODELO 2 */}
+              {/* CABEÇALHO TÉCNICO (BARRA PRETA + LOGO) */}
               <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '40px' }}>
                 <div style={{ width: '4px', height: '160px', backgroundColor: '#000000', marginRight: '15px' }}></div>
                 <div style={{ marginRight: '20px' }}>
-                    {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" style={{ height: '160px', width: 'auto', display: 'block' }} />}
+                    {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" style={{ height: '160px', width: '170px', display: 'block', objectFit: 'contain' }} />}
                 </div>
                 <div style={{ flex: 1, paddingTop: '10px' }}>
                     <h2 style={{ fontSize: '14pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
@@ -553,14 +565,14 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TITULO CENTRALIZADO */}
+              {/* TÍTULO CENTRALIZADO SUBRINHADO */}
               <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                <span style={{ fontSize: '13pt', fontWeight: 'bold', borderBottom: '2px solid black', paddingBottom: '2px', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '13pt', fontWeight: 'bold', borderBottom: '2.5px solid black', paddingBottom: '2px', textTransform: 'uppercase' }}>
                     PROPOSTA COMERCIAL
                 </span>
               </div>
 
-              {/* DESTINATÁRIO */}
+              {/* DESTINATÁRIO E METADADOS */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '35px' }}>
                 <div style={{ flex: 1 }}>
                     <p style={{ fontSize: '8pt', color: '#666', fontWeight: 'bold', margin: '0 0 4px 0', textTransform: 'uppercase' }}>DESTINATÁRIO</p>
@@ -575,20 +587,28 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* INTRODUÇÃO */}
+              {/* TEXTO DE INTRODUÇÃO */}
               <div style={{ marginBottom: '35px', fontSize: '10.5pt', textAlign: 'justify' }}>
                 <p style={{ margin: '0 0 12px 0' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ margin: '0' }}>Com ampla experiência de mercado, a {companyProfile.name.toUpperCase()} combina consultoria especializada e as mais modernas ferramentas para entregar soluções ágeis, seguras e personalizadas.</p>
               </div>
 
-              {/* TABELA DE ITENS */}
+              {/* TABELA DE ITENS COM TÍTULOS SUBRINHADOS */}
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
                 <thead>
                     <tr style={{ borderBottom: '1.5px solid #000' }}>
-                        <th style={{ textAlign: 'left', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</th>
-                        <th style={{ textAlign: 'center', width: '50px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>QTD.</th>
-                        <th style={{ textAlign: 'right', width: '100px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>UNITÁRIO</th>
-                        <th style={{ textAlign: 'right', width: '110px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>SUBTOTAL</th>
+                        <th style={{ textAlign: 'left', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                            <span style={{ borderBottom: '1px solid black' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</span>
+                        </th>
+                        <th style={{ textAlign: 'center', width: '50px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                            <span style={{ borderBottom: '1px solid black' }}>QTD.</span>
+                        </th>
+                        <th style={{ textAlign: 'right', width: '100px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                            <span style={{ borderBottom: '1px solid black' }}>UNITÁRIO</span>
+                        </th>
+                        <th style={{ textAlign: 'right', width: '110px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                            <span style={{ borderBottom: '1px solid black' }}>SUBTOTAL</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -603,7 +623,7 @@ export default function PropostasPage() {
                 </tbody>
               </table>
               
-              {/* TOTAIS À DIREITA */}
+              {/* TOTAIS À DIREITA EM BOX CINZA */}
               <div style={{ textAlign: 'right', marginBottom: '40px', paddingRight: '10px' }}>
                 <div style={{ backgroundColor: '#F8FAFC', display: 'inline-block', padding: '15px 30px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                     <div style={{ marginBottom: '5px' }}>
@@ -619,7 +639,7 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* CONDIÇÕES DE PAGAMENTO BLINDADAS */}
+              {/* BOX DE CONDIÇÕES DE PAGAMENTO (BORDA PRETA 1.5PX) */}
               <div style={{ border: '1.5px solid #000', padding: '20px', borderRadius: '4px', marginBottom: '60px' }}>
                 <p style={{ fontWeight: 'bold', fontSize: '11pt', margin: '0 0 15px 0', textTransform: 'uppercase', borderBottom: '1px solid #000', display: 'inline-block' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <div style={{ fontSize: '10pt', lineHeight: '1.8' }}>
@@ -633,7 +653,7 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* ASSINATURAS */}
+              {/* ASSINATURAS NO RODAPÉ */}
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '60px', marginTop: 'auto', paddingTop: '40px' }}>
                 <div style={{ flex: 1, textAlign: 'center' }}>
                     <div style={{ borderTop: '1px solid #000', width: '100%', marginBottom: '6px' }}></div>
@@ -658,7 +678,7 @@ export default function PropostasPage() {
 
       <AlertDialog open={!!deletingProposal} onOpenChange={o => !o && setDeletingProposal(null)}>
         <AlertDialogContent>
-            <AlertDialogHeader><AlertDialogTitle>Excluir Proposta?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogHeader><AlertDialogTitle>Excluir Orçamento?</AlertDialogTitle><AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription></AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Voltar</AlertDialogCancel>
                 <AlertDialogAction className="bg-destructive" onClick={() => { if(deletingProposal) deleteProposal(deletingProposal.id); setDeletingProposal(null); }}>Confirmar Exclusão</AlertDialogAction>
@@ -668,3 +688,4 @@ export default function PropostasPage() {
     </div>
   );
 }
+
