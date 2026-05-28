@@ -57,6 +57,7 @@ import {
   History,
   Eye,
   Search,
+  CheckCircle2,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -107,7 +108,7 @@ const proposalSchema = z.object({
   alternativeItems: z.array(proposalItemSchema).optional(),
   paymentMethod: z.string(),
   installments: z.coerce.number().min(1).max(12),
-  firstAsDownPayment: z.boolean(),
+  firstAsDownPayment: z.boolean().default(false),
   observations: z.string().optional(),
 });
 
@@ -564,7 +565,19 @@ export default function PropostasPage() {
                 <Card className="shadow-lg sticky top-4">
                     <CardHeader className="bg-primary/5 pb-4"><CardTitle className="text-lg">Faturamento</CardTitle></CardHeader>
                     <CardContent className="space-y-6 pt-6">
-                    <div className="space-y-2"><Label className="text-xs font-bold text-muted-foreground">Parcelamento (Ref. Opção A)</Label><Controller control={form.control} name="installments" render={({ field }) => (<Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x de {((totalsA.oneTime / (i+1)) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</SelectItem>)}</SelectContent></Select>)} /></div>
+                    <div className="space-y-2">
+                        <Label className="text-xs font-bold text-muted-foreground">Parcelamento (Ref. Opção A)</Label>
+                        <Controller control={form.control} name="installments" render={({ field }) => (<Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x de {((totalsA.oneTime / (i+1)) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</SelectItem>)}</SelectContent></Select>)} />
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                        <div className="space-y-0.5">
+                            <Label className="text-xs font-bold">Primeira como Entrada?</Label>
+                            <p className="text-[10px] text-muted-foreground">Ex: Entrada + 2x</p>
+                        </div>
+                        <FormField control={form.control} name="firstAsDownPayment" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
+                    </div>
+
                     <div className="space-y-4">
                         <div className="p-3 bg-primary/5 rounded-lg border border-primary/10"><span className="text-xs font-bold text-primary">Venda A: {totalsA.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
                         {watchHasAlternative && <div className="p-3 bg-orange-500/5 rounded-lg border border-orange-500/20"><span className="text-xs font-bold text-orange-600">Venda B: {totalsB.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>}
@@ -747,7 +760,9 @@ export default function PropostasPage() {
               <div style={{ marginTop: '50px', padding: '20px', border: '1.5px solid #000000' }}>
                 <p style={{ fontWeight: 'bold', textDecoration: 'underline' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <p>• FORMA: {selectedProposal?.paymentMethod.toUpperCase()}</p>
-                <p>• CONDIÇÃO: {selectedProposal?.installments}X SEM JUROS.</p>
+                <p>• CONDIÇÃO: {selectedProposal?.firstAsDownPayment 
+                    ? `ENTRADA + ${(selectedProposal?.installments || 1) - 1}X SEM JUROS.` 
+                    : `${selectedProposal?.installments}X SEM JUROS.`}</p>
                 {selectedProposal?.observations && <p style={{ marginTop: '10px', fontSize: '10pt', whiteSpace: 'pre-wrap' }}>OBS: {selectedProposal.observations}</p>}
               </div>
             </div>
