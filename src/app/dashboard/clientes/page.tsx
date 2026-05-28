@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -69,7 +70,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/form";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 import type { Customer, CustomerType } from "@/lib/types";
@@ -269,14 +270,12 @@ export default function ClientesPage() {
     setEditingCustomer(null);
   }
 
-  const isAdmin = currentUser?.role === 'admin';
-
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-background/50">
       <div className="flex items-center justify-between">
         <div>
             <h2 className="text-3xl font-bold tracking-tight font-headline">Clientes e Leads</h2>
-            <p className="text-muted-foreground">Gestão da carteira por segmentos e modalidades.</p>
+            <p className="text-muted-foreground">Gestão SALVAR: Privacidade e Segmentos em foco.</p>
         </div>
         <div className="flex gap-2">
             <Button variant="outline" size="icon" onClick={() => setShowFinancials(!showFinancials)} title={showFinancials ? "Ocultar Valores" : "Mostrar Valores"}>
@@ -375,7 +374,7 @@ export default function ClientesPage() {
                                 </TableCell>
                                 <TableCell className="text-right pr-6 py-4">
                                     <div className="flex justify-end gap-1 opacity-20 hover:opacity-100 transition-opacity">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleEditClick(customer); }}><Pencil className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeletingCustomer(customer); }}><Trash2 className="h-4 w-4" /></Button>
                                     </div>
                                 </TableCell>
@@ -387,7 +386,7 @@ export default function ClientesPage() {
         </Card>
       </Tabs>
 
-      <Dialog open={isFormDialogOpen} onOpenChange={(o) => { if(!o) setEditingCustomer(null); setIsFormDialogOpen(o); }}>
+      <Dialog open={isFormDialogOpen} onOpenChange={(o) => { if(!o) { setEditingCustomer(null); setIsFormDialogOpen(false); } }}>
         <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden">
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[90vh]">

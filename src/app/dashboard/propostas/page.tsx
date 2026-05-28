@@ -166,39 +166,26 @@ export default function PropostasPage() {
     name: 'items',
   });
 
-  const { fields: fieldsB, append: appendB, remove: removeB } = useFieldArray({
+  // Observação explícita para garantir a soma correta
+  const watchItemsA = useWatch({
     control: form.control,
-    name: 'alternativeItems',
+    name: 'items',
   });
 
-  const watchItemsA = useWatch({ control: form.control, name: "items" });
-  const watchItemsB = useWatch({ control: form.control, name: "alternativeItems" });
-  const watchHasAlternative = form.watch('hasAlternative');
-
   const totalsA = useMemo(() => {
-    return (watchItemsA || []).reduce(
-        (acc, item) => {
-            const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
-            if (item.isMonthly) acc.monthly += subtotal;
-            else acc.oneTime += subtotal;
-            return acc;
-        },
-        { oneTime: 0, monthly: 0 }
+    const items = watchItemsA || [];
+    return items.reduce(
+      (acc, item) => {
+        const qty = Number(item.quantity) || 0;
+        const prc = Number(item.price) || 0;
+        const subtotal = qty * prc;
+        if (item.isMonthly) acc.monthly += subtotal;
+        else acc.oneTime += subtotal;
+        return acc;
+      },
+      { oneTime: 0, monthly: 0 }
     );
   }, [watchItemsA]);
-
-  const totalsB = useMemo(() => {
-    if (!watchHasAlternative) return { oneTime: 0, monthly: 0 };
-    return (watchItemsB || []).reduce(
-        (acc, item) => {
-            const subtotal = (Number(item.quantity) || 0) * (Number(item.price) || 0);
-            if (item.isMonthly) acc.monthly += subtotal;
-            else acc.oneTime += subtotal;
-            return acc;
-        },
-        { oneTime: 0, monthly: 0 }
-    );
-  }, [watchItemsB, watchHasAlternative]);
 
   const filteredProposals = useMemo(() => {
     const term = proposalSearch.toLowerCase();
@@ -219,14 +206,12 @@ export default function PropostasPage() {
     }
   };
 
-  const handleItemNameBlur = (index: number, isAlt: boolean = false) => {
-      const fieldName = isAlt ? `alternativeItems.${index}.name` : `items.${index}.name`;
-      const priceName = isAlt ? `alternativeItems.${index}.price` : `items.${index}.price`;
-      const itemName = form.getValues(fieldName as any);
+  const handleItemNameBlur = (index: number) => {
+      const itemName = form.getValues(`items.${index}.name`);
       if (!itemName) return;
       const existingProduct = products.find(p => p.name.toLowerCase().trim() === itemName.toLowerCase().trim());
       if (existingProduct) {
-          form.setValue(priceName as any, existingProduct.price, { shouldDirty: true, shouldTouch: true });
+          form.setValue(`items.${index}.price`, existingProduct.price, { shouldDirty: true, shouldTouch: true });
       }
   };
 
@@ -294,8 +279,14 @@ export default function PropostasPage() {
         const pdfBlob = pdf.output('blob');
         const file = new File([pdfBlob], `proposta-${proposal.id}.pdf`, { type: 'application/pdf' });
 
+        const phone = proposal.clientPhone?.replace(/\D/g, '');
+        const whatsappUrl = phone ? `https://wa.me/55${phone}` : null;
+
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ files: [file], title: `Proposta #${proposal.id}` });
+        } else if (whatsappUrl) {
+            window.open(whatsappUrl, '_blank');
+            pdf.save(`proposta-${proposal.id}.pdf`);
         } else {
             pdf.save(`proposta-${proposal.id}.pdf`);
         }
@@ -330,10 +321,7 @@ export default function PropostasPage() {
     setIsQuickAddingClient(!p.clientId);
     setActiveTab('gerador');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    toast({ 
-        title: 'Proposta Clonada!', 
-        description: 'Dados carregados para nova proposta.' 
-    });
+    toast({ title: 'Proposta Clonada!', description: 'Dados carregados para nova proposta.' });
   };
 
   const onSubmit = (data: ProposalFormValues) => {
@@ -361,8 +349,6 @@ export default function PropostasPage() {
         validityDate: data.validityDate.toISOString(),
         totalOneTime: totalsA.oneTime,
         totalMonthly: totalsA.monthly,
-        totalOneTimeAlt: data.hasAlternative ? totalsB.oneTime : undefined,
-        totalMonthlyAlt: data.hasAlternative ? totalsB.monthly : undefined,
     } as Proposal;
 
     if (editingProposal) {
@@ -373,22 +359,7 @@ export default function PropostasPage() {
       toast({ title: 'Proposta Salva!' });
     }
     setEditingProposal(null);
-    form.reset({
-        clientName: '',
-        contactName: '',
-        clientPhone: '',
-        saveToContacts: false,
-        contactType: 'lead',
-        proposalDate: new Date(),
-        validityDate: addDays(new Date(), 10),
-        items: [{ name: '', quantity: 1, price: 0, isMonthly: false }],
-        hasAlternative: false,
-        alternativeItems: [],
-        paymentMethod: 'boleto',
-        installments: 1,
-        firstAsDownPayment: false,
-        observations: '',
-    });
+    form.reset();
     setActiveTab('historico');
   };
 
@@ -401,7 +372,7 @@ export default function PropostasPage() {
       <div className="flex items-center justify-between">
         <div>
             <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gerador de Propostas</h2>
-            <p className="text-muted-foreground">Layout SALVAR Ativado - Blindagem de Especialista.</p>
+            <p className="text-muted-foreground">Protocolo SALVAR: Blindagem de Especialista Ativada.</p>
         </div>
       </div>
 
@@ -469,13 +440,14 @@ export default function PropostasPage() {
                                     <Button type="button" variant="outline" size="sm" onClick={() => appendA({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Item</Button>
                                 </div>
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead className="w-16">Qtd</TableHead><TableHead className="w-28">Preço</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead className="w-16">Qtd</TableHead><TableHead className="w-28">Preço</TableHead><TableHead className="w-10">Rec.</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {fieldsA.map((it, idx) => (
                                         <TableRow key={it.id}>
                                             <TableCell><Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} list="proposal-products-list" className="h-8 text-xs" /></TableCell>
                                             <TableCell><Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs" /></TableCell>
                                             <TableCell><Input type="number" step="0.01" {...form.register(`items.${idx}.price`)} className="h-8 text-xs" /></TableCell>
+                                            <TableCell><FormField control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (<Checkbox checked={field.value} onCheckedChange={field.onChange} className="h-4 w-4" />)} /></TableCell>
                                             <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeA(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                                         </TableRow>
                                         ))}
@@ -506,11 +478,14 @@ export default function PropostasPage() {
                             <Controller control={form.control} name="installments" render={({ field }) => (<Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x</SelectItem>)}</SelectContent></Select>)} />
                         </div>
                         <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                            <div className="space-y-0.5"><Label className="text-xs font-bold">Entrada?</Label></div>
+                            <div className="space-y-0.5"><Label className="text-xs font-bold">Primeira como Entrada?</Label></div>
                             <FormField control={form.control} name="firstAsDownPayment" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
                         </div>
-                        <div className="p-3 bg-primary/5 rounded-lg border border-primary/10"><span className="text-sm font-bold text-primary">Total: {totalsA.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                        <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">SALVAR PROPOSTA</Button>
+                        <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
+                            <p className="text-xs font-bold text-primary">Venda: {totalsA.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            {totalsA.monthly > 0 && <p className="text-xs font-bold text-emerald-500">Mensal: {totalsA.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+                        </div>
+                        <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">FINALIZAR E SALVAR</Button>
                         </CardContent>
                     </Card>
                 </div>
@@ -530,7 +505,7 @@ export default function PropostasPage() {
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>Nº</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Valor</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>Nº</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Venda</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {filteredProposals.map(p => (
                                 <TableRow key={p.id}>
@@ -558,40 +533,40 @@ export default function PropostasPage() {
       <Dialog open={!!selectedProposal} onOpenChange={o => !o && setSelectedProposal(null)}>
         <DialogContent className="sm:max-w-[950px] h-[95vh] flex flex-col p-0 bg-background border-none shadow-2xl">
           <DialogHeader className="p-6 border-b bg-muted/20 flex flex-row items-center justify-between space-y-0">
-            <DialogTitle>Visualização do Documento</DialogTitle>
+            <DialogTitle>Visualização Blindada (SALVAR)</DialogTitle>
             <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(null)}><XCircle className="h-5 w-5" /></Button>
           </DialogHeader>
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
-            {/* LAYOUT SALVAR - BLINDAGEM DE ESPECIALISTA */}
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
               
-              {/* HEADER CONFORME IMAGEM */}
+              {/* HEADER TÉCNICO MODELO 2 */}
               <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '40px' }}>
-                <div style={{ width: '4px', height: '60px', backgroundColor: '#000000', marginRight: '15px' }}></div>
+                <div style={{ width: '4px', height: '160px', backgroundColor: '#000000', marginRight: '15px' }}></div>
                 <div style={{ marginRight: '20px' }}>
-                    {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" style={{ maxHeight: '60px', width: 'auto' }} />}
+                    {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" style={{ height: '160px', width: 'auto', display: 'block' }} />}
                 </div>
-                <div style={{ flex: 1 }}>
-                    <h2 style={{ fontSize: '13pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
-                    <p style={{ fontSize: '8.5pt', margin: '2px 0', color: '#333' }}>{companyProfile.email} | {formatPhoneNumber(companyProfile.phone)}</p>
-                    <p style={{ fontSize: '8.5pt', margin: '0', color: '#333' }}>{companyProfile.address}</p>
+                <div style={{ flex: 1, paddingTop: '10px' }}>
+                    <h2 style={{ fontSize: '14pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
+                    <p style={{ fontSize: '9pt', margin: '4px 0', color: '#333' }}>{companyProfile.email}</p>
+                    <p style={{ fontSize: '9pt', margin: '4px 0', color: '#333' }}>{formatPhoneNumber(companyProfile.phone)}</p>
+                    <p style={{ fontSize: '9pt', margin: '0', color: '#333' }}>{companyProfile.address}</p>
                 </div>
               </div>
 
-              {/* TITULO CENTRALIZADO E SUBINHADO */}
+              {/* TITULO CENTRALIZADO */}
               <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                 <span style={{ fontSize: '13pt', fontWeight: 'bold', borderBottom: '2px solid black', paddingBottom: '2px', textTransform: 'uppercase' }}>
                     PROPOSTA COMERCIAL
                 </span>
               </div>
 
-              {/* DESTINATÁRIO E METADADOS */}
+              {/* DESTINATÁRIO */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '35px' }}>
                 <div style={{ flex: 1 }}>
                     <p style={{ fontSize: '8pt', color: '#666', fontWeight: 'bold', margin: '0 0 4px 0', textTransform: 'uppercase' }}>DESTINATÁRIO</p>
                     <h1 style={{ fontSize: '13pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{selectedProposal?.clientName}</h1>
                     <p style={{ fontSize: '10pt', color: '#4F46E5', fontWeight: 'bold', margin: '4px 0' }}>A/C: {selectedProposal?.contactName?.toUpperCase() || 'SETOR RESPONSÁVEL'}</p>
-                    {selectedProposal?.clientPhone && <p style={{ fontSize: '9pt', margin: '0' }}>({selectedProposal.clientPhone.slice(0,2)}) {selectedProposal.clientPhone.slice(2,7)}-{selectedProposal.clientPhone.slice(7)}</p>}
+                    {selectedProposal?.clientPhone && <p style={{ fontSize: '9pt', margin: '0' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
                 </div>
                 <div style={{ textAlign: 'right', minWidth: '180px' }}>
                     <p style={{ margin: '0', fontSize: '9.5pt' }}><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
@@ -600,61 +575,65 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TEXTO DE INTRODUÇÃO */}
-              <div style={{ marginBottom: '35px', fontSize: '10pt', textAlign: 'justify' }}>
+              {/* INTRODUÇÃO */}
+              <div style={{ marginBottom: '35px', fontSize: '10.5pt', textAlign: 'justify' }}>
                 <p style={{ margin: '0 0 12px 0' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
-                <p style={{ margin: '0 0 12px 0' }}>Com ampla experiência de mercado a {companyProfile.name.toUpperCase()} combina consultoria especializada e as mais modernas ferramentas de TI para entregar soluções ágeis, seguras e personalizadas.</p>
-                <p style={{ margin: '0' }}>Nosso compromisso é com a qualidade absoluta desde o primeiro contato até o suporte contínuo.</p>
+                <p style={{ margin: '0' }}>Com ampla experiência de mercado, a {companyProfile.name.toUpperCase()} combina consultoria especializada e as mais modernas ferramentas para entregar soluções ágeis, seguras e personalizadas.</p>
               </div>
 
-              {/* TABELA DE ITENS ESTILO IMAGEM */}
+              {/* TABELA DE ITENS */}
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
                 <thead>
                     <tr style={{ borderBottom: '1.5px solid #000' }}>
                         <th style={{ textAlign: 'left', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</th>
                         <th style={{ textAlign: 'center', width: '50px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>QTD.</th>
-                        <th style={{ textAlign: 'right', width: '100px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>PREÇO UNIT.</th>
+                        <th style={{ textAlign: 'right', width: '100px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>UNITÁRIO</th>
                         <th style={{ textAlign: 'right', width: '110px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>SUBTOTAL</th>
                     </tr>
                 </thead>
                 <tbody>
                     {selectedProposal?.items.map((it, i) => (
                         <tr key={i} style={{ borderBottom: '0.5px solid #eee' }}>
-                            <td style={{ padding: '12px 5px', fontSize: '9pt', textTransform: 'uppercase' }}>{it.name}</td>
-                            <td style={{ textAlign: 'center', padding: '12px 5px', fontSize: '9pt' }}>{it.quantity}</td>
-                            <td style={{ textAlign: 'right', padding: '12px 5px', fontSize: '9pt' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                            <td style={{ textAlign: 'right', padding: '12px 5px', fontSize: '9pt', fontWeight: 'bold' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            <td style={{ padding: '12px 5px', fontSize: '9.5pt', textTransform: 'uppercase' }}>{it.name} {it.isMonthly ? '(MENSAL)' : ''}</td>
+                            <td style={{ textAlign: 'center', padding: '12px 5px', fontSize: '9.5pt' }}>{it.quantity}</td>
+                            <td style={{ textAlign: 'right', padding: '12px 5px', fontSize: '9.5pt' }}>{it.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            <td style={{ textAlign: 'right', padding: '12px 5px', fontSize: '9.5pt', fontWeight: 'bold' }}>{(it.quantity * it.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                         </tr>
                     ))}
                 </tbody>
               </table>
               
-              {/* BOX DE TOTAL INVESTIMENTO */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '40px' }}>
-                <div style={{ backgroundColor: '#F8FAFC', padding: '12px 25px', borderRadius: '6px', border: '1px solid #E2E8F0', display: 'flex', gap: '30px', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 'bold', fontSize: '10pt', textTransform: 'uppercase' }}>TOTAL INVESTIMENTO</span>
-                    <span style={{ fontWeight: 'bold', fontSize: '12pt' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                </div>
-              </div>
-
-              {/* QUADRO DE CONDIÇÕES CONFORME IMAGEM */}
-              <div style={{ border: '1.5px solid #333', padding: '20px', borderRadius: '4px', marginBottom: '60px' }}>
-                <p style={{ fontWeight: 'bold', fontSize: '11pt', margin: '0 0 15px 0', textTransform: 'uppercase' }}>CONDIÇÕES DE PAGAMENTO</p>
-                <div style={{ fontSize: '9.5pt', lineHeight: '1.8' }}>
-                    <p style={{ margin: '0' }}>• FORMA DE PAGAMENTO: {selectedProposal?.paymentMethod.toUpperCase()}</p>
-                    <p style={{ margin: '0' }}>• CONDIÇÃO: {selectedProposal?.installments}X DE {((selectedProposal?.totalOneTime || 0) / (selectedProposal?.installments || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                    {selectedProposal?.firstAsDownPayment && (
-                        <p style={{ margin: '0', fontStyle: 'italic' }}>• PRIMEIRA PARCELA COMO ENTRADA.</p>
+              {/* TOTAIS À DIREITA */}
+              <div style={{ textAlign: 'right', marginBottom: '40px', paddingRight: '10px' }}>
+                <div style={{ backgroundColor: '#F8FAFC', display: 'inline-block', padding: '15px 30px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ marginBottom: '5px' }}>
+                        <span style={{ fontSize: '10pt', fontWeight: 'bold', textTransform: 'uppercase', marginRight: '20px' }}>TOTAL INVESTIMENTO:</span>
+                        <span style={{ fontSize: '13pt', fontWeight: 'bold' }}>{selectedProposal?.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    </div>
+                    {selectedProposal?.totalMonthly > 0 && (
+                        <div>
+                            <span style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'uppercase', marginRight: '20px', color: '#4F46E5' }}>TAXA MENSAL (SUPORTE):</span>
+                            <span style={{ fontSize: '11pt', fontWeight: 'bold', color: '#4F46E5' }}>{selectedProposal?.totalMonthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
                     )}
                 </div>
+              </div>
+
+              {/* CONDIÇÕES DE PAGAMENTO BLINDADAS */}
+              <div style={{ border: '1.5px solid #000', padding: '20px', borderRadius: '4px', marginBottom: '60px' }}>
+                <p style={{ fontWeight: 'bold', fontSize: '11pt', margin: '0 0 15px 0', textTransform: 'uppercase', borderBottom: '1px solid #000', display: 'inline-block' }}>CONDIÇÕES DE PAGAMENTO</p>
+                <div style={{ fontSize: '10pt', lineHeight: '1.8' }}>
+                    <p style={{ margin: '0' }}>• FORMA DE PAGAMENTO: {selectedProposal?.paymentMethod.toUpperCase()}</p>
+                    <p style={{ margin: '0' }}>• CONDIÇÃO: {selectedProposal?.firstAsDownPayment ? 'ENTRADA + ' : ''}{selectedProposal?.installments}X DE {((selectedProposal?.totalOneTime || 0) / (selectedProposal?.installments || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                </div>
                 
-                <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '0.5px solid #DDD' }}>
+                <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1.5px solid #DDD' }}>
                     <p style={{ fontWeight: 'bold', fontSize: '9pt', margin: '0 0 5px 0', textTransform: 'uppercase' }}>OBSERVAÇÕES E PRAZOS:</p>
-                    <p style={{ fontSize: '9pt', margin: '0', textTransform: 'uppercase' }}>{selectedProposal?.observations || 'SEM OBSERVAÇÕES ADICIONAIS.'}</p>
+                    <p style={{ fontSize: '9.5pt', margin: '0', textTransform: 'uppercase' }}>{selectedProposal?.observations || 'SEM OBSERVAÇÕES ADICIONAIS.'}</p>
                 </div>
               </div>
 
-              {/* ASSINATURAS NO RODAPÉ */}
+              {/* ASSINATURAS */}
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '60px', marginTop: 'auto', paddingTop: '40px' }}>
                 <div style={{ flex: 1, textAlign: 'center' }}>
                     <div style={{ borderTop: '1px solid #000', width: '100%', marginBottom: '6px' }}></div>
@@ -682,11 +661,10 @@ export default function PropostasPage() {
             <AlertDialogHeader><AlertDialogTitle>Excluir Proposta?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Voltar</AlertDialogCancel>
-                <AlertDialogAction className="bg-destructive" onClick={() => { if(deletingProposal) deleteProposal(deletingProposal.id); setDeletingProposal(null); }}>Confirmar</AlertDialogAction>
+                <AlertDialogAction className="bg-destructive" onClick={() => { if(deletingProposal) deleteProposal(deletingProposal.id); setDeletingProposal(null); }}>Confirmar Exclusão</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
   );
 }
-
