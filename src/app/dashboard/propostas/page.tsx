@@ -502,7 +502,7 @@ export default function PropostasPage() {
                         </div>
                         <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
                             <p className="text-xs font-bold text-primary">Venda: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                            <p className="text-[10px] text-muted-foreground italic">Condição: {watchInstallments}x de {installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            <p className="text-[10px] text-muted-foreground italic">Condição: {watchInstallments}x de {(totals.oneTime / (watchInstallments || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                             {totals.monthly > 0 && <p className="text-xs font-bold text-emerald-500">Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
                         </div>
                         <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">FINALIZAR E SALVAR</Button>
@@ -577,9 +577,9 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TÍTULO CENTRALIZADO SUBRINHADO */}
+              {/* TÍTULO CENTRALIZADO */}
               <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                <span style={{ fontSize: '13pt', fontWeight: 'bold', borderBottom: '2.5px solid black', paddingBottom: '2px', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '13pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
                     PROPOSTA COMERCIAL
                 </span>
               </div>
@@ -605,21 +605,21 @@ export default function PropostasPage() {
                 <p style={{ margin: '0' }}>Com ampla experiência de mercado, a {companyProfile.name.toUpperCase()} combina consultoria especializada e as mais modernas ferramentas para entregar soluções ágeis, seguras e personalizadas.</p>
               </div>
 
-              {/* TABELA DE ITENS COM TÍTULOS SUBRINHADOS */}
+              {/* TABELA DE ITENS */}
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
                 <thead>
                     <tr style={{ borderBottom: '1.5px solid #000' }}>
                         <th style={{ textAlign: 'left', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                            <span style={{ borderBottom: '1px solid black' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</span>
+                            DESCRIÇÃO DO SERVIÇO OU PRODUTO
                         </th>
                         <th style={{ textAlign: 'center', width: '50px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                            <span style={{ borderBottom: '1px solid black' }}>QTD.</span>
+                            QTD.
                         </th>
                         <th style={{ textAlign: 'right', width: '100px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                            <span style={{ borderBottom: '1px solid black' }}>UNITÁRIO</span>
+                            UNITÁRIO
                         </th>
                         <th style={{ textAlign: 'right', width: '110px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                            <span style={{ borderBottom: '1px solid black' }}>SUBTOTAL</span>
+                            SUBTOTAL
                         </th>
                     </tr>
                 </thead>
@@ -653,7 +653,7 @@ export default function PropostasPage() {
 
               {/* BOX DE CONDIÇÕES DE PAGAMENTO (BORDA PRETA 1.5PX) */}
               <div style={{ border: '1.5px solid #000', padding: '20px', borderRadius: '4px', marginBottom: '60px' }}>
-                <p style={{ fontWeight: 'bold', fontSize: '11pt', margin: '0 0 15px 0', textTransform: 'uppercase', borderBottom: '1px solid #000', display: 'inline-block' }}>CONDIÇÕES DE PAGAMENTO</p>
+                <p style={{ fontWeight: 'bold', fontSize: '11pt', margin: '0 0 15px 0', textTransform: 'uppercase', display: 'inline-block' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <div style={{ fontSize: '10pt', lineHeight: '1.8' }}>
                     <p style={{ margin: '0' }}>• FORMA DE PAGAMENTO: {selectedProposal?.paymentMethod.toUpperCase()}</p>
                     <p style={{ margin: '0' }}>• CONDIÇÃO: {selectedProposal?.firstAsDownPayment ? 'ENTRADA + ' : ''}{selectedProposal?.installments}X DE {((selectedProposal?.totalOneTime || 0) / (selectedProposal?.installments || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
