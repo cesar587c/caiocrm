@@ -173,6 +173,11 @@ export default function PropostasPage() {
     name: 'installments',
   });
 
+  const watchFirstAsDownPayment = useWatch({
+    control: form.control,
+    name: 'firstAsDownPayment',
+  });
+
   const totals = useMemo(() => {
     const items = watchItems || [];
     return items.reduce(
@@ -193,9 +198,11 @@ export default function PropostasPage() {
 
   const installmentValue = useMemo(() => {
     const total = totals.oneTime;
-    const count = watchInstallments || 1;
-    return total / count;
-  }, [totals.oneTime, watchInstallments]);
+    const count = parseInt(String(watchInstallments)) || 1;
+    // Se "Primeira como Entrada" estiver ativa, dividimos pelo total de partes (entrada + parcelas)
+    const divisor = watchFirstAsDownPayment ? (count + 1) : count;
+    return total / divisor;
+  }, [totals.oneTime, watchInstallments, watchFirstAsDownPayment]);
 
   const filteredProposals = useMemo(() => {
     const term = proposalSearch.toLowerCase();
@@ -502,7 +509,13 @@ export default function PropostasPage() {
                         </div>
                         <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
                             <p className="text-xs font-bold text-primary">Venda: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                            <p className="text-[10px] text-muted-foreground italic">Condição: {watchInstallments}x de {(totals.oneTime / (watchInstallments || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            <p className="text-[10px] text-muted-foreground italic">
+                                {watchFirstAsDownPayment ? (
+                                    `Entrada de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} + ${watchInstallments}x de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                                ) : (
+                                    `${watchInstallments}x de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                                )}
+                            </p>
                             {totals.monthly > 0 && <p className="text-xs font-bold text-emerald-500">Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
                         </div>
                         <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">FINALIZAR E SALVAR</Button>
@@ -577,7 +590,7 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TÍTULO CENTRALIZADO */}
+              {/* TÍTULO CENTRALIZADO (SEM SUBLINHADO) */}
               <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                 <span style={{ fontSize: '13pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
                     PROPOSTA COMERCIAL
@@ -605,7 +618,7 @@ export default function PropostasPage() {
                 <p style={{ margin: '0' }}>Com ampla experiência de mercado, a {companyProfile.name.toUpperCase()} combina consultoria especializada e as mais modernas ferramentas para entregar soluções ágeis, seguras e personalizadas.</p>
               </div>
 
-              {/* TABELA DE ITENS */}
+              {/* TABELA DE ITENS (SEM SUBLINHADOS) */}
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
                 <thead>
                     <tr style={{ borderBottom: '1.5px solid #000' }}>
@@ -651,12 +664,18 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* BOX DE CONDIÇÕES DE PAGAMENTO (BORDA PRETA 1.5PX) */}
+              {/* BOX DE CONDIÇÕES DE PAGAMENTO (SEM SUBLINHADO NO TÍTULO) */}
               <div style={{ border: '1.5px solid #000', padding: '20px', borderRadius: '4px', marginBottom: '60px' }}>
                 <p style={{ fontWeight: 'bold', fontSize: '11pt', margin: '0 0 15px 0', textTransform: 'uppercase', display: 'inline-block' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <div style={{ fontSize: '10pt', lineHeight: '1.8' }}>
                     <p style={{ margin: '0' }}>• FORMA DE PAGAMENTO: {selectedProposal?.paymentMethod.toUpperCase()}</p>
-                    <p style={{ margin: '0' }}>• CONDIÇÃO: {selectedProposal?.firstAsDownPayment ? 'ENTRADA + ' : ''}{selectedProposal?.installments}X DE {((selectedProposal?.totalOneTime || 0) / (selectedProposal?.installments || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    <p style={{ margin: '0' }}>
+                        • CONDIÇÃO: {selectedProposal?.firstAsDownPayment ? (
+                            `ENTRADA DE ${(selectedProposal.totalOneTime / (selectedProposal.installments + 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} + ${selectedProposal.installments}X DE ${(selectedProposal.totalOneTime / (selectedProposal.installments + 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                        ) : (
+                            `${selectedProposal?.installments}X DE ${((selectedProposal?.totalOneTime || 0) / (selectedProposal?.installments || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                        )}
+                    </p>
                 </div>
                 
                 <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1.5px solid #DDD' }}>
