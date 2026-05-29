@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -163,33 +164,18 @@ export default function PropostasPage() {
     name: 'items',
   });
 
-  const watchItems = useWatch({
-    control: form.control,
-    name: 'items',
-  });
-
-  const watchInstallments = useWatch({
-    control: form.control,
-    name: 'installments',
-  });
-
-  const watchFirstAsDownPayment = useWatch({
-    control: form.control,
-    name: 'firstAsDownPayment',
-  });
+  const watchItems = useWatch({ control: form.control, name: 'items' });
+  const watchInstallments = useWatch({ control: form.control, name: 'installments' }) || 1;
+  const watchFirstAsDownPayment = useWatch({ control: form.control, name: 'firstAsDownPayment' });
 
   const totals = useMemo(() => {
-    const items = watchItems || [];
-    return items.reduce(
+    return (watchItems || []).reduce(
       (acc, item) => {
         const qty = parseFloat(String(item?.quantity)) || 0;
         const prc = parseFloat(String(item?.price)) || 0;
         const subtotal = qty * prc;
-        if (item?.isMonthly) {
-          acc.monthly += subtotal;
-        } else {
-          acc.oneTime += subtotal;
-        }
+        if (item?.isMonthly) acc.monthly += subtotal;
+        else acc.oneTime += subtotal;
         return acc;
       },
       { oneTime: 0, monthly: 0 }
@@ -199,10 +185,9 @@ export default function PropostasPage() {
   const installmentValue = useMemo(() => {
     const total = totals.oneTime;
     const count = parseInt(String(watchInstallments)) || 1;
-    // Se "Primeira como Entrada" estiver ativa, dividimos pelo total de partes (entrada + parcelas)
-    const divisor = watchFirstAsDownPayment ? (count + 1) : count;
-    return total / divisor;
-  }, [totals.oneTime, watchInstallments, watchFirstAsDownPayment]);
+    // Lógica SALVAR: O número de parcelas é o total de pagamentos.
+    return total / count;
+  }, [totals.oneTime, watchInstallments]);
 
   const filteredProposals = useMemo(() => {
     const term = proposalSearch.toLowerCase();
@@ -242,17 +227,14 @@ export default function PropostasPage() {
             scale: 3, 
             useCORS: true, 
             backgroundColor: "#ffffff",
-            logging: false,
             onclone: (clonedDoc) => {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
                         node.style.letterSpacing = '0.3pt';
-                        node.style.wordSpacing = 'normal';
                         node.style.fontVariantLigatures = 'none';
                         node.style.webkitFontSmoothing = 'antialiased';
-                        node.style.textRendering = 'optimizeLegibility';
                     });
                 }
             }
@@ -511,7 +493,7 @@ export default function PropostasPage() {
                             <p className="text-xs font-bold text-primary">Venda: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                             <p className="text-[10px] text-muted-foreground italic">
                                 {watchFirstAsDownPayment ? (
-                                    `Entrada de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} + ${watchInstallments}x de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                                    `Entrada de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${watchInstallments > 1 ? ` + ${watchInstallments - 1}x de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : ''}`
                                 ) : (
                                     `${watchInstallments}x de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
                                 )}
@@ -566,7 +548,6 @@ export default function PropostasPage() {
         </TabsContent>
       </Tabs>
 
-      {/* PDF BLINDADO SALVAR - MODELO DE ESPECIALISTA (FIEL À IMAGEM) */}
       <Dialog open={!!selectedProposal} onOpenChange={o => !o && setSelectedProposal(null)}>
         <DialogContent className="sm:max-w-[950px] h-[95vh] flex flex-col p-0 bg-background border-none shadow-2xl">
           <DialogHeader className="p-6 border-b bg-muted/20 flex flex-row items-center justify-between space-y-0">
@@ -576,7 +557,6 @@ export default function PropostasPage() {
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
               
-              {/* CABEÇALHO TÉCNICO (BARRA PRETA + LOGO) */}
               <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '40px' }}>
                 <div style={{ width: '4px', height: '160px', backgroundColor: '#000000', marginRight: '15px' }}></div>
                 <div style={{ marginRight: '20px' }}>
@@ -590,14 +570,12 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TÍTULO CENTRALIZADO (SEM SUBLINHADO) */}
               <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                 <span style={{ fontSize: '13pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
                     PROPOSTA COMERCIAL
                 </span>
               </div>
 
-              {/* DESTINATÁRIO E METADADOS */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '35px' }}>
                 <div style={{ flex: 1 }}>
                     <p style={{ fontSize: '8pt', color: '#666', fontWeight: 'bold', margin: '0 0 4px 0', textTransform: 'uppercase' }}>DESTINATÁRIO</p>
@@ -612,28 +590,18 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* TEXTO DE INTRODUÇÃO */}
               <div style={{ marginBottom: '35px', fontSize: '10.5pt', textAlign: 'justify' }}>
                 <p style={{ margin: '0 0 12px 0' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ margin: '0' }}>Com ampla experiência de mercado, a {companyProfile.name.toUpperCase()} combina consultoria especializada e as mais modernas ferramentas para entregar soluções ágeis, seguras e personalizadas.</p>
               </div>
 
-              {/* TABELA DE ITENS (SEM SUBLINHADOS) */}
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
                 <thead>
                     <tr style={{ borderBottom: '1.5px solid #000' }}>
-                        <th style={{ textAlign: 'left', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                            DESCRIÇÃO DO SERVIÇO OU PRODUTO
-                        </th>
-                        <th style={{ textAlign: 'center', width: '50px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                            QTD.
-                        </th>
-                        <th style={{ textAlign: 'right', width: '100px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                            UNITÁRIO
-                        </th>
-                        <th style={{ textAlign: 'right', width: '110px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                            SUBTOTAL
-                        </th>
+                        <th style={{ textAlign: 'left', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>DESCRIÇÃO DO SERVIÇO OU PRODUTO</th>
+                        <th style={{ textAlign: 'center', width: '50px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>QTD.</th>
+                        <th style={{ textAlign: 'right', width: '100px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>UNITÁRIO</th>
+                        <th style={{ textAlign: 'right', width: '110px', padding: '10px 5px', fontSize: '9.5pt', fontWeight: 'bold', textTransform: 'uppercase' }}>SUBTOTAL</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -648,7 +616,6 @@ export default function PropostasPage() {
                 </tbody>
               </table>
               
-              {/* TOTAIS À DIREITA EM BOX CINZA */}
               <div style={{ textAlign: 'right', marginBottom: '40px', paddingRight: '10px' }}>
                 <div style={{ backgroundColor: '#F8FAFC', display: 'inline-block', padding: '15px 30px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                     <div style={{ marginBottom: '5px' }}>
@@ -664,14 +631,13 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* BOX DE CONDIÇÕES DE PAGAMENTO (SEM SUBLINHADO NO TÍTULO) */}
               <div style={{ border: '1.5px solid #000', padding: '20px', borderRadius: '4px', marginBottom: '60px' }}>
                 <p style={{ fontWeight: 'bold', fontSize: '11pt', margin: '0 0 15px 0', textTransform: 'uppercase', display: 'inline-block' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <div style={{ fontSize: '10pt', lineHeight: '1.8' }}>
                     <p style={{ margin: '0' }}>• FORMA DE PAGAMENTO: {selectedProposal?.paymentMethod.toUpperCase()}</p>
                     <p style={{ margin: '0' }}>
                         • CONDIÇÃO: {selectedProposal?.firstAsDownPayment ? (
-                            `ENTRADA DE ${(selectedProposal.totalOneTime / (selectedProposal.installments + 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} + ${selectedProposal.installments}X DE ${(selectedProposal.totalOneTime / (selectedProposal.installments + 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                            `ENTRADA DE ${(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${selectedProposal.installments > 1 ? ` + ${selectedProposal.installments - 1}X DE ${(selectedProposal.totalOneTime / selectedProposal.installments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : ''}`
                         ) : (
                             `${selectedProposal?.installments}X DE ${((selectedProposal?.totalOneTime || 0) / (selectedProposal?.installments || 1)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
                         )}
@@ -684,7 +650,6 @@ export default function PropostasPage() {
                 </div>
               </div>
 
-              {/* ASSINATURAS NO RODAPÉ */}
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '60px', marginTop: 'auto', paddingTop: '40px' }}>
                 <div style={{ flex: 1, textAlign: 'center' }}>
                     <div style={{ borderTop: '1px solid #000', width: '100%', marginBottom: '6px' }}></div>
