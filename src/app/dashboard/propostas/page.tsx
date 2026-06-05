@@ -169,6 +169,7 @@ export default function PropostasPage() {
     name: 'items',
   });
 
+  // MOTOR DE OBSERVAÇÃO PROFUNDA PARA SOMA REATIVA
   const watchItems = useWatch({ control: form.control, name: 'items' });
   const watchInstallments = useWatch({ control: form.control, name: 'installments' }) || 1;
   const watchFirstAsDownPayment = useWatch({ control: form.control, name: 'firstAsDownPayment' });
@@ -308,6 +309,7 @@ export default function PropostasPage() {
   };
 
   const onSubmit = (data: ProposalFormValues) => {
+    // CADASTRO AUTOMÁTICO DE CLIENTE SE SOLICITADO
     if (isQuickAddingClient && data.saveToContacts && !editingProposal) {
         addCustomer({
             name: data.clientName,
@@ -324,6 +326,7 @@ export default function PropostasPage() {
         });
     }
 
+    // CADASTRO AUTOMÁTICO DE PRODUTOS NOVOS
     data.items.forEach(item => {
         const exists = products.some(p => p.name.toLowerCase().trim() === item.name.toLowerCase().trim());
         if (!exists && item.name.trim().length > 2) {
@@ -556,6 +559,7 @@ export default function PropostasPage() {
         </TabsContent>
       </Tabs>
 
+      {/* PDF PREVIEW - BLINDADO PROTOCOLO SALVAR */}
       <Dialog open={!!selectedProposal} onOpenChange={o => !o && setSelectedProposal(null)}>
         <DialogContent className="sm:max-w-[950px] h-[95vh] flex flex-col p-0 bg-background border-none shadow-2xl">
           <DialogHeader className="p-6 border-b bg-muted/20 flex flex-row items-center justify-between space-y-0">
@@ -565,6 +569,7 @@ export default function PropostasPage() {
           <ScrollArea className="flex-1 bg-[#F5F5F5] p-10">
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
               
+              {/* CABEÇALHO COM BARRA VERTICAL E LOGO PREMIUM */}
               <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '40px' }}>
                 <div style={{ width: '4px', height: '160px', backgroundColor: '#000000', marginRight: '15px' }}></div>
                 <div style={{ marginRight: '20px' }}>
@@ -578,12 +583,14 @@ export default function PropostasPage() {
                 </div>
               </div>
 
+              {/* TÍTULO CENTRAL LIMPO */}
               <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                 <span style={{ fontSize: '13pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
                     {selectedProposal?.documentType === 'pedido' ? 'PEDIDO DE VENDA' : 'PROPOSTA COMERCIAL'}
                 </span>
               </div>
 
+              {/* DADOS DO DESTINATÁRIO E METADADOS */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '35px' }}>
                 <div style={{ flex: 1 }}>
                     <p style={{ fontSize: '8pt', color: '#666', fontWeight: 'bold', margin: '0 0 4px 0', textTransform: 'uppercase' }}>DESTINATÁRIO</p>
@@ -598,11 +605,13 @@ export default function PropostasPage() {
                 </div>
               </div>
 
+              {/* TEXTO DE INTRODUÇÃO */}
               <div style={{ marginBottom: '35px', fontSize: '10.5pt', textAlign: 'justify' }}>
                 <p style={{ margin: '0 0 12px 0' }}>Temos a satisfação de apresentar nossa proposta comercial desenvolvida com foco total na excelência tecnológica e na eficiência operacional que sua empresa demanda.</p>
                 <p style={{ margin: '0' }}>Com ampla experiência de mercado, a {companyProfile.name.toUpperCase()} combina consultoria especializada e as mais modernas ferramentas para entregar soluções ágeis, seguras e personalizadas.</p>
               </div>
 
+              {/* TABELA DE ITENS - CABEÇALHOS SEM SUBLINHADO */}
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
                 <thead>
                     <tr style={{ borderBottom: '1.5px solid #000' }}>
@@ -624,6 +633,7 @@ export default function PropostasPage() {
                 </tbody>
               </table>
               
+              {/* BOX DE TOTAIS À DIREITA */}
               <div style={{ textAlign: 'right', marginBottom: '40px', paddingRight: '10px' }}>
                 <div style={{ backgroundColor: '#F8FAFC', display: 'inline-block', padding: '15px 30px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                     <div style={{ marginBottom: '5px' }}>
@@ -639,6 +649,7 @@ export default function PropostasPage() {
                 </div>
               </div>
 
+              {/* BOX DE FECHAMENTO COM BORDAS E OBS INTEGRADA */}
               <div style={{ border: '1.5px solid #000', padding: '20px', borderRadius: '4px', marginBottom: '60px' }}>
                 <p style={{ fontWeight: 'bold', fontSize: '11pt', margin: '0 0 15px 0', textTransform: 'uppercase', display: 'inline-block' }}>CONDIÇÕES DE PAGAMENTO</p>
                 <div style={{ fontSize: '10pt', lineHeight: '1.8' }}>
@@ -658,6 +669,7 @@ export default function PropostasPage() {
                 </div>
               </div>
 
+              {/* RODAPÉ DE ASSINATURAS */}
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '60px', marginTop: 'auto', paddingTop: '40px' }}>
                 <div style={{ flex: 1, textAlign: 'center' }}>
                     <div style={{ borderTop: '1px solid #000', width: '100%', marginBottom: '6px' }}></div>
@@ -680,6 +692,7 @@ export default function PropostasPage() {
         </DialogContent>
       </Dialog>
 
+      {/* DIALOG DE EXCLUSÃO */}
       <AlertDialog open={!!deletingProposal} onOpenChange={o => !o && setDeletingProposal(null)}>
         <AlertDialogContent>
             <AlertDialogHeader><AlertDialogTitle>Excluir Registro?</AlertDialogTitle><AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription></AlertDialogHeader>

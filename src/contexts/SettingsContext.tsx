@@ -168,7 +168,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         if (backup.serviceOrders) saveData('serviceOrders', backup.serviceOrders);
         if (backup.customers) saveData('customers', backup.customers);
         if (backup.products) saveData('products', backup.products);
-        if (backup.proposals) saveData('proposals', backup.proposals);
+        if (backup.proposals) saveData('propostas', backup.proposals); // Chave correta no storage
         if (backup.rolePermissions) saveData('rolePermissions', backup.rolePermissions);
         window.location.reload();
         return true;
@@ -229,7 +229,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         let nextId = 1;
         for(let i=0; i < ids.length; i++) {
             if(ids[i] === nextId) nextId++;
-            else break;
+            else if(ids[i] > nextId) break;
         }
         const finalId = proposal.id || nextId.toString();
         const newProposal = { ...proposal, id: finalId };
