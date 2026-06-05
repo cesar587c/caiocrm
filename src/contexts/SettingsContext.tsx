@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -168,7 +167,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         if (backup.serviceOrders) saveData('serviceOrders', backup.serviceOrders);
         if (backup.customers) saveData('customers', backup.customers);
         if (backup.products) saveData('products', backup.products);
-        if (backup.proposals) saveData('propostas', backup.proposals); // Chave correta no storage
+        if (backup.proposals) saveData('proposals', backup.proposals);
         if (backup.rolePermissions) saveData('rolePermissions', backup.rolePermissions);
         window.location.reload();
         return true;
