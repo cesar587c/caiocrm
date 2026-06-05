@@ -146,7 +146,6 @@ export default function DashboardPage() {
     }
   }, [dateFilter, customRange]);
 
-  // Cálculos de Vendas Reais (Pedidos)
   const salesStats = useMemo(() => {
     const pedidos = proposals.filter(p => 
       p.documentType === 'pedido' && 

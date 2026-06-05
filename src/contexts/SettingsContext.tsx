@@ -231,8 +231,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             if(ids[i] === nextId) nextId++;
             else break;
         }
-        // Se o próximo ID for menor que 4 e estivermos começando, garantimos a sequencia a partir de 4 se solicitado, 
-        // mas o algoritmo de "buracos" é mais eficiente para sua organização.
         const finalId = proposal.id || nextId.toString();
         const newProposal = { ...proposal, id: finalId };
         const updated = [newProposal as Proposal, ...prev];

@@ -324,7 +324,6 @@ export default function PropostasPage() {
         });
     }
 
-    // SALVAR: Cadastro automático de produtos novos detectados na proposta
     data.items.forEach(item => {
         const exists = products.some(p => p.name.toLowerCase().trim() === item.name.toLowerCase().trim());
         if (!exists && item.name.trim().length > 2) {
