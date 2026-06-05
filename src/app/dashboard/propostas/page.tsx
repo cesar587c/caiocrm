@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -51,6 +52,7 @@ import {
   History,
   Eye,
   Search,
+  CheckCircle2,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -78,6 +80,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -87,6 +90,7 @@ const proposalItemSchema = z.object({
 });
 
 const proposalSchema = z.object({
+  documentType: z.enum(['proposta', 'pedido']).default('proposta'),
   clientId: z.string().optional(),
   clientName: z.string().min(1, 'O nome do cliente é obrigatório.'),
   contactName: z.string().optional(),
@@ -114,6 +118,7 @@ export default function PropostasPage() {
     updateProposal, 
     deleteProposal, 
     addCustomer, 
+    addProduct,
     currentUser 
   } = useSettings();
   
@@ -143,6 +148,7 @@ export default function PropostasPage() {
   const form = useForm<ProposalFormValues>({
     resolver: zodResolver(proposalSchema),
     defaultValues: {
+      documentType: 'proposta',
       clientName: '',
       contactName: '',
       clientPhone: '',
@@ -168,12 +174,14 @@ export default function PropostasPage() {
   const watchFirstAsDownPayment = useWatch({ control: form.control, name: 'firstAsDownPayment' });
 
   const totals = useMemo(() => {
-    return (watchItems || []).reduce(
+    if (!watchItems) return { oneTime: 0, monthly: 0 };
+    return watchItems.reduce(
       (acc, item) => {
-        const qty = parseFloat(String(item?.quantity)) || 0;
-        const prc = parseFloat(String(item?.price)) || 0;
+        if (!item) return acc;
+        const qty = parseFloat(String(item.quantity)) || 0;
+        const prc = parseFloat(String(item.price)) || 0;
         const subtotal = qty * prc;
-        if (item?.isMonthly) acc.monthly += subtotal;
+        if (item.isMonthly) acc.monthly += subtotal;
         else acc.oneTime += subtotal;
         return acc;
       },
@@ -184,7 +192,6 @@ export default function PropostasPage() {
   const installmentValue = useMemo(() => {
     const total = totals.oneTime;
     const count = parseInt(String(watchInstallments)) || 1;
-    // Protocolo SALVAR: O número de parcelas é o total de pagamentos.
     return total / count;
   }, [totals.oneTime, watchInstallments]);
 
@@ -221,12 +228,7 @@ export default function PropostasPage() {
     try {
         const element = document.getElementById('proposal-preview');
         if (!element) return;
-        
-        const canvas = await html2canvas(element, { 
-            scale: 3, 
-            useCORS: true, 
-            backgroundColor: "#ffffff",
-            onclone: (clonedDoc) => {
+        const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: "#ffffff", onclone: (clonedDoc) => {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
                     const allElements = el.querySelectorAll('*');
@@ -238,16 +240,13 @@ export default function PropostasPage() {
                 }
             }
         });
-        
         const imgData = canvas.toDataURL('image/png', 1.0);
         const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
-        pdf.save(`proposta-${selectedProposal.id}.pdf`);
+        pdf.save(`${selectedProposal.documentType || 'proposta'}-${selectedProposal.id}.pdf`);
     } catch (e) {
         toast({ variant: 'destructive', title: 'Erro ao gerar PDF' });
-    } finally {
-        setIsDownloading(false);
-    }
+    } finally { setIsDownloading(false); }
   };
 
   const handleSharePdf = async (proposal: Proposal) => {
@@ -255,11 +254,7 @@ export default function PropostasPage() {
     try {
         const element = document.getElementById('proposal-preview');
         if (!element) return;
-        const canvas = await html2canvas(element, { 
-            scale: 3, 
-            useCORS: true, 
-            backgroundColor: "#ffffff",
-            onclone: (clonedDoc) => {
+        const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: "#ffffff", onclone: (clonedDoc) => {
                 const el = clonedDoc.getElementById('proposal-preview');
                 if (el) {
                     const allElements = el.querySelectorAll('*');
@@ -275,29 +270,19 @@ export default function PropostasPage() {
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         const pdfBlob = pdf.output('blob');
         const file = new File([pdfBlob], `proposta-${proposal.id}.pdf`, { type: 'application/pdf' });
-
         const phone = proposal.clientPhone?.replace(/\D/g, '');
         const whatsappUrl = phone ? `https://wa.me/55${phone}` : null;
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: `Proposta #${proposal.id}` });
-        } else if (whatsappUrl) {
-            window.open(whatsappUrl, '_blank');
-            pdf.save(`proposta-${proposal.id}.pdf`);
-        } else {
-            pdf.save(`proposta-${proposal.id}.pdf`);
-        }
-    } catch (e) {
-        toast({ variant: 'destructive', title: 'Falha ao processar' });
-    } finally {
-        setIsSharing(false);
-    }
+        if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: `Proposta #${proposal.id}` }); } 
+        else if (whatsappUrl) { window.open(whatsappUrl, '_blank'); pdf.save(`proposta-${proposal.id}.pdf`); } 
+        else { pdf.save(`proposta-${proposal.id}.pdf`); }
+    } catch (e) { toast({ variant: 'destructive', title: 'Falha ao processar' }); } finally { setIsSharing(false); }
   };
 
   const handleEditProposalClick = (p: Proposal) => {
     setEditingProposal(p);
     form.reset({
       ...p,
+      documentType: p.documentType || 'proposta',
       proposalDate: new Date(p.proposalDate),
       validityDate: new Date(p.validityDate),
       clientPhone: formatPhoneNumber(p.clientPhone || ''),
@@ -311,6 +296,7 @@ export default function PropostasPage() {
     setEditingProposal(null);
     form.reset({
       ...p,
+      documentType: p.documentType || 'proposta',
       proposalDate: new Date(),
       validityDate: addDays(new Date(), 10),
       clientPhone: formatPhoneNumber(p.clientPhone || ''),
@@ -338,6 +324,14 @@ export default function PropostasPage() {
         });
     }
 
+    // SALVAR: Cadastro automático de produtos novos detectados na proposta
+    data.items.forEach(item => {
+        const exists = products.some(p => p.name.toLowerCase().trim() === item.name.toLowerCase().trim());
+        if (!exists && item.name.trim().length > 2) {
+            addProduct({ name: item.name, price: item.price });
+        }
+    });
+
     const proposalData = {
         ...data,
         clientPhone: data.clientPhone?.replace(/\D/g, ''),
@@ -349,10 +343,10 @@ export default function PropostasPage() {
 
     if (editingProposal) {
       updateProposal({ ...proposalData, id: editingProposal.id } as Proposal);
-      toast({ title: 'Proposta Atualizada!' });
+      toast({ title: 'Documento Atualizado!' });
     } else {
       addProposal(proposalData as any);
-      toast({ title: 'Proposta Salva!' });
+      toast({ title: 'Documento Salvo!' });
     }
     setEditingProposal(null);
     form.reset();
@@ -367,7 +361,7 @@ export default function PropostasPage() {
       
       <div className="flex items-center justify-between">
         <div>
-            <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gerador de Propostas</h2>
+            <h2 className="text-3xl font-bold tracking-tight font-headline text-foreground">Gerador de Propostas e Pedidos</h2>
             <p className="text-muted-foreground">Protocolo SALVAR: Blindagem de Especialista Ativada.</p>
         </div>
       </div>
@@ -385,10 +379,18 @@ export default function PropostasPage() {
                     <form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form">
                     <Card className="shadow-lg border-primary/10">
                         <CardHeader className="flex flex-row items-start justify-between pb-6">
-                            <CardTitle className="text-xl flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-primary" />
-                                {editingProposal ? `Editar Proposta #${editingProposal.id}` : 'Configurar Orçamento'}
-                            </CardTitle>
+                            <div className="space-y-4">
+                                <CardTitle className="text-xl flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-primary" />
+                                    {editingProposal ? `Editar ${editingProposal.documentType === 'pedido' ? 'Pedido' : 'Proposta'} #${editingProposal.id}` : 'Configurar Documento'}
+                                </CardTitle>
+                                <FormField control={form.control} name="documentType" render={({ field }) => (
+                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                        <div className="flex items-center space-x-2"><RadioGroupItem value="proposta" id="rt-prop" /><Label htmlFor="rt-prop" className="text-xs">PROPOSTA COMERCIAL</Label></div>
+                                        <div className="flex items-center space-x-2"><RadioGroupItem value="pedido" id="rt-ped" /><Label htmlFor="rt-ped" className="text-xs">PEDIDO DE VENDA</Label></div>
+                                    </RadioGroup>
+                                )} />
+                            </div>
                             <div className="flex gap-4">
                                 <FormField control={form.control} name="proposalDate" render={({ field }) => (
                                     <div className="space-y-1">
@@ -432,7 +434,7 @@ export default function PropostasPage() {
 
                             <div className="space-y-4 border-t pt-8">
                                 <div className="flex items-center justify-between">
-                                    <h4 className="text-sm font-bold">Itens da Proposta</h4>
+                                    <h4 className="text-sm font-bold">Itens do Documento</h4>
                                     <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Item</Button>
                                 </div>
                                 <Table>
@@ -490,14 +492,17 @@ export default function PropostasPage() {
                         </div>
                         <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
                             <p className="text-xs font-bold text-primary">Venda: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                            <p className="text-[10px] text-muted-foreground italic">
-                                {watchFirstAsDownPayment ? (
-                                    `Entrada de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${watchInstallments > 1 ? ` + ${watchInstallments - 1}x de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : ''}`
-                                ) : (
-                                    `${watchInstallments}x de ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                                )}
-                            </p>
-                            {totals.monthly > 0 && <p className="text-xs font-bold text-emerald-500">Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+                            <div className="flex flex-col gap-1 mt-2 p-2 bg-background/50 rounded border border-primary/20">
+                                <p className="text-[11px] font-bold text-primary flex items-center gap-2">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    {watchFirstAsDownPayment ? (
+                                        `ENTRADA DE ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${watchInstallments > 1 ? ` + ${watchInstallments - 1}X DE ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : ''}`
+                                    ) : (
+                                        `${watchInstallments}X DE ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                                    )}
+                                </p>
+                            </div>
+                            {totals.monthly > 0 && <p className="text-xs font-bold text-emerald-500 mt-2">Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
                         </div>
                         <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">FINALIZAR E SALVAR</Button>
                         </CardContent>
@@ -510,7 +515,7 @@ export default function PropostasPage() {
             <Card className="shadow-lg">
                 <CardHeader>
                     <div className="flex items-center justify-between">
-                        <CardTitle>Histórico de Orçamentos</CardTitle>
+                        <CardTitle>Histórico de Documentos</CardTitle>
                         <div className="relative w-72">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Buscar por cliente ou ID..." className="pl-10" value={proposalSearch} onChange={(e) => setProposalSearch(e.target.value)} />
@@ -519,11 +524,16 @@ export default function PropostasPage() {
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>Nº</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Venda</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>Nº</TableHead><TableHead>Tipo</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Venda</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {filteredProposals.map(p => (
                                 <TableRow key={p.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedProposal(p)}>
                                     <TableCell className="font-bold">#{p.id}</TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className={p.documentType === 'pedido' ? 'border-emerald-500 text-emerald-500' : ''}>
+                                            {p.documentType === 'pedido' ? 'Pedido' : 'Proposta'}
+                                        </Badge>
+                                    </TableCell>
                                     <TableCell>{p.clientName}</TableCell>
                                     <TableCell className="text-xs">{format(parseISO(p.proposalDate), 'dd/MM/yyyy')}</TableCell>
                                     <TableCell className="font-bold">{p.totalOneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
@@ -538,7 +548,7 @@ export default function PropostasPage() {
                                 </TableRow>
                             ))}
                             {filteredProposals.length === 0 && (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground italic">Nenhum orçamento encontrado.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground italic">Nenhum documento encontrado.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -571,7 +581,7 @@ export default function PropostasPage() {
 
               <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                 <span style={{ fontSize: '13pt', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                    PROPOSTA COMERCIAL
+                    {selectedProposal?.documentType === 'pedido' ? 'PEDIDO DE VENDA' : 'PROPOSTA COMERCIAL'}
                 </span>
               </div>
 
@@ -583,7 +593,7 @@ export default function PropostasPage() {
                     {selectedProposal?.clientPhone && <p style={{ fontSize: '9pt', margin: '0' }}>{formatPhoneNumber(selectedProposal.clientPhone)}</p>}
                 </div>
                 <div style={{ textAlign: 'right', minWidth: '180px' }}>
-                    <p style={{ margin: '0', fontSize: '9.5pt' }}><strong>Nº PROPOSTA:</strong> {selectedProposal?.id}</p>
+                    <p style={{ margin: '0', fontSize: '9.5pt' }}><strong>Nº DOCUMENTO:</strong> {selectedProposal?.id}</p>
                     <p style={{ margin: '2px 0', fontSize: '9.5pt' }}><strong>EMISSÃO:</strong> {selectedProposal && format(parseISO(selectedProposal.proposalDate), 'dd/MM/yyyy')}</p>
                     <p style={{ margin: '0', fontSize: '9.5pt' }}><strong>VALIDADE:</strong> <span style={{ color: '#E11D48', fontWeight: 'bold' }}>{selectedProposal && format(parseISO(selectedProposal.validityDate), 'dd/MM/yyyy')}</span></p>
                 </div>
@@ -673,7 +683,7 @@ export default function PropostasPage() {
 
       <AlertDialog open={!!deletingProposal} onOpenChange={o => !o && setDeletingProposal(null)}>
         <AlertDialogContent>
-            <AlertDialogHeader><AlertDialogTitle>Excluir Orçamento?</AlertDialogTitle><AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogHeader><AlertDialogTitle>Excluir Registro?</AlertDialogTitle><AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription></AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Voltar</AlertDialogCancel>
                 <AlertDialogAction className="bg-destructive" onClick={() => { if(deletingProposal) deleteProposal(deletingProposal.id); setDeletingProposal(null); }}>Confirmar Exclusão</AlertDialogAction>

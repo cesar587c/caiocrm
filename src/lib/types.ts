@@ -1,3 +1,4 @@
+
 export type CompanyProfile = {
   name: string;
   email: string;
@@ -126,6 +127,7 @@ export type ProposalItem = {
 
 export type Proposal = {
   id: string;
+  documentType?: 'proposta' | 'pedido';
   clientId?: string;
   clientName: string;
   contactName?: string;
