@@ -71,6 +71,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from "react-day-picker";
 
 type Kpi = {
   title: string;
@@ -119,6 +122,10 @@ const KpiCard = ({ kpi }: { kpi: Kpi }) => {
 export default function DashboardPage() {
   const { appointments, exportAllData, proposals, serviceOrders } = useSettings();
   const [dateFilter, setDateFilter] = useState<string>("month");
+  const [customRange, setCustomRange] = useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
 
   const dateRange = useMemo(() => {
     const now = new Date();
@@ -129,10 +136,15 @@ export default function DashboardPage() {
         return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
       case "year":
         return { start: startOfYear(now), end: endOfMonth(now) };
+      case "custom":
+        return { 
+          start: customRange?.from ? startOfDay(customRange.from) : startOfMonth(now), 
+          end: customRange?.to ? endOfDay(customRange.to) : endOfMonth(now) 
+        };
       default:
         return { start: startOfMonth(now), end: endOfMonth(now) };
     }
-  }, [dateFilter]);
+  }, [dateFilter, customRange]);
 
   // Cálculos de Vendas Reais (Pedidos)
   const salesStats = useMemo(() => {
@@ -149,7 +161,6 @@ export default function DashboardPage() {
     const ticketMedio = pedidos.length > 0 ? faturamentoTotal / pedidos.length : 0;
     const conversao = propostasTotais > 0 ? (pedidos.length / propostasTotais) * 100 : 0;
     
-    // Meta Fixa para exemplo (SALVAR: Pode ser movido para configurações depois)
     const metaMensal = 50000;
     const metaAtingida = (faturamentoTotal / metaMensal) * 100;
 
@@ -185,7 +196,6 @@ export default function DashboardPage() {
     ];
   }, [proposals, dateRange]);
 
-  // Cálculos de Atendimento Real (Ordens de Serviço)
   const serviceStats = useMemo(() => {
     const chamados = serviceOrders.filter(os => 
       isWithinInterval(parseISO(os.openingDate), dateRange)
@@ -248,18 +258,53 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Monitoramento em tempo real dos Pedidos e OS.</p>
         </div>
         
-        <div className="flex items-center gap-3 bg-card p-2 rounded-lg border shadow-sm">
-            <CalendarIcon className="h-4 w-4 text-primary ml-2" />
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="w-[180px] border-none shadow-none focus:ring-0">
-                    <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="month">Este Mês</SelectItem>
-                    <SelectItem value="30days">Últimos 30 Dias</SelectItem>
-                    <SelectItem value="year">Este Ano</SelectItem>
-                </SelectContent>
-            </Select>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {dateFilter === 'custom' && (
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className="h-11 gap-2 bg-card border-primary/20 hover:border-primary/50">
+                            <CalendarIcon className="h-4 w-4 text-primary" />
+                            {customRange?.from ? (
+                                customRange.to ? (
+                                    <>
+                                        {format(customRange.from, "dd/MM/yy")} - {format(customRange.to, "dd/MM/yy")}
+                                    </>
+                                ) : (
+                                    format(customRange.from, "dd/MM/yy")
+                                )
+                            ) : (
+                                <span>Selecionar Período</span>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={customRange?.from}
+                            selected={customRange}
+                            onSelect={setCustomRange}
+                            numberOfMonths={2}
+                            locale={ptBR}
+                        />
+                    </PopoverContent>
+                </Popover>
+            )}
+
+            <div className="flex items-center gap-3 bg-card p-1.5 rounded-lg border shadow-sm h-11">
+                <CalendarIcon className="h-4 w-4 text-primary ml-2" />
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="w-[180px] border-none shadow-none focus:ring-0 h-8">
+                        <SelectValue placeholder="Período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="month">Este Mês</SelectItem>
+                        <SelectItem value="30days">Últimos 30 Dias</SelectItem>
+                        <SelectItem value="year">Este Ano</SelectItem>
+                        <SelectItem value="custom">Personalizado</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
       </div>
 
@@ -308,7 +353,7 @@ export default function DashboardPage() {
                         <CalendarPlus className="h-5 w-5 text-primary"/>
                         Performance da Agenda
                     </CardTitle>
-                    <CardDescription>Visitas e retornos no período de {format(dateRange.start, "dd/MM")} a {format(dateRange.end, "dd/MM")}.</CardDescription>
+                    <CardDescription>Visitas e retornos no período selecionado.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="flex items-center justify-between">
@@ -352,9 +397,9 @@ export default function DashboardPage() {
               <CardContent className="flex-1 pb-4">
                  <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={[
-                        { name: "Pedidos", valor: salesStats[0].value.replace(/\D/g, '').length > 0 ? proposals.filter(p => p.documentType === 'pedido').length : 0, fill: "hsl(var(--primary))" },
-                        { name: "Propostas", valor: proposals.filter(p => p.documentType === 'proposta').length, fill: "hsl(var(--chart-2))" },
-                        { name: "O.S.", valor: serviceOrders.length, fill: "hsl(var(--chart-4))" }
+                        { name: "Pedidos", valor: proposals.filter(p => p.documentType === 'pedido' && isWithinInterval(parseISO(p.proposalDate), dateRange)).length, fill: "hsl(var(--primary))" },
+                        { name: "Propostas", valor: proposals.filter(p => p.documentType === 'proposta' && isWithinInterval(parseISO(p.proposalDate), dateRange)).length, fill: "hsl(var(--chart-2))" },
+                        { name: "O.S.", valor: serviceOrders.filter(o => isWithinInterval(parseISO(o.openingDate), dateRange)).length, fill: "hsl(var(--chart-4))" }
                     ]} >
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))"/>
                         <XAxis dataKey="name" tickLine={false} axisLine={false} />
