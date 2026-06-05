@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -185,7 +184,7 @@ export default function PropostasPage() {
   const installmentValue = useMemo(() => {
     const total = totals.oneTime;
     const count = parseInt(String(watchInstallments)) || 1;
-    // Lógica SALVAR: O número de parcelas é o total de pagamentos.
+    // Protocolo SALVAR: O número de parcelas é o total de pagamentos.
     return total / count;
   }, [totals.oneTime, watchInstallments]);
 
@@ -475,7 +474,7 @@ export default function PropostasPage() {
                         <CardHeader className="bg-primary/5 pb-4"><CardTitle className="text-lg">Faturamento</CardTitle></CardHeader>
                         <CardContent className="space-y-6 pt-6">
                         <div className="space-y-2">
-                            <Label className="text-xs font-bold text-muted-foreground">Parcelamento</Label>
+                            <Label className="text-xs font-bold text-muted-foreground">Parcelamento (Totalizadores)</Label>
                             <Controller control={form.control} name="installments" render={({ field }) => (
                                 <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>

@@ -402,9 +402,16 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   const addProposal = useCallback((proposal: Omit<Proposal, 'id'> & { id?: string }) => {
     setProposals(prev => {
-        const nextIdNum = prev.length > 0 
-            ? (Math.max(...prev.map(p => parseInt(p.id, 10) || 0)) + 1) 
-            : 1;
+        // Filtra IDs razoáveis (menores que 1 milhão) para ignorar os timestamps gigantes antigos
+        const reasonableIds = prev
+            .map(p => parseInt(p.id, 10))
+            .filter(id => !isNaN(id) && id < 1000000);
+            
+        // Protocolo SALVAR: Se não houver IDs pequenos, começa do 4 conforme pedido
+        const nextIdNum = reasonableIds.length > 0 
+            ? Math.max(...reasonableIds) + 1 
+            : 4; 
+
         const newProposal = { ...proposal, id: proposal.id || nextIdNum.toString() };
         const updated = [newProposal as Proposal, ...prev];
         saveData('proposals', updated);
