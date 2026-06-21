@@ -464,7 +464,7 @@ export default function PropostasPage() {
                                                 <Input 
                                                     type="number" 
                                                     {...form.register(`items.${idx}.quantity`)} 
-                                                    className="h-10 text-sm text-center bg-white border-primary/30 text-black font-bold px-1" 
+                                                    className="h-10 text-sm text-center bg-muted/40 border-primary/20 text-foreground font-bold px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                                                 />
                                             </TableCell>
                                             <TableCell className="border-none">
@@ -472,7 +472,7 @@ export default function PropostasPage() {
                                                     type="number" 
                                                     step="0.01" 
                                                     {...form.register(`items.${idx}.price`)} 
-                                                    className="h-10 text-sm bg-white border-primary/30 text-black font-bold px-2 text-right" 
+                                                    className="h-10 text-sm bg-muted/40 border-primary/20 text-foreground font-bold px-2 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                                                 />
                                             </TableCell>
                                             <TableCell className="text-center border-none">
