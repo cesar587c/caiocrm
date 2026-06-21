@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -355,6 +356,14 @@ export default function PropostasPage() {
     setActiveTab('historico');
   };
 
+  const onInvalid = (errors: any) => {
+      toast({
+          variant: 'destructive',
+          title: 'Atenção',
+          description: 'Por favor, preencha os campos obrigatórios na proposta.',
+      });
+  };
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-background/50">
       <datalist id="proposal-products-list">
@@ -375,170 +384,172 @@ export default function PropostasPage() {
         </TabsList>
 
         <TabsContent value="gerador">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6">
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} id="proposal-form">
-                    <Card className="shadow-lg border-primary/10">
-                        <CardHeader className="flex flex-row items-start justify-between pb-6">
-                            <div className="space-y-4">
-                                <CardTitle className="text-xl flex items-center gap-2">
-                                    <FileText className="h-5 w-5 text-primary" />
-                                    {editingProposal ? `Editar ${editingProposal.documentType === 'pedido' ? 'Pedido' : 'Proposta'} #${editingProposal.id}` : 'Configurar Documento'}
-                                </CardTitle>
-                                <FormField control={form.control} name="documentType" render={({ field }) => (
-                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
-                                        <div className="flex items-center space-x-2"><RadioGroupItem value="proposta" id="rt-prop" /><Label htmlFor="rt-prop" className="text-xs">PROPOSTA COMERCIAL</Label></div>
-                                        <div className="flex items-center space-x-2"><RadioGroupItem value="pedido" id="rt-ped" /><Label htmlFor="rt-ped" className="text-xs">PEDIDO DE VENDA</Label></div>
-                                    </RadioGroup>
-                                )} />
-                            </div>
-                            <div className="flex gap-4">
-                                <FormField control={form.control} name="proposalDate" render={({ field }) => (
-                                    <div className="space-y-1">
-                                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emissão</Label>
-                                        <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[125px] h-9 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} id="proposal-form">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-6">
+                            <Card className="shadow-lg border-primary/10">
+                                <CardHeader className="flex flex-row items-start justify-between pb-6">
+                                    <div className="space-y-4">
+                                        <CardTitle className="text-xl flex items-center gap-2">
+                                            <FileText className="h-5 w-5 text-primary" />
+                                            {editingProposal ? `Editar ${editingProposal.documentType === 'pedido' ? 'Pedido' : 'Proposta'} #${editingProposal.id}` : 'Configurar Documento'}
+                                        </CardTitle>
+                                        <FormField control={form.control} name="documentType" render={({ field }) => (
+                                            <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                                                <div className="flex items-center space-x-2"><RadioGroupItem value="proposta" id="rt-prop" /><Label htmlFor="rt-prop" className="text-xs">PROPOSTA COMERCIAL</Label></div>
+                                                <div className="flex items-center space-x-2"><RadioGroupItem value="pedido" id="rt-ped" /><Label htmlFor="rt-ped" className="text-xs">PEDIDO DE VENDA</Label></div>
+                                            </RadioGroup>
+                                        )} />
                                     </div>
-                                )} />
-                                <FormField control={form.control} name="validityDate" render={({ field }) => (
-                                    <div className="space-y-1">
-                                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">Validade</Label>
-                                        <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[125px] h-9 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                    <div className="flex gap-4">
+                                        <FormField control={form.control} name="proposalDate" render={({ field }) => (
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Emissão</Label>
+                                                <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[125px] h-9 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                            </div>
+                                        )} />
+                                        <FormField control={form.control} name="validityDate" render={({ field }) => (
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Validade</Label>
+                                                <Popover><PopoverTrigger asChild><Button variant="outline" size="sm" className="w-[125px] h-9 text-xs">{field.value ? format(field.value, "dd/MM/yyyy") : 'Data'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover>
+                                            </div>
+                                        )} />
                                     </div>
-                                )} />
-                            </div>
-                        </CardHeader>
-                        <CardContent className="border-t pt-8 space-y-8">
-                            <div className="space-y-4">
-                                <Label className="text-sm font-semibold">Selecione o Cliente</Label>
-                                <div className="flex gap-3">
-                                <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
-                                    <SelectTrigger className="flex-1"><SelectValue placeholder="Buscar na base..." /></SelectTrigger>
-                                    <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <Button type="button" variant="secondary" onClick={() => setIsQuickAddingClient(true)} className="gap-2"><PlusCircle className="h-4 w-4" /> Digitar Novo</Button>
-                                </div>
+                                </CardHeader>
+                                <CardContent className="border-t pt-8 space-y-8">
+                                    <div className="space-y-4">
+                                        <Label className="text-sm font-semibold">Selecione o Cliente</Label>
+                                        <div className="flex gap-3">
+                                        <Select onValueChange={handleClientSelect} disabled={isQuickAddingClient}>
+                                            <SelectTrigger className="flex-1"><SelectValue placeholder="Buscar na base..." /></SelectTrigger>
+                                            <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.nomeFantasia || c.name}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                        <Button type="button" variant="secondary" onClick={() => setIsQuickAddingClient(true)} className="gap-2"><PlusCircle className="h-4 w-4" /> Digitar Novo</Button>
+                                        </div>
 
-                                {isQuickAddingClient && (
-                                <div className="p-5 border rounded-xl bg-muted/20 space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Empresa / Cliente</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-                                    <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>A/C (Contato)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                        {isQuickAddingClient && (
+                                        <div className="p-5 border rounded-xl bg-muted/20 space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField control={form.control} name="clientName" render={({ field }) => (<FormItem><FormLabel>Empresa / Cliente</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                            <FormField control={form.control} name="contactName" render={({ field }) => (<FormItem><FormLabel>A/C (Contato)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                            </div>
+                                            <FormField control={form.control} name="clientPhone" render={({ field }) => (<FormItem><FormLabel>Telefone</FormLabel><FormControl><Input {...field} onChange={e => field.onChange(formatPhoneNumber(e.target.value))} /></FormControl></FormItem>)} />
+                                            <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border">
+                                            <div className="space-y-0.5"><p className="text-xs font-bold text-primary">Salvar na base de contatos?</p></div>
+                                            <FormField control={form.control} name="saveToContacts" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
+                                            </div>
+                                        </div>
+                                        )}
                                     </div>
-                                    <FormField control={form.control} name="clientPhone" render={({ field }) => (<FormItem><FormLabel>Telefone</FormLabel><FormControl><Input {...field} onChange={e => field.onChange(formatPhoneNumber(e.target.value))} /></FormControl></FormItem>)} />
-                                    <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border">
-                                    <div className="space-y-0.5"><p className="text-xs font-bold text-primary">Salvar na base de contatos?</p></div>
-                                    <FormField control={form.control} name="saveToContacts" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} />)} />
+
+                                    <div className="space-y-4 border-t pt-8">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-sm font-bold">Itens do Documento</h4>
+                                            <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Item</Button>
+                                        </div>
+                                        <Table>
+                                            <TableHeader className="border-none">
+                                                <TableRow className="border-none hover:bg-transparent">
+                                                    <TableHead className="border-none no-underline">Descrição</TableHead>
+                                                    <TableHead className="w-24 text-center border-none no-underline">Qtd</TableHead>
+                                                    <TableHead className="w-40 border-none no-underline text-center">Preço (R$)</TableHead>
+                                                    <TableHead className="w-10 text-center border-none no-underline">Rec.</TableHead>
+                                                    <TableHead className="w-10 border-none"></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {fields.map((it, idx) => (
+                                                <TableRow key={it.id} className="border-none">
+                                                    <TableCell className="border-none">
+                                                        <Input 
+                                                            {...form.register(`items.${idx}.name`)} 
+                                                            onBlur={() => handleItemNameBlur(idx)} 
+                                                            list="proposal-products-list" 
+                                                            className="h-10 text-sm bg-muted/40 border-primary/20 text-foreground font-medium placeholder:text-muted-foreground" 
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="border-none">
+                                                        <Input 
+                                                            type="number" 
+                                                            {...form.register(`items.${idx}.quantity`)} 
+                                                            onWheel={(e) => e.currentTarget.blur()}
+                                                            className="h-10 text-sm text-center bg-muted/40 border-primary/20 text-foreground font-bold px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="border-none">
+                                                        <Input 
+                                                            type="number" 
+                                                            step="0.01" 
+                                                            {...form.register(`items.${idx}.price`)} 
+                                                            onWheel={(e) => e.currentTarget.blur()}
+                                                            className="h-10 text-sm bg-muted/40 border-primary/20 text-foreground font-bold px-2 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-center border-none">
+                                                        <FormField control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (
+                                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} className="h-4 w-4" />
+                                                        )} />
+                                                    </TableCell>
+                                                    <TableCell className="border-none"><Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                                                </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
                                     </div>
-                                </div>
-                                )}
-                            </div>
 
-                            <div className="space-y-4 border-t pt-8">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="text-sm font-bold">Itens do Documento</h4>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Item</Button>
-                                </div>
-                                <Table>
-                                    <TableHeader className="border-none">
-                                        <TableRow className="border-none hover:bg-transparent">
-                                            <TableHead className="border-none no-underline">Descrição</TableHead>
-                                            <TableHead className="w-24 text-center border-none no-underline">Qtd</TableHead>
-                                            <TableHead className="w-40 border-none no-underline text-center">Preço (R$)</TableHead>
-                                            <TableHead className="w-10 text-center border-none no-underline">Rec.</TableHead>
-                                            <TableHead className="w-10 border-none"></TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {fields.map((it, idx) => (
-                                        <TableRow key={it.id} className="border-none">
-                                            <TableCell className="border-none">
-                                                <Input 
-                                                    {...form.register(`items.${idx}.name`)} 
-                                                    onBlur={() => handleItemNameBlur(idx)} 
-                                                    list="proposal-products-list" 
-                                                    className="h-10 text-sm bg-muted/40 border-primary/20 text-foreground font-medium placeholder:text-muted-foreground" 
-                                                />
-                                            </TableCell>
-                                            <TableCell className="border-none">
-                                                <Input 
-                                                    type="number" 
-                                                    {...form.register(`items.${idx}.quantity`)} 
-                                                    className="h-10 text-sm text-center bg-muted/40 border-primary/20 text-foreground font-bold px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                                                />
-                                            </TableCell>
-                                            <TableCell className="border-none">
-                                                <Input 
-                                                    type="number" 
-                                                    step="0.01" 
-                                                    {...form.register(`items.${idx}.price`)} 
-                                                    className="h-10 text-sm bg-muted/40 border-primary/20 text-foreground font-bold px-2 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                                                />
-                                            </TableCell>
-                                            <TableCell className="text-center border-none">
-                                                <FormField control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (
-                                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} className="h-4 w-4" />
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="border-none"><Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
-                                        </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-
-                            <div className="border-t pt-8">
-                                <FormField control={form.control} name="observations" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="font-bold">Observações e Prazos</FormLabel>
-                                    <FormControl><Textarea rows={3} placeholder="Ex: Prazo de entrega 10 dias úteis..." {...field} className="text-xs" /></FormControl>
-                                </FormItem>
-                                )} />
-                            </div>
-                        </CardContent>
-                    </Card>
-                    </form>
-                </Form>
-                </div>
-
-                <div className="lg:col-span-1 space-y-6">
-                    <Card className="shadow-lg sticky top-4">
-                        <CardHeader className="bg-primary/5 pb-4"><CardTitle className="text-lg">Faturamento</CardTitle></CardHeader>
-                        <CardContent className="space-y-6 pt-6">
-                        <div className="space-y-2">
-                            <Label className="text-xs font-bold text-muted-foreground">Parcelamento (Totalizadores)</Label>
-                            <Controller control={form.control} name="installments" render={({ field }) => (
-                                <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x</SelectItem>)}</SelectContent>
-                                </Select>
-                            )} />
+                                    <div className="border-t pt-8">
+                                        <FormField control={form.control} name="observations" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="font-bold">Observações e Prazos</FormLabel>
+                                            <FormControl><Textarea rows={3} placeholder="Ex: Prazo de entrega 10 dias úteis..." {...field} className="text-xs" /></FormControl>
+                                        </FormItem>
+                                        )} />
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                            <div className="space-y-0.5"><Label className="text-xs font-bold">Primeira como Entrada?</Label></div>
-                            <FormField control={form.control} name="firstAsDownPayment" render={({ field }) => (
-                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                            )} />
+
+                        <div className="lg:col-span-1 space-y-6">
+                            <Card className="shadow-lg sticky top-4">
+                                <CardHeader className="bg-primary/5 pb-4"><CardTitle className="text-lg">Faturamento</CardTitle></CardHeader>
+                                <CardContent className="space-y-6 pt-6">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-muted-foreground">Parcelamento (Totalizadores)</Label>
+                                    <Controller control={form.control} name="installments" render={({ field }) => (
+                                        <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>{[...Array(12)].map((_, i) => <SelectItem key={i+1} value={String(i+1)}>{i+1}x</SelectItem>)}</SelectContent>
+                                        </Select>
+                                    )} />
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                                    <div className="space-y-0.5"><Label className="text-xs font-bold">Primeira como Entrada?</Label></div>
+                                    <FormField control={form.control} name="firstAsDownPayment" render={({ field }) => (
+                                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                    )} />
+                                </div>
+                                <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
+                                    <p className="text-xs font-bold text-primary">Venda: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                    <div className="flex flex-col gap-1 mt-2 p-2 bg-background/50 rounded border border-primary/20">
+                                        <p className="text-[11px] font-bold text-primary flex items-center gap-2">
+                                            <CheckCircle2 className="h-3 w-3" />
+                                            {watchFirstAsDownPayment ? (
+                                                `ENTRADA DE ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${watchInstallments > 1 ? ` + ${watchInstallments - 1}X DE ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : ''}`
+                                            ) : (
+                                                `${watchInstallments}X DE ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                                            )}
+                                        </p>
+                                    </div>
+                                    {totals.monthly > 0 && <p className="text-xs font-bold text-emerald-500 mt-2">Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+                                </div>
+                                <Button type="submit" className="w-full h-11 font-bold shadow-md">FINALIZAR E SALVAR</Button>
+                                </CardContent>
+                            </Card>
                         </div>
-                        <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
-                            <p className="text-xs font-bold text-primary">Venda: {totals.oneTime.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                            <div className="flex flex-col gap-1 mt-2 p-2 bg-background/50 rounded border border-primary/20">
-                                <p className="text-[11px] font-bold text-primary flex items-center gap-2">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    {watchFirstAsDownPayment ? (
-                                        `ENTRADA DE ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}${watchInstallments > 1 ? ` + ${watchInstallments - 1}X DE ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : ''}`
-                                    ) : (
-                                        `${watchInstallments}X DE ${installmentValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                                    )}
-                                </p>
-                            </div>
-                            {totals.monthly > 0 && <p className="text-xs font-bold text-emerald-500 mt-2">Mensal: {totals.monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
-                        </div>
-                        <Button type="submit" form="proposal-form" className="w-full h-11 font-bold shadow-md">FINALIZAR E SALVAR</Button>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+                    </div>
+                </form>
+            </Form>
         </TabsContent>
 
         <TabsContent value="historico">
