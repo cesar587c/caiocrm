@@ -80,6 +80,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { cn } from '@/lib/utils';
 
 const proposalItemSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -235,6 +236,7 @@ export default function PropostasPage() {
                         node.style.letterSpacing = '0.3pt';
                         node.style.fontVariantLigatures = 'none';
                         node.style.webkitFontSmoothing = 'antialiased';
+                        node.style.textDecoration = 'none';
                     });
                 }
             }
@@ -260,6 +262,7 @@ export default function PropostasPage() {
                     allElements.forEach((node: any) => {
                         node.style.letterSpacing = '0.3pt';
                         node.style.fontVariantLigatures = 'none';
+                        node.style.textDecoration = 'none';
                     });
                 }
             }
@@ -436,19 +439,47 @@ export default function PropostasPage() {
                                     <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, price: 0, isMonthly: false })} className="gap-2"><PlusCircle className="h-3.5 w-3.5" /> Item</Button>
                                 </div>
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead className="w-16 text-center">Qtd</TableHead><TableHead className="w-28">Preço</TableHead><TableHead className="w-10 text-center">Rec.</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                                    <TableHeader className="border-none">
+                                        <TableRow className="border-none hover:bg-transparent">
+                                            <TableHead className="border-none no-underline">Descrição</TableHead>
+                                            <TableHead className="w-16 text-center border-none no-underline">Qtd</TableHead>
+                                            <TableHead className="w-28 border-none no-underline">Preço</TableHead>
+                                            <TableHead className="w-10 text-center border-none no-underline">Rec.</TableHead>
+                                            <TableHead className="w-10 border-none"></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
                                     <TableBody>
                                         {fields.map((it, idx) => (
-                                        <TableRow key={it.id}>
-                                            <TableCell><Input {...form.register(`items.${idx}.name`)} onBlur={() => handleItemNameBlur(idx)} list="proposal-products-list" className="h-8 text-xs" /></TableCell>
-                                            <TableCell><Input type="number" {...form.register(`items.${idx}.quantity`)} className="h-8 text-xs text-center" /></TableCell>
-                                            <TableCell><Input type="number" step="0.01" {...form.register(`items.${idx}.price`)} className="h-8 text-xs" /></TableCell>
-                                            <TableCell className="text-center">
+                                        <TableRow key={it.id} className="border-none">
+                                            <TableCell className="border-none">
+                                                <Input 
+                                                    {...form.register(`items.${idx}.name`)} 
+                                                    onBlur={() => handleItemNameBlur(idx)} 
+                                                    list="proposal-products-list" 
+                                                    className="h-8 text-xs bg-muted/40 border-primary/20 text-foreground placeholder:text-muted-foreground" 
+                                                />
+                                            </TableCell>
+                                            <TableCell className="border-none">
+                                                <Input 
+                                                    type="number" 
+                                                    {...form.register(`items.${idx}.quantity`)} 
+                                                    className="h-8 text-xs text-center bg-muted/40 border-primary/20 text-foreground" 
+                                                />
+                                            </TableCell>
+                                            <TableCell className="border-none">
+                                                <Input 
+                                                    type="number" 
+                                                    step="0.01" 
+                                                    {...form.register(`items.${idx}.price`)} 
+                                                    className="h-8 text-xs bg-muted/40 border-primary/20 text-foreground" 
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center border-none">
                                                 <FormField control={form.control} name={`items.${idx}.isMonthly`} render={({ field }) => (
                                                     <Checkbox checked={field.value} onCheckedChange={field.onChange} className="h-4 w-4" />
                                                 )} />
                                             </TableCell>
-                                            <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                                            <TableCell className="border-none"><Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)} className="h-8 w-8 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                                         </TableRow>
                                         ))}
                                     </TableBody>
