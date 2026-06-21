@@ -443,8 +443,8 @@ export default function PropostasPage() {
                                     <TableHeader className="border-none">
                                         <TableRow className="border-none hover:bg-transparent">
                                             <TableHead className="border-none no-underline">Descrição</TableHead>
-                                            <TableHead className="w-20 text-center border-none no-underline">Qtd</TableHead>
-                                            <TableHead className="w-32 border-none no-underline">Preço</TableHead>
+                                            <TableHead className="w-24 text-center border-none no-underline">Qtd</TableHead>
+                                            <TableHead className="w-40 border-none no-underline text-center">Preço (R$)</TableHead>
                                             <TableHead className="w-10 text-center border-none no-underline">Rec.</TableHead>
                                             <TableHead className="w-10 border-none"></TableHead>
                                         </TableRow>
@@ -464,7 +464,7 @@ export default function PropostasPage() {
                                                 <Input 
                                                     type="number" 
                                                     {...form.register(`items.${idx}.quantity`)} 
-                                                    className="h-10 text-sm text-center bg-white/10 border-primary/30 text-white font-bold" 
+                                                    className="h-10 text-sm text-center bg-white border-primary/30 text-black font-bold px-1" 
                                                 />
                                             </TableCell>
                                             <TableCell className="border-none">
@@ -472,7 +472,7 @@ export default function PropostasPage() {
                                                     type="number" 
                                                     step="0.01" 
                                                     {...form.register(`items.${idx}.price`)} 
-                                                    className="h-10 text-sm bg-white/10 border-primary/30 text-white font-bold" 
+                                                    className="h-10 text-sm bg-white border-primary/30 text-black font-bold px-2 text-right" 
                                                 />
                                             </TableCell>
                                             <TableCell className="text-center border-none">
