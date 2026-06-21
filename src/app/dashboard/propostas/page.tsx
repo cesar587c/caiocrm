@@ -262,6 +262,7 @@ export default function PropostasPage() {
                     allElements.forEach((node: any) => {
                         node.style.letterSpacing = '0.3pt';
                         node.style.fontVariantLigatures = 'none';
+                        node.style.webkitFontSmoothing = 'antialiased';
                         node.style.textDecoration = 'none';
                     });
                 }
@@ -442,8 +443,8 @@ export default function PropostasPage() {
                                     <TableHeader className="border-none">
                                         <TableRow className="border-none hover:bg-transparent">
                                             <TableHead className="border-none no-underline">Descrição</TableHead>
-                                            <TableHead className="w-16 text-center border-none no-underline">Qtd</TableHead>
-                                            <TableHead className="w-28 border-none no-underline">Preço</TableHead>
+                                            <TableHead className="w-20 text-center border-none no-underline">Qtd</TableHead>
+                                            <TableHead className="w-32 border-none no-underline">Preço</TableHead>
                                             <TableHead className="w-10 text-center border-none no-underline">Rec.</TableHead>
                                             <TableHead className="w-10 border-none"></TableHead>
                                         </TableRow>
@@ -456,14 +457,14 @@ export default function PropostasPage() {
                                                     {...form.register(`items.${idx}.name`)} 
                                                     onBlur={() => handleItemNameBlur(idx)} 
                                                     list="proposal-products-list" 
-                                                    className="h-8 text-xs bg-muted/40 border-primary/20 text-foreground placeholder:text-muted-foreground" 
+                                                    className="h-10 text-sm bg-muted/40 border-primary/20 text-foreground font-medium placeholder:text-muted-foreground" 
                                                 />
                                             </TableCell>
                                             <TableCell className="border-none">
                                                 <Input 
                                                     type="number" 
                                                     {...form.register(`items.${idx}.quantity`)} 
-                                                    className="h-8 text-xs text-center bg-muted/40 border-primary/20 text-foreground" 
+                                                    className="h-10 text-sm text-center bg-white/10 border-primary/30 text-white font-bold" 
                                                 />
                                             </TableCell>
                                             <TableCell className="border-none">
@@ -471,7 +472,7 @@ export default function PropostasPage() {
                                                     type="number" 
                                                     step="0.01" 
                                                     {...form.register(`items.${idx}.price`)} 
-                                                    className="h-8 text-xs bg-muted/40 border-primary/20 text-foreground" 
+                                                    className="h-10 text-sm bg-white/10 border-primary/30 text-white font-bold" 
                                                 />
                                             </TableCell>
                                             <TableCell className="text-center border-none">
@@ -571,7 +572,7 @@ export default function PropostasPage() {
                                             <Button variant="ghost" size="icon" onClick={() => setSelectedProposal(p)} title="Ver PDF"><Eye className="h-4 w-4" /></Button>
                                             <Button variant="ghost" size="icon" onClick={() => handleCloneProposal(p)} title="Clonar Orçamento"><Copy className="h-4 w-4" /></Button>
                                             <Button variant="ghost" size="icon" onClick={() => handleEditProposalClick(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" onClick={() => setDeletingProposal(p)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingProposal(p)}><Trash2 className="h-4 w-4" /></Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -596,9 +597,9 @@ export default function PropostasPage() {
             <div id="proposal-preview" className="bg-white text-black mx-auto shadow-2xl" style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', fontSize: '11pt', lineHeight: '1.4', color: '#000000' }}>
               
               <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '40px' }}>
-                <div style={{ width: '4px', height: '160px', backgroundColor: '#000000', marginRight: '15px' }}></div>
+                <div style={{ width: '4px', height: '220px', backgroundColor: '#000000', marginRight: '15px' }}></div>
                 <div style={{ marginRight: '20px' }}>
-                    {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" style={{ height: '160px', width: '170px', display: 'block', objectFit: 'contain' }} />}
+                    {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" style={{ height: '220px', width: '250px', display: 'block', objectFit: 'contain' }} />}
                 </div>
                 <div style={{ flex: 1, paddingTop: '10px' }}>
                     <h2 style={{ fontSize: '14pt', fontWeight: 'bold', margin: '0', textTransform: 'uppercase' }}>{companyProfile.name}</h2>
