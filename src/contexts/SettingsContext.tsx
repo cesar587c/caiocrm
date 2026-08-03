@@ -19,10 +19,10 @@ const initialUsers: User[] = [
 ];
 
 const initialRolePermissions: RolePermissions = {
-    admin: ['/dashboard', '/dashboard/clientes', '/dashboard/funil-vendas', '/dashboard/propostas', '/dashboard/agenda', '/dashboard/chamados', '/dashboard/relatorios', '/dashboard/configuracoes', '/dashboard/usuarios'],
-    technician: ['/dashboard', '/dashboard/clientes', '/dashboard/agenda', '/dashboard/chamados'],
-    finance: ['/dashboard', '/dashboard/clientes', '/dashboard/funil-vendas', '/dashboard/propostas', '/dashboard/relatorios'],
-    service: ['/dashboard', '/dashboard/clientes', '/dashboard/agenda', '/dashboard/chamados'],
+    admin: ['/dashboard', '/dashboard/clientes', '/dashboard/funil-vendas', '/dashboard/propostas', '/dashboard/agenda', '/dashboard/chamados', '/dashboard/relatorios', '/dashboard/manual', '/dashboard/configuracoes', '/dashboard/usuarios'],
+    technician: ['/dashboard', '/dashboard/clientes', '/dashboard/agenda', '/dashboard/chamados', '/dashboard/manual'],
+    finance: ['/dashboard', '/dashboard/clientes', '/dashboard/funil-vendas', '/dashboard/propostas', '/dashboard/relatorios', '/dashboard/manual'],
+    service: ['/dashboard', '/dashboard/clientes', '/dashboard/agenda', '/dashboard/chamados', '/dashboard/manual'],
 };
 
 interface SettingsContextType {
@@ -258,4 +258,3 @@ export const useSettings = () => {
   if (context === undefined) throw new Error('useSettings must be used within a SettingsProvider');
   return context;
 };
-

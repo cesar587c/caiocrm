@@ -1,0 +1,47 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "logo",
+      "description": "VendasPro company logo",
+      "imageUrl": "https://images.unsplash.com/photo-1693374925575-ac8fa3ffab14?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxhYnN0cmFjdCUyMGxvZ298ZW58MHx8fHwxNzcwNDMxMjczfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract logo"
+    },
+    {
+      "id": "manual_propostas",
+      "description": "Visual do módulo de propostas",
+      "imageUrl": "https://picsum.photos/seed/prop1/800/450",
+      "imageHint": "business proposal"
+    },
+    {
+      "id": "manual_dashboard",
+      "description": "Visual do dashboard de gestão",
+      "imageUrl": "https://picsum.photos/seed/dash1/800/450",
+      "imageHint": "data analytics"
+    },
+    {
+      "id": "manual_crm",
+      "description": "Visual do funil de vendas",
+      "imageUrl": "https://picsum.photos/seed/crm1/800/450",
+      "imageHint": "crm software"
+    },
+    {
+      "id": "manual_agenda",
+      "description": "Visual da agenda de visitas",
+      "imageUrl": "https://picsum.photos/seed/cal1/800/450",
+      "imageHint": "business calendar"
+    },
+    {
+      "id": "manual_os",
+      "description": "Visual das ordens de serviço",
+      "imageUrl": "https://picsum.photos/seed/os1/800/450",
+      "imageHint": "technical service"
+    },
+    {
+      "id": "manual_ia",
+      "description": "Visual da inteligência artificial",
+      "imageUrl": "https://picsum.photos/seed/ai1/800/450",
+      "imageHint": "ai brain"
+    }
+  ]
+}
