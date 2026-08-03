@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -257,3 +258,4 @@ export const useSettings = () => {
   if (context === undefined) throw new Error('useSettings must be used within a SettingsProvider');
   return context;
 };
+
