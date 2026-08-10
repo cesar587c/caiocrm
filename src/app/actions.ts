@@ -54,7 +54,7 @@ export async function sendAppointmentNotifications(params: {
         // 2. Notificar Técnicos
         for (const tech of technicians) {
             if (tech.whatsapp) {
-                let techMessage = `*Novo Agendamento Técnico (Automático)*\n\nOlá ${tech.name}, você foi escalado para uma visita.\n\n*Cliente:* ${appointment.clientName}\n*Data:* ${dateStr}\n*Horário:* ${appointment.time}\n*Local:* ${appointment.address}`;
+                let techMessage = `*Novo Agendamento Técnico (Automático)*\n\nOlá ${tech.name}, você foi escalado para uma visita.\n\n*Cliente:* ${appointment.clientName}\n*Contato:* ${appointment.contact}\n*Data:* ${dateStr}\n*Horário:* ${appointment.time}\n*Local:* ${appointment.address}`;
                 if (appointment.summary) techMessage += `\n*Resumo:* ${appointment.summary}`;
 
                 const techResult = await sendWhatsapp({
