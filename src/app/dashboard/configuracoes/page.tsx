@@ -17,7 +17,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Settings, Loader2, UploadCloud, Trash2, ShieldAlert, Lock, ShieldCheck, CalendarDays, ExternalLink, CheckCircle2, Download, Upload, AlertTriangle, MonitorSmartphone, Mail } from 'lucide-react';
+import { Settings, Loader2, UploadCloud, Trash2, ShieldAlert, Lock, ShieldCheck, CalendarDays, ExternalLink, CheckCircle2, Download, Upload, AlertTriangle, MonitorSmartphone, Mail, Users, Plus, X, UserPlus } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -39,6 +39,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const formSchema = z.object({
   name: z.string().min(1, 'O nome da empresa é obrigatório.'),
@@ -73,7 +75,8 @@ export default function ConfiguracoesPage() {
     isLoaded, 
     rolePermissions, 
     updateRolePermissions,
-    users 
+    users,
+    updateUser
   } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -181,6 +184,7 @@ export default function ConfiguracoesPage() {
     if (newSectorName.trim() === '') return;
     addSector(newSectorName);
     setNewSectorName('');
+    toast({ title: "Setor Criado!" });
   };
 
   const handleOpenGoogleCalendar = () => {
@@ -257,10 +261,114 @@ export default function ConfiguracoesPage() {
             
             <TabsContent value="sectors">
               <Card>
-                <CardHeader><CardTitle>Gerenciar Setores</CardTitle><CardDescription>Defina os departamentos da sua empresa para organizar a equipe.</CardDescription></CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex gap-2"><Input value={newSectorName} onChange={(e) => setNewSectorName(e.target.value)} placeholder="Nome do novo setor" /><Button type="button" onClick={handleAddSector}>Adicionar</Button></div>
-                  <ul className="divide-y rounded-md border">{sectors.map(sector => (<li key={sector.id} className="flex items-center justify-between p-3 pl-4"><span>{sector.name}</span><Button type="button" variant="ghost" size="icon" onClick={() => setSectorToDelete(sector)}><Trash2 className="h-4 w-4 text-destructive" /></Button></li>))}</ul>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Gerenciar Setores e Equipe
+                  </CardTitle>
+                  <CardDescription>Defina os departamentos e vincule os colaboradores a cada área.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                  <div className="flex gap-2 max-w-xl">
+                    <Input 
+                      value={newSectorName} 
+                      onChange={(e) => setNewSectorName(e.target.value)} 
+                      placeholder="Nome do novo setor (ex: Técnico, Comercial...)" 
+                    />
+                    <Button type="button" onClick={handleAddSector} className="gap-2">
+                      <Plus className="h-4 w-4" /> Adicionar Setor
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {sectors.map(sector => {
+                      const sectorMembers = users.filter(u => u.sectorIds.includes(sector.id));
+                      return (
+                        <div key={sector.id} className="border rounded-xl p-5 space-y-4 bg-muted/10 hover:bg-muted/20 transition-colors border-primary/10 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Users className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-lg leading-tight">{sector.name}</h4>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{sectorMembers.length}integrante(s)</p>
+                              </div>
+                            </div>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => setSectorToDelete(sector)} 
+                              className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="space-y-3 pt-2 border-t">
+                            <div className="flex flex-wrap gap-1.5">
+                              {sectorMembers.map(member => (
+                                <Badge key={member.id} variant="secondary" className="gap-1 pl-2 pr-1 h-7 bg-primary/5 border border-primary/20 text-foreground font-medium">
+                                  {member.name}
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-5 w-5 rounded-full hover:bg-destructive hover:text-white transition-all"
+                                    onClick={() => {
+                                      const newSectors = member.sectorIds.filter(id => id !== sector.id);
+                                      updateUser({ ...member, sectorIds: newSectors });
+                                      toast({ title: "Membro Removido", description: `${member.name} não faz mais parte do setor ${sector.name}.` });
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </Badge>
+                              ))}
+                              
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-7 gap-1 border-dashed hover:border-primary hover:text-primary transition-colors">
+                                    <UserPlus className="h-3.5 w-3.5" /> Vincular Membro
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="p-0 w-64 shadow-xl border-primary/20" align="start">
+                                  <div className="p-2.5 border-b bg-muted/30">
+                                    <p className="text-[10px] font-bold uppercase text-center tracking-widest text-primary">Selecionar Colaborador</p>
+                                  </div>
+                                  <ScrollArea className="h-48">
+                                    <div className="p-2 space-y-1">
+                                      {users.filter(u => !u.sectorIds.includes(sector.id)).map(u => (
+                                        <Button 
+                                          key={u.id} 
+                                          variant="ghost" 
+                                          className="w-full justify-start text-xs h-9 hover:bg-primary/10"
+                                          onClick={() => {
+                                            updateUser({ ...u, sectorIds: [...u.sectorIds, sector.id] });
+                                            toast({ title: "Membro Adicionado!", description: `${u.name} agora faz parte do setor ${sector.name}.` });
+                                          }}
+                                        >
+                                          <UserPlus className="h-3.5 w-3.5 mr-2 text-primary" />
+                                          <span className="font-semibold">{u.name}</span>
+                                        </Button>
+                                      ))}
+                                      {users.filter(u => !u.sectorIds.includes(sector.id)).length === 0 && (
+                                        <div className="flex flex-col items-center justify-center py-8 opacity-50">
+                                          <ShieldCheck className="h-8 w-8 mb-2" />
+                                          <p className="text-[10px] text-center italic">Todos os usuários já<br/>estão neste setor.</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </ScrollArea>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
