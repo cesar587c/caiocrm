@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
@@ -225,6 +224,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   const addProposal = useCallback((proposal: Omit<Proposal, 'id'> & { id?: string }) => {
     setProposals(prev => {
+        // Protocolo SALVAR: Inteligência de numeração sequencial 1, 2, 3... #4
         const ids = prev.map(p => parseInt(p.id, 10)).filter(id => !isNaN(id) && id < 1000000).sort((a,b) => a-b);
         let nextId = 1;
         for(let i=0; i < ids.length; i++) {

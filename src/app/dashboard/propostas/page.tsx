@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -234,6 +233,7 @@ export default function PropostasPage() {
                 if (el) {
                     const allElements = el.querySelectorAll('*');
                     allElements.forEach((node: any) => {
+                        // Protocolo SALVAR: Motor anti-fusão e limpeza absoluta de sublinhados
                         node.style.letterSpacing = '0.3pt';
                         node.style.fontVariantLigatures = 'none';
                         node.style.webkitFontSmoothing = 'antialiased';
@@ -610,6 +610,7 @@ export default function PropostasPage() {
               <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '40px' }}>
                 <div style={{ width: '4px', height: '220px', backgroundColor: '#000000', marginRight: '15px' }}></div>
                 <div style={{ marginRight: '20px' }}>
+                    {/* Protocolo SALVAR: Logo imponente de 220px gravada */}
                     {companyProfile.logoUrl && <img src={companyProfile.logoUrl} alt="Logo" style={{ height: '220px', width: '250px', display: 'block', objectFit: 'contain' }} />}
                 </div>
                 <div style={{ flex: 1, paddingTop: '10px' }}>

@@ -54,6 +54,7 @@ export async function sendAppointmentNotifications(params: {
         // 2. Notificar Técnicos
         for (const tech of technicians) {
             if (tech.whatsapp) {
+                // Protocolo SALVAR: Incluindo o nome do contato da OS na mensagem para o técnico
                 let techMessage = `*Novo Agendamento Técnico (Automático)*\n\nOlá ${tech.name}, você foi escalado para uma visita.\n\n*Cliente:* ${appointment.clientName}\n*Contato:* ${appointment.contact}\n*Data:* ${dateStr}\n*Horário:* ${appointment.time}\n*Local:* ${appointment.address}`;
                 if (appointment.summary) techMessage += `\n*Resumo:* ${appointment.summary}`;
 
@@ -81,13 +82,12 @@ export async function lookupCnpj(cnpj: string) {
     try {
         const cleanedCnpj = cnpj.replace(/\D/g, "");
         
-        // Adicionando headers para evitar erro 403 (Forbidden)
         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanedCnpj}`, {
             headers: {
                 'User-Agent': 'VendasPro/1.0 (CRM System; contact@vendaspro.com)',
                 'Accept': 'application/json'
             },
-            next: { revalidate: 3600 } // Cache de 1 hora para economizar requisições
+            next: { revalidate: 3600 } 
         });
         
         if (!response.ok) {

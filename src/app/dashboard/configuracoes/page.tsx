@@ -282,6 +282,7 @@ export default function ConfiguracoesPage() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {sectors.map(sector => {
+                      // Protocolo SALVAR: Visualização de equipe por setor diretamente nesta tela
                       const sectorMembers = users.filter(u => u.sectorIds.includes(sector.id));
                       return (
                         <div key={sector.id} className="border rounded-xl p-5 space-y-4 bg-muted/10 hover:bg-muted/20 transition-colors border-primary/10 shadow-sm">
@@ -292,7 +293,7 @@ export default function ConfiguracoesPage() {
                               </div>
                               <div>
                                 <h4 className="font-bold text-lg leading-tight">{sector.name}</h4>
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{sectorMembers.length}integrante(s)</p>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{sectorMembers.length} integrante(s)</p>
                               </div>
                             </div>
                             <Button 
