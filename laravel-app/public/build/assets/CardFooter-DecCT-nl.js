@@ -1,0 +1,1 @@
+import{Ut as e,Xt as t,Y as n,or as r,rr as i}from"./app-B1UG9rkQ.js";import{i as a}from"./button--D7IUxER.js";var o={__name:`CardFooter`,props:{class:{type:null,default:void 0}},setup(o){return(o,s)=>(e(),n(`div`,{class:r(i(a)(`flex items-center p-6 pt-0`,o.$props.class))},[t(o.$slots,`default`)],2))}};export{o as t};
