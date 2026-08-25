@@ -42,6 +42,7 @@ const companyProfile = computed(() => page.props.companyProfile);
 const isQuickAddingClient = ref(false);
 const selectedProposal = ref(null);
 const deletingProposal = ref(null);
+const isDeleteDialogOpen = ref(false);
 const isDownloading = ref(false);
 const isSharing = ref(false);
 const editingProposal = ref(null);
@@ -56,6 +57,18 @@ const defaults = {
     payment_method: 'boleto', installments: 1, first_as_down_payment: false, observations: '',
 };
 const form = useForm({ ...defaults });
+
+const PAYMENT_METHODS = [
+    { id: 'boleto', label: 'Boleto' },
+    { id: 'dinheiro', label: 'Dinheiro' },
+    { id: 'pix', label: 'Pix' },
+    { id: 'debito', label: 'Débito' },
+    { id: 'cartao_credito', label: 'Cartão de Crédito' },
+];
+
+function paymentMethodLabel(id) {
+    return PAYMENT_METHODS.find((pm) => pm.id === id)?.label.toUpperCase() || (id || '').toUpperCase();
+}
 
 const totals = computed(() => (form.items || []).reduce((acc, item) => {
     const qty = parseFloat(item.quantity) || 0;
@@ -280,6 +293,13 @@ function confirmDelete() {
                                 <CardHeader class="bg-primary/5 pb-4"><CardTitle class="text-lg">Faturamento</CardTitle></CardHeader>
                                 <CardContent class="space-y-6 pt-6">
                                     <div class="space-y-2">
+                                        <Label class="text-xs font-bold text-muted-foreground">Forma de Pagamento</Label>
+                                        <Select v-model="form.payment_method">
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent><SelectItem v-for="pm in PAYMENT_METHODS" :key="pm.id" :value="pm.id">{{ pm.label }}</SelectItem></SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div class="space-y-2">
                                         <Label class="text-xs font-bold text-muted-foreground">Parcelamento</Label>
                                         <Select :model-value="String(form.installments)" @update:modelValue="(v) => (form.installments = Number(v))">
                                             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -335,7 +355,7 @@ function confirmDelete() {
                                             <Button variant="ghost" size="icon" @click="selectedProposal = p" title="Ver PDF"><Eye class="h-4 w-4" /></Button>
                                             <Button variant="ghost" size="icon" @click="handleCloneProposal(p)" title="Clonar"><Copy class="h-4 w-4" /></Button>
                                             <Button variant="ghost" size="icon" @click="handleEditProposalClick(p)" title="Editar"><Pencil class="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" class="text-destructive" @click="deletingProposal = p"><Trash2 class="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" class="text-destructive" @click="deletingProposal = p; isDeleteDialogOpen = true"><Trash2 class="h-4 w-4" /></Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -420,7 +440,7 @@ function confirmDelete() {
                     <div style="border: 1.5px solid #000; padding: 20px; border-radius: 4px; margin-bottom: 60px">
                         <p style="font-weight: bold; font-size: 11pt; margin: 0 0 15px 0; text-transform: uppercase">CONDIÇÕES DE PAGAMENTO</p>
                         <div style="font-size: 10pt; line-height: 1.8">
-                            <p style="margin: 0">• FORMA DE PAGAMENTO: {{ selectedProposal.payment_method?.toUpperCase() }}</p>
+                            <p style="margin: 0">• FORMA DE PAGAMENTO: {{ paymentMethodLabel(selectedProposal.payment_method) }}</p>
                             <p style="margin: 0">
                                 • CONDIÇÃO:
                                 <template v-if="selectedProposal.first_as_down_payment">
@@ -447,10 +467,10 @@ function confirmDelete() {
         </DialogContent>
     </Dialog>
 
-    <AlertDialog :open="!!deletingProposal" @update:open="(o) => !o && (deletingProposal = null)">
+    <AlertDialog v-model:open="isDeleteDialogOpen">
         <AlertDialogContent>
             <AlertDialogHeader><AlertDialogTitle>Excluir Registro?</AlertDialogTitle><AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription></AlertDialogHeader>
-            <AlertDialogFooter><AlertDialogCancel>Voltar</AlertDialogCancel><AlertDialogAction class="bg-destructive" @click="confirmDelete">Confirmar Exclusão</AlertDialogAction></AlertDialogFooter>
+            <AlertDialogFooter><AlertDialogCancel @click="deletingProposal = null">Voltar</AlertDialogCancel><AlertDialogAction class="bg-destructive" @click="confirmDelete">Confirmar Exclusão</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
 </template>

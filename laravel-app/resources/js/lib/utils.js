@@ -23,11 +23,16 @@ export function formatPhoneNumber(value) {
 
 export function formatDocument(value) {
     if (!value) return '';
-    const cleaned = String(value).replace(/\D/g, '');
+    const cleaned = String(value).replace(/\D/g, '').slice(0, 14);
     if (cleaned.length <= 11) {
-        const cpf = cleaned.padStart(11, '0').slice(0, 11);
-        return `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9, 11)}`;
+        return cleaned
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
     }
-    const cnpj = cleaned.padStart(14, '0').slice(0, 14);
-    return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12, 14)}`;
+    return cleaned
+        .replace(/(\d{2})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1/$2')
+        .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 }

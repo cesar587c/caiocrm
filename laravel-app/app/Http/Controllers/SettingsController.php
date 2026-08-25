@@ -40,6 +40,7 @@ class SettingsController extends Controller
             'address' => ['required', 'string'],
             'whatsapp_reminder_message' => ['nullable', 'string'],
             'google_calendar_email' => ['nullable', 'email'],
+            'monthly_goal' => ['required', 'numeric', 'min:0'],
             'logo' => ['nullable', 'image', 'max:2048'],
         ]);
 
@@ -132,7 +133,7 @@ class SettingsController extends Controller
         DB::transaction(function () use ($backup) {
             if (isset($backup['companyProfile'])) {
                 CompanyProfile::current()->update(collect($backup['companyProfile'])->only([
-                    'name', 'email', 'phone', 'address', 'logo_url', 'whatsapp_reminder_message', 'google_calendar_email',
+                    'name', 'email', 'phone', 'address', 'logo_url', 'whatsapp_reminder_message', 'google_calendar_email', 'monthly_goal',
                 ])->all());
             }
 

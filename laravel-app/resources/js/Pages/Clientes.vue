@@ -43,6 +43,7 @@ const isCnpjLoading = ref(false);
 const isFormDialogOpen = ref(false);
 const editingCustomer = ref(null);
 const deletingCustomer = ref(null);
+const isDeleteDialogOpen = ref(false);
 const searchTerm = ref('');
 const activeTab = ref('all');
 const showFinancials = ref(false);
@@ -225,7 +226,7 @@ function confirmDelete() {
                                 <TableCell class="text-right pr-6 py-4">
                                     <div class="flex justify-end gap-1 opacity-20 hover:opacity-100 transition-opacity">
                                         <Button variant="ghost" size="icon" class="h-8 w-8" @click.stop="handleEditClick(customer)"><Pencil class="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click.stop="deletingCustomer = customer"><Trash2 class="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click.stop="deletingCustomer = customer; isDeleteDialogOpen = true"><Trash2 class="h-4 w-4" /></Button>
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -329,14 +330,14 @@ function confirmDelete() {
         </DialogContent>
     </Dialog>
 
-    <AlertDialog :open="!!deletingCustomer" @update:open="(o) => !o && (deletingCustomer = null)">
+    <AlertDialog v-model:open="isDeleteDialogOpen">
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Excluir Registro?</AlertDialogTitle>
                 <AlertDialogDescription>Esta ação removerá permanentemente o cliente da sua base.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogCancel @click="deletingCustomer = null">Voltar</AlertDialogCancel>
                 <AlertDialogAction class="bg-destructive" @click="confirmDelete">Confirmar Exclusão</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

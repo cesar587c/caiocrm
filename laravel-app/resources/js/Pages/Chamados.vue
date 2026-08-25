@@ -57,6 +57,7 @@ const statusColors = {
 
 const editingOrder = ref(null);
 const deletingOrder = ref(null);
+const isDeleteDialogOpen = ref(false);
 const activeTab = ref('todos');
 const technicianFilter = ref([]);
 const selectedOrderForPreview = ref(null);
@@ -332,7 +333,7 @@ function handleSendWhatsApp() {
                                                 <div class="flex justify-end gap-1">
                                                     <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground" @click.stop="handleCloneClick(order)"><Copy class="h-4 w-4" /></Button>
                                                     <Button variant="ghost" size="icon" class="h-8 w-8" @click.stop="handlePreview(order)"><Printer class="h-4 w-4" /></Button>
-                                                    <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click.stop="deletingOrder = order"><Trash2 class="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click.stop="deletingOrder = order; isDeleteDialogOpen = true"><Trash2 class="h-4 w-4" /></Button>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -459,10 +460,10 @@ function handleSendWhatsApp() {
         </div>
     </div>
 
-    <AlertDialog :open="!!deletingOrder" @update:open="(o) => !o && (deletingOrder = null)">
+    <AlertDialog v-model:open="isDeleteDialogOpen">
         <AlertDialogContent>
             <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá permanentemente a OS <span class="font-medium">#{{ deletingOrder?.number }}</span>.</AlertDialogDescription></AlertDialogHeader>
-            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction @click="confirmDelete">Confirmar Exclusão</AlertDialogAction></AlertDialogFooter>
+            <AlertDialogFooter><AlertDialogCancel @click="deletingOrder = null">Cancelar</AlertDialogCancel><AlertDialogAction @click="confirmDelete">Confirmar Exclusão</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
 

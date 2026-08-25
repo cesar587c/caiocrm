@@ -12,6 +12,8 @@ class ServiceOrderHistory extends Model
 {
     use HasFactory;
 
+    protected $table = 'service_order_history';
+
     public $timestamps = false;
 
     protected function casts(): array

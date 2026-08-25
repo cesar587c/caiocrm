@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\CompanyProfile;
 use App\Models\Proposal;
 use App\Models\ServiceOrder;
 use Carbon\Carbon;
@@ -33,7 +34,7 @@ class DashboardController extends Controller
         $faturamentoTotal = (float) $pedidos->sum('total_one_time');
         $ticketMedio = $pedidos->count() > 0 ? $faturamentoTotal / $pedidos->count() : 0;
         $conversao = $proposalsInRange->count() > 0 ? ($pedidos->count() / $proposalsInRange->count()) * 100 : 0;
-        $metaMensal = 50000;
+        $metaMensal = (float) CompanyProfile::current()->monthly_goal;
 
         $serviceOrdersInRange = ServiceOrder::query()->whereBetween('opening_date', [$start, $end])->get();
 
@@ -47,7 +48,7 @@ class DashboardController extends Controller
                 'totalSales' => $faturamentoTotal,
                 'averageTicket' => $ticketMedio,
                 'conversion' => round($conversao, 1),
-                'goalProgress' => round(min($faturamentoTotal / $metaMensal * 100, 100), 1),
+                'goalProgress' => $metaMensal > 0 ? round(min($faturamentoTotal / $metaMensal * 100, 100), 1) : 0,
             ],
             'serviceStats' => [
                 'volume' => $serviceOrdersInRange->count(),

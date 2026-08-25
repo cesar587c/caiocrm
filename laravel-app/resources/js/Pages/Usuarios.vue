@@ -33,6 +33,7 @@ const roleMap = { admin: 'Administrador', technician: 'Técnico', finance: 'Fina
 
 const selectedUser = ref(null);
 const deletingUser = ref(null);
+const isDeleteDialogOpen = ref(false);
 const searchTermSectors = ref('');
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
@@ -74,6 +75,7 @@ function handleDelete(user) {
         return;
     }
     deletingUser.value = user;
+    isDeleteDialogOpen.value = true;
 }
 
 function confirmDelete() {
@@ -279,14 +281,14 @@ function submit() {
         </div>
     </div>
 
-    <AlertDialog :open="!!deletingUser" @update:open="(o) => !o && (deletingUser = null)">
+    <AlertDialog v-model:open="isDeleteDialogOpen">
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                 <AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá permanentemente o usuário <span class="font-medium">{{ deletingUser?.name }}</span>.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogCancel @click="deletingUser = null">Cancelar</AlertDialogCancel>
                 <AlertDialogAction class="bg-destructive hover:bg-destructive/90" @click="confirmDelete">Confirmar Exclusão</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

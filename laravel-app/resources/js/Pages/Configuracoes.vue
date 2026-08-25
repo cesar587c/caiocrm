@@ -59,6 +59,7 @@ const profileForm = useForm({
     address: props.companyProfile.address,
     whatsapp_reminder_message: props.companyProfile.whatsapp_reminder_message || '',
     google_calendar_email: props.companyProfile.google_calendar_email || '',
+    monthly_goal: props.companyProfile.monthly_goal || 0,
     logo: null,
 });
 const logoPreview = ref(props.companyProfile.logo_url);
@@ -85,6 +86,7 @@ function submitProfile() {
 // --- Setores ---
 const newSectorName = ref('');
 const sectorToDelete = ref(null);
+const isSectorDeleteDialogOpen = ref(false);
 
 function addSector() {
     if (!newSectorName.value.trim()) return;
@@ -185,6 +187,12 @@ function clearAll() {
                             </div>
                             <div class="space-y-2"><Label>Endereço</Label><Textarea v-model="profileForm.address" /></div>
                             <div class="space-y-2">
+                                <Label>Meta Mensal de Faturamento (R$)</Label>
+                                <Input v-model="profileForm.monthly_goal" type="number" step="0.01" min="0" />
+                                <p class="text-xs text-muted-foreground">Usada para calcular o progresso "Meta vs Realizado" no Dashboard.</p>
+                                <p v-if="profileForm.errors.monthly_goal" class="text-xs text-destructive">{{ profileForm.errors.monthly_goal }}</p>
+                            </div>
+                            <div class="space-y-2">
                                 <Label>Mensagem de Lembrete (WhatsApp)</Label>
                                 <Textarea v-model="profileForm.whatsapp_reminder_message" rows="5" />
                                 <p class="text-xs text-muted-foreground">Variáveis: {cliente}, {empresa}, {data} e {hora}.</p>
@@ -230,7 +238,7 @@ function clearAll() {
                                             <p class="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{{ sector.users.length }} integrante(s)</p>
                                         </div>
                                     </div>
-                                    <Button type="button" variant="ghost" size="icon" class="text-destructive hover:bg-destructive/10 h-8 w-8" @click="sectorToDelete = sector"><Trash2 class="h-4 w-4" /></Button>
+                                    <Button type="button" variant="ghost" size="icon" class="text-destructive hover:bg-destructive/10 h-8 w-8" @click="sectorToDelete = sector; isSectorDeleteDialogOpen = true"><Trash2 class="h-4 w-4" /></Button>
                                 </div>
                                 <div class="space-y-3 pt-2 border-t">
                                     <div class="flex flex-wrap gap-1.5">
@@ -383,10 +391,10 @@ function clearAll() {
         </Tabs>
     </div>
 
-    <AlertDialog :open="!!sectorToDelete" @update:open="(o) => !o && (sectorToDelete = null)">
+    <AlertDialog v-model:open="isSectorDeleteDialogOpen">
         <AlertDialogContent>
             <AlertDialogHeader><AlertDialogTitle>Excluir Setor?</AlertDialogTitle><AlertDialogDescription>O setor "{{ sectorToDelete?.name }}" será removido.</AlertDialogDescription></AlertDialogHeader>
-            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction @click="removeSector">Confirmar</AlertDialogAction></AlertDialogFooter>
+            <AlertDialogFooter><AlertDialogCancel @click="sectorToDelete = null">Cancelar</AlertDialogCancel><AlertDialogAction @click="removeSector">Confirmar</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
 

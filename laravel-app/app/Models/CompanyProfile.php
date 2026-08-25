@@ -5,10 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['name', 'email', 'phone', 'address', 'logo_url', 'whatsapp_reminder_message', 'google_calendar_email'])]
+#[Fillable(['name', 'email', 'phone', 'address', 'logo_url', 'whatsapp_reminder_message', 'google_calendar_email', 'monthly_goal'])]
 class CompanyProfile extends Model
 {
     protected $table = 'company_profile';
+
+    protected function casts(): array
+    {
+        return [
+            'monthly_goal' => 'decimal:2',
+        ];
+    }
 
     /**
      * The company profile is a single settings row; always fetch/update row #1.
