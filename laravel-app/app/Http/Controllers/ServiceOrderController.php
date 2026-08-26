@@ -17,11 +17,19 @@ class ServiceOrderController extends Controller
 {
     public function index(): Response
     {
+        $serviceOrders = ServiceOrder::with(['items', 'history', 'client:id,name,email,telefone', 'technician:id,name'])
+            ->orderByDesc('opening_date')
+            ->get();
+
+        $assignedTechnicianIds = $serviceOrders->pluck('technician_id')->filter()->unique()->values();
+
         return Inertia::render('Chamados', [
-            'serviceOrders' => ServiceOrder::with(['items', 'history'])->orderByDesc('opening_date')->get(),
+            'serviceOrders' => $serviceOrders,
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'email', 'telefone']),
             'technicians' => User::query()
-                ->whereHas('sectors', fn ($q) => $q->where('sectors.name', 'Técnico'))
+                ->where(fn ($q) => $q
+                    ->whereHas('sectors', fn ($q2) => $q2->where('sectors.name', 'Técnico'))
+                    ->orWhereIn('id', $assignedTechnicianIds))
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'products' => Product::query()->orderBy('name')->get(['id', 'name', 'price']),

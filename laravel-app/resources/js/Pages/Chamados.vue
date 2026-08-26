@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { format, parseISO, isPast } from 'date-fns';
@@ -39,6 +39,8 @@ const props = defineProps({
     products: Array,
 });
 const { toast } = useToast();
+const page = usePage();
+const companyProfile = computed(() => page.props.companyProfile);
 
 const stages = [
     { id: 'Aberta', title: 'Aberta' },
@@ -160,6 +162,23 @@ function handleAddProductFromList(product) {
     toast({ title: 'Item Adicionado!', description: `"${product.name}" foi adicionado à OS.` });
 }
 
+function checkPendingJustification() {
+    const flash = page.props.flash;
+    if (flash?.reassignment_pending) {
+        const oldTech = props.technicians.find((t) => t.id === editingOrder.value.technician_id)?.name || 'N/A';
+        const newTech = props.technicians.find((t) => t.id === form.technician_id)?.name || 'N/A';
+        reassignmentState.isOpen = true;
+        reassignmentState.oldTechnicianName = oldTech;
+        reassignmentState.newTechnicianName = newTech;
+        return true;
+    }
+    if (flash?.finalization_pending) {
+        finalizationState.isOpen = true;
+        return true;
+    }
+    return false;
+}
+
 function submit() {
     if (!editingOrder.value) {
         form.transform((d) => { const { justification, ...rest } = d; return rest; }).post('/dashboard/chamados', {
@@ -170,22 +189,8 @@ function submit() {
 
     form.put(`/dashboard/chamados/${editingOrder.value.id}`, {
         preserveScroll: true,
-        onSuccess: (page) => {
-            const flash = page.props.flash;
-            if (flash?.reassignment_pending) {
-                const oldTech = props.technicians.find((t) => t.id === editingOrder.value.technician_id)?.name || 'N/A';
-                const newTech = props.technicians.find((t) => t.id === form.technician_id)?.name || 'N/A';
-                reassignmentState.isOpen = true;
-                reassignmentState.oldTechnicianName = oldTech;
-                reassignmentState.newTechnicianName = newTech;
-                return;
-            }
-            if (flash?.finalization_pending) {
-                finalizationState.isOpen = true;
-                return;
-            }
-            handleAddNew();
-        },
+        onSuccess: () => { if (!checkPendingJustification()) handleAddNew(); },
+        onError: () => { checkPendingJustification(); },
     });
 }
 
@@ -243,8 +248,8 @@ async function handleDownloadPdf() {
     } finally { isDownloading.value = false; }
 }
 
-function customerOf(order) { return props.customers.find((c) => c.id === order.client_id); }
-function technicianOf(order) { return props.technicians.find((t) => t.id === order.technician_id); }
+function customerOf(order) { return order.client || props.customers.find((c) => c.id === order.client_id); }
+function technicianOf(order) { return order.technician || props.technicians.find((t) => t.id === order.technician_id); }
 
 function handleSendEmail() {
     const order = selectedOrderForPreview.value;
@@ -402,7 +407,7 @@ function handleSendWhatsApp() {
                                             <TableHeader><TableRow><TableHead class="w-[50%]">Descrição</TableHead><TableHead>Qtd.</TableHead><TableHead>Preço Unit.</TableHead><TableHead class="text-right w-10" /></TableRow></TableHeader>
                                             <TableBody>
                                                 <TableRow v-for="(item, idx) in form.items" :key="idx">
-                                                    <TableCell><Input v-model="item.name" list="product-datalist" placeholder="Descrição do item" @blur="handleItemNameBlur(idx)" /></TableCell>
+                                                    <TableCell><Input v-model="item.name" list="product-datalist" placeholder="Descrição do item" class="min-w-[180px]" :title="item.name" @blur="handleItemNameBlur(idx)" /></TableCell>
                                                     <TableCell><Input v-model="item.quantity" type="number" class="w-16" /></TableCell>
                                                     <TableCell><Input v-model="item.price" type="number" step="0.01" class="w-24" /></TableCell>
                                                     <TableCell class="text-right"><Button type="button" variant="ghost" size="icon" @click="removeItem(idx)"><Trash2 class="h-4 w-4 text-destructive" /></Button></TableCell>
@@ -473,7 +478,13 @@ function handleSendWhatsApp() {
             <ScrollArea v-if="selectedOrderForPreview" class="flex-1 -mx-6">
                 <div id="os-preview" class="bg-white text-black p-8 shadow-lg max-w-2xl mx-auto font-sans my-8">
                     <div class="flex justify-between items-start mb-8">
-                        <div><h1 class="text-xl font-bold">Ordem de Serviço</h1></div>
+                        <div class="flex items-center gap-3">
+                            <img v-if="companyProfile?.logo_url" :src="companyProfile.logo_url" alt="Logo" class="h-14 w-14 object-contain" />
+                            <div>
+                                <h1 class="text-xl font-bold">Ordem de Serviço</h1>
+                                <p v-if="companyProfile?.name" class="text-xs font-semibold text-gray-600">{{ companyProfile.name }}</p>
+                            </div>
+                        </div>
                         <div class="text-right text-xs">
                             <p class="font-bold">OS #{{ selectedOrderForPreview.number }}</p>
                             <p>Abertura: {{ safeFormat(selectedOrderForPreview.opening_date, 'dd/MM/yyyy') }}</p>

@@ -341,8 +341,14 @@ const fieldsDisabled = computed(() => !isAdmin.value && !!editingAppointment.val
                     <h3 class="font-semibold text-lg text-foreground mb-4">{{ editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento' }}</h3>
                     <form id="appointment-form" @submit.prevent="onSubmit" class="space-y-4">
                         <div class="grid grid-cols-2 gap-3">
-                            <div class="space-y-2"><Label>Data</Label><Input v-model="form.date" type="date" /></div>
-                            <div class="space-y-2"><Label>Horário</Label><Input v-model="form.time" type="time" /></div>
+                            <div class="space-y-2">
+                                <Label>Data</Label><Input v-model="form.date" type="date" />
+                                <p v-if="form.errors.date" class="text-xs text-destructive">{{ form.errors.date }}</p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label>Horário</Label><Input v-model="form.time" type="time" />
+                                <p v-if="form.errors.time" class="text-xs text-destructive">{{ form.errors.time }}</p>
+                            </div>
                         </div>
                         <div class="space-y-2 relative">
                             <Label>Nome do Cliente</Label>
@@ -353,13 +359,20 @@ const fieldsDisabled = computed(() => !isAdmin.value && !!editingAppointment.val
                                     <p class="text-[10px] text-muted-foreground truncate">{{ customer.endereco || 'Sem endereço' }}</p>
                                 </div>
                             </div>
+                            <p v-if="form.errors.client_name" class="text-xs text-destructive">{{ form.errors.client_name }}</p>
                         </div>
-                        <div class="space-y-2"><Label>Endereço</Label><Input v-model="form.address" :disabled="fieldsDisabled" /></div>
+                        <div class="space-y-2">
+                            <Label>Endereço</Label><Input v-model="form.address" :disabled="fieldsDisabled" />
+                            <p v-if="form.errors.address" class="text-xs text-destructive">{{ form.errors.address }}</p>
+                        </div>
                         <div class="space-y-2">
                             <Label>Telefone (WhatsApp)</Label>
                             <Input :model-value="form.phone" @update:modelValue="(v) => (form.phone = formatPhoneNumber(v))" :disabled="fieldsDisabled" placeholder="(00) 00000-0000" />
                         </div>
-                        <div class="space-y-2"><Label>Contato na Visita</Label><Input v-model="form.contact" :disabled="fieldsDisabled" /></div>
+                        <div class="space-y-2">
+                            <Label>Contato na Visita</Label><Input v-model="form.contact" :disabled="fieldsDisabled" />
+                            <p v-if="form.errors.contact" class="text-xs text-destructive">{{ form.errors.contact }}</p>
+                        </div>
                         <div class="space-y-2">
                             <Label>Setor/Responsável (Múltiplos)</Label>
                             <Popover :modal="false">

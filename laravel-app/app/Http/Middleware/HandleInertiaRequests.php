@@ -43,6 +43,8 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'created_id' => fn () => $request->session()->get('created_id'),
+                'reassignment_pending' => fn () => $request->session()->get('reassignment_pending'),
+                'finalization_pending' => fn () => $request->session()->get('finalization_pending'),
             ],
         ];
     }

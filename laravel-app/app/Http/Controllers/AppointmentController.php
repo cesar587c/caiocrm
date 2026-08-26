@@ -121,6 +121,9 @@ class AppointmentController extends Controller
                 continue;
             }
             $message = "*Novo Agendamento Técnico (Automático)*\n\nOlá {$tech->name}, você foi escalado para uma visita.\n\n*Cliente:* {$appointment->client_name}\n*Contato:* {$appointment->contact}\n*Data:* {$dateStr}\n*Horário:* {$appointment->time}\n*Local:* {$appointment->address}";
+            if ($appointment->phone) {
+                $message .= "\n*Telefone:* {$appointment->phone}";
+            }
             if ($appointment->summary) {
                 $message .= "\n*Resumo:* {$appointment->summary}";
             }

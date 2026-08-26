@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,9 +18,21 @@ class ProposalController extends Controller
     public function index(): Response
     {
         return Inertia::render('Propostas', [
-            'proposals' => Proposal::query()->with('items')->orderByDesc('id')->get(),
+            'proposals' => Proposal::query()->with('items')->orderByDesc('id')->get()->map(function (Proposal $proposal) {
+                $proposal->public_url = URL::signedRoute('propostas.public', ['proposal' => $proposal->id]);
+
+                return $proposal;
+            }),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'nome_fantasia', 'contact_name', 'telefone']),
             'products' => Product::query()->orderBy('name')->get(['id', 'name', 'price']),
+        ]);
+    }
+
+    public function showPublic(Proposal $proposal): Response
+    {
+        return Inertia::render('PropostaPublica', [
+            'proposal' => $proposal->load('items'),
+            'companyProfile' => \App\Models\CompanyProfile::current(),
         ]);
     }
 

@@ -1,0 +1,1 @@
+import{$ as e}from"./AppLayout-CKBpHW0K.js";function t(){function t({title:t,description:n,variant:r=`default`}={}){let i={description:n};return r===`destructive`?e.error(t,i):e(t,i)}return{toast:t}}export{t};

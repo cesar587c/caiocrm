@@ -17,6 +17,10 @@ Route::get('/', function () {
     return redirect(auth()->check() ? '/dashboard' : '/login');
 });
 
+Route::get('/orcamento/{proposal}', [ProposalController::class, 'showPublic'])
+    ->middleware('signed')
+    ->name('propostas.public');
+
 Route::middleware(['auth', 'role.access'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
