@@ -83,4 +83,15 @@
   body {
     @apply bg-background text-foreground font-body;
   }
+
+  /* Native date/time picker icons default to black, which is invisible on
+     this app's dark inputs. Invert them white; .light reverts to normal. */
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+  .light input[type='date']::-webkit-calendar-picker-indicator,
+  .light input[type='time']::-webkit-calendar-picker-indicator {
+    filter: none;
+  }
 }

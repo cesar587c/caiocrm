@@ -39,6 +39,8 @@ Route::middleware(['auth', 'role.access'])->group(function () {
     Route::delete('/dashboard/propostas/{proposal}', [ProposalController::class, 'destroy'])->name('propostas.destroy');
 
     Route::get('/dashboard/agenda', [AppointmentController::class, 'index'])->name('agenda.index');
+    Route::get('/dashboard/agenda/novo', [AppointmentController::class, 'create'])->name('agenda.create');
+    Route::get('/dashboard/agenda/{appointment}/editar', [AppointmentController::class, 'edit'])->name('agenda.edit');
     Route::post('/dashboard/agenda', [AppointmentController::class, 'store'])->name('agenda.store');
     Route::put('/dashboard/agenda/{appointment}', [AppointmentController::class, 'update'])->name('agenda.update');
     Route::patch('/dashboard/agenda/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('agenda.updateStatus');

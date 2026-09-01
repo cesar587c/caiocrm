@@ -1,6 +1,6 @@
 <script setup>
-import { format, parseISO } from 'date-fns';
-import { formatCurrency, formatPhoneNumber } from '@/lib/utils';
+import { format } from 'date-fns';
+import { formatCurrency, formatPhoneNumber, parseDateOnly } from '@/lib/utils';
 
 const props = defineProps({ proposal: { type: Object, required: true }, companyProfile: { type: Object, required: true } });
 
@@ -43,8 +43,8 @@ function paymentMethodLabel(id) {
             </div>
             <div style="text-align: right; min-width: 180px">
                 <p style="margin: 0; font-size: 9.5pt"><strong>Nº DOCUMENTO:</strong> {{ proposal.id }}</p>
-                <p style="margin: 2px 0; font-size: 9.5pt"><strong>EMISSÃO:</strong> {{ format(parseISO(proposal.proposal_date), 'dd/MM/yyyy') }}</p>
-                <p style="margin: 0; font-size: 9.5pt"><strong>VALIDADE:</strong> <span style="color: #E11D48; font-weight: bold">{{ format(parseISO(proposal.validity_date), 'dd/MM/yyyy') }}</span></p>
+                <p style="margin: 2px 0; font-size: 9.5pt"><strong>EMISSÃO:</strong> {{ format(parseDateOnly(proposal.proposal_date), 'dd/MM/yyyy') }}</p>
+                <p style="margin: 0; font-size: 9.5pt"><strong>VALIDADE:</strong> <span style="color: #E11D48; font-weight: bold">{{ format(parseDateOnly(proposal.validity_date), 'dd/MM/yyyy') }}</span></p>
             </div>
         </div>
         <div style="margin-bottom: 35px; font-size: 10.5pt; text-align: justify">

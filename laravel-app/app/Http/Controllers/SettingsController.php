@@ -14,6 +14,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -22,6 +23,17 @@ use Inertia\Response;
 
 class SettingsController extends Controller
 {
+    /**
+     * These actions manage other users' access, org structure, or wipe/replace
+     * all operational data — the page-level role middleware only gates whether
+     * a role can see /dashboard/configuracoes at all, not which actions on it
+     * are safe to expose, so every sensitive write here re-checks admin itself.
+     */
+    private function requireAdmin(): void
+    {
+        abort_unless(Auth::user()?->isAdmin(), 403);
+    }
+
     public function index(): Response
     {
         return Inertia::render('Configuracoes', [
@@ -39,6 +51,7 @@ class SettingsController extends Controller
             'phone' => ['required', 'string'],
             'address' => ['required', 'string'],
             'whatsapp_reminder_message' => ['nullable', 'string'],
+            'whatsapp_technician_message' => ['nullable', 'string'],
             'google_calendar_email' => ['nullable', 'email'],
             'monthly_goal' => ['required', 'numeric', 'min:0'],
             'logo' => ['nullable', 'image', 'max:2048'],
@@ -58,6 +71,7 @@ class SettingsController extends Controller
 
     public function storeSector(Request $request): RedirectResponse
     {
+        $this->requireAdmin();
         $data = $request->validate(['name' => ['required', 'string']]);
         Sector::create($data);
 
@@ -66,6 +80,7 @@ class SettingsController extends Controller
 
     public function destroySector(Sector $sector): RedirectResponse
     {
+        $this->requireAdmin();
         $sector->delete();
 
         return back()->with('success', 'Setor removido.');
@@ -73,6 +88,7 @@ class SettingsController extends Controller
 
     public function attachSectorMember(Request $request, Sector $sector): RedirectResponse
     {
+        $this->requireAdmin();
         $data = $request->validate(['user_id' => ['required', 'exists:users,id']]);
         $sector->users()->syncWithoutDetaching([$data['user_id']]);
 
@@ -81,6 +97,7 @@ class SettingsController extends Controller
 
     public function detachSectorMember(Sector $sector, User $user): RedirectResponse
     {
+        $this->requireAdmin();
         $sector->users()->detach($user->id);
 
         return back()->with('success', 'Membro removido do setor.');
@@ -88,6 +105,7 @@ class SettingsController extends Controller
 
     public function updateRolePermissions(Request $request): RedirectResponse
     {
+        $this->requireAdmin();
         $data = $request->validate([
             'role' => ['required', Rule::in(User::ROLES)],
             'paths' => ['required', 'array'],
@@ -106,6 +124,8 @@ class SettingsController extends Controller
 
     public function export(): JsonResponse
     {
+        $this->requireAdmin();
+
         return response()->json([
             'companyProfile' => CompanyProfile::current(),
             'sectors' => Sector::all(),
@@ -123,6 +143,7 @@ class SettingsController extends Controller
 
     public function import(Request $request): RedirectResponse
     {
+        $this->requireAdmin();
         $request->validate(['backup' => ['required', 'file', 'mimetypes:application/json,text/plain']]);
 
         $backup = json_decode($request->file('backup')->get(), true);
@@ -133,7 +154,7 @@ class SettingsController extends Controller
         DB::transaction(function () use ($backup) {
             if (isset($backup['companyProfile'])) {
                 CompanyProfile::current()->update(collect($backup['companyProfile'])->only([
-                    'name', 'email', 'phone', 'address', 'logo_url', 'whatsapp_reminder_message', 'google_calendar_email', 'monthly_goal',
+                    'name', 'email', 'phone', 'address', 'logo_url', 'whatsapp_reminder_message', 'whatsapp_technician_message', 'google_calendar_email', 'monthly_goal',
                 ])->all());
             }
 
@@ -151,6 +172,7 @@ class SettingsController extends Controller
 
     public function clearAll(): RedirectResponse
     {
+        $this->requireAdmin();
         DB::transaction(function () {
             Appointment::query()->delete();
             ServiceOrder::query()->delete();

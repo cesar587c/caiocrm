@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Proposal;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,10 @@ class ProposalController extends Controller
             }),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'nome_fantasia', 'contact_name', 'telefone']),
             'products' => Product::query()->orderBy('name')->get(['id', 'name', 'price']),
+            'technicians' => User::query()
+                ->whereHas('sectors', fn ($q) => $q->where('sectors.name', 'Técnico'))
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -41,6 +46,7 @@ class ProposalController extends Controller
         return [
             'document_type' => ['required', 'in:proposta,pedido'],
             'client_id' => ['nullable', 'exists:customers,id'],
+            'influenced_by_technician_id' => ['nullable', 'exists:users,id'],
             'client_name' => ['required', 'string'],
             'contact_name' => ['nullable', 'string'],
             'client_phone' => ['nullable', 'string'],
@@ -181,6 +187,7 @@ class ProposalController extends Controller
 
     public function destroy(Proposal $proposal): RedirectResponse
     {
+        abort_unless(Auth::user()?->isAdmin(), 403);
         $proposal->delete();
 
         return back()->with('success', 'Documento excluído.');

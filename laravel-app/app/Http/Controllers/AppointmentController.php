@@ -9,6 +9,7 @@ use App\Services\WhatsAppService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,9 +22,42 @@ class AppointmentController extends Controller
                 ...$a->toArray(),
                 'assigned_to' => $a->assignedToTokens(),
             ]),
+            'sectors' => Sector::query()->orderBy('name')->get(['id', 'name']),
+            'users' => User::query()->orderBy('name')->get(['id', 'name', 'whatsapp']),
+        ]);
+    }
+
+    /**
+     * Shared lookups for the dedicated create/edit page (client search list,
+     * sectors and users for the "responsáveis" picker).
+     */
+    private function formLookups(): array
+    {
+        return [
             'customers' => \App\Models\Customer::query()->orderBy('name')->get(['id', 'name', 'nome_fantasia', 'contact_name', 'contact_name_2', 'telefone', 'phone_2', 'endereco']),
             'sectors' => Sector::query()->orderBy('name')->get(['id', 'name']),
             'users' => User::query()->orderBy('name')->get(['id', 'name', 'whatsapp']),
+        ];
+    }
+
+    public function create(Request $request): Response
+    {
+        return Inertia::render('AgendaForm', [
+            ...$this->formLookups(),
+            'appointment' => null,
+            'initialDate' => $request->query('date'),
+        ]);
+    }
+
+    public function edit(Appointment $appointment): Response
+    {
+        return Inertia::render('AgendaForm', [
+            ...$this->formLookups(),
+            'appointment' => [
+                ...$appointment->toArray(),
+                'assigned_to' => $appointment->assignedToTokens(),
+            ],
+            'initialDate' => null,
         ]);
     }
 
@@ -61,17 +95,24 @@ class AppointmentController extends Controller
         ]);
         $this->syncAssignees($appointment, $data['assigned_to']);
 
-        return back()->with('success', 'Agendamento criado!')->with('created_id', $appointment->id);
+        return redirect()->route('agenda.index')->with('success', 'Agendamento criado!')->with('created_id', $appointment->id);
     }
 
     public function update(Request $request, Appointment $appointment): RedirectResponse
     {
         $data = $request->validate($this->rules());
 
-        $appointment->update(collect($data)->except('assigned_to')->all());
-        $this->syncAssignees($appointment, $data['assigned_to']);
+        if (Auth::user()?->isAdmin()) {
+            $appointment->update(collect($data)->except('assigned_to')->all());
+            $this->syncAssignees($appointment, $data['assigned_to']);
+        } else {
+            // Mirrors the frontend's `fieldsDisabled`: a non-admin editing an
+            // existing appointment may only reschedule date/time, never the
+            // client, address, contact or assignees.
+            $appointment->update(collect($data)->only(['date', 'time'])->all());
+        }
 
-        return back()->with('success', 'Agendamento atualizado!');
+        return redirect()->route('agenda.index')->with('success', 'Agendamento atualizado!')->with('created_id', $appointment->id);
     }
 
     public function updateStatus(Request $request, Appointment $appointment): RedirectResponse
@@ -81,6 +122,10 @@ class AppointmentController extends Controller
             'justification' => ['nullable', 'string'],
         ]);
 
+        if ($data['status'] === 'cancelled') {
+            abort_unless(Auth::user()?->isAdmin(), 403);
+        }
+
         $appointment->update($data);
 
         return back()->with('success', 'Status atualizado!');
@@ -88,6 +133,7 @@ class AppointmentController extends Controller
 
     public function destroy(Appointment $appointment): RedirectResponse
     {
+        abort_unless(Auth::user()?->isAdmin(), 403);
         $appointment->delete();
 
         return back()->with('success', 'Agendamento removido.');
@@ -116,17 +162,18 @@ class AppointmentController extends Controller
             }
         }
 
+        $techTemplate = $companyProfile->whatsapp_technician_message
+            ?: "*Novo Agendamento Técnico (Automático)*\n\nOlá {tecnico}, você foi escalado para uma visita.\n\n*Cliente:* {cliente}\n*Contato:* {contato}\n*Data:* {data}\n*Horário:* {hora}\n*Local:* {endereco}\n*Telefone:* {telefone}\n*Resumo:* {resumo}";
+
         foreach ($appointment->users as $tech) {
             if (! $tech->whatsapp) {
                 continue;
             }
-            $message = "*Novo Agendamento Técnico (Automático)*\n\nOlá {$tech->name}, você foi escalado para uma visita.\n\n*Cliente:* {$appointment->client_name}\n*Contato:* {$appointment->contact}\n*Data:* {$dateStr}\n*Horário:* {$appointment->time}\n*Local:* {$appointment->address}";
-            if ($appointment->phone) {
-                $message .= "\n*Telefone:* {$appointment->phone}";
-            }
-            if ($appointment->summary) {
-                $message .= "\n*Resumo:* {$appointment->summary}";
-            }
+            $message = str_replace(
+                ['{tecnico}', '{cliente}', '{contato}', '{data}', '{hora}', '{endereco}', '{telefone}', '{resumo}', '{empresa}'],
+                [$tech->name, $appointment->client_name, $appointment->contact, $dateStr, $appointment->time, $appointment->address, $appointment->phone ?: '-', $appointment->summary ?: '-', $companyProfile->name],
+                $techTemplate
+            );
             $result = $whatsapp->send(preg_replace('/\D/', '', $tech->whatsapp), $message);
             $details[] = ['to' => "tech:{$tech->id}", 'name' => $tech->name, 'phone' => $tech->whatsapp, 'message' => $message, ...$result];
             if (empty($result['isSimulated'])) {

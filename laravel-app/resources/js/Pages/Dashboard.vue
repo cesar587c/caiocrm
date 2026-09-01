@@ -26,6 +26,7 @@ const props = defineProps({
     serviceStats: Object,
     agendaStats: Object,
     volumeChart: Object,
+    technicianRanking: Array,
 });
 
 const from = ref(props.range.from);
@@ -187,15 +188,29 @@ const chartColors = ['#8b6fd6', '#4fb0c6', '#7bd47b'];
                         </CardContent>
                     </Card>
 
-                    <Card class="flex flex-col border-dashed">
+                    <Card class="flex flex-col">
                         <CardHeader>
                             <CardTitle class="font-headline text-lg flex items-center gap-2">
                                 <ArrowUpCircle class="h-5 w-5 text-orange-500" /> Ranking por Técnico
                             </CardTitle>
                             <CardDescription>Pedidos influenciados pela equipe técnica.</CardDescription>
                         </CardHeader>
-                        <CardContent class="flex-1 flex items-center justify-center">
-                            <p class="text-sm text-muted-foreground italic text-center px-8">Dados de influência técnica em processamento...</p>
+                        <CardContent class="flex-1">
+                            <div v-if="technicianRanking.length === 0" class="h-full flex items-center justify-center">
+                                <p class="text-sm text-muted-foreground italic text-center px-8">Nenhum pedido com influência técnica registrada no período.</p>
+                            </div>
+                            <ul v-else class="space-y-3">
+                                <li v-for="(row, idx) in technicianRanking" :key="row.technicianId" class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-500/10 text-orange-500 text-[10px] font-bold">{{ idx + 1 }}</span>
+                                        <span class="text-sm font-medium truncate">{{ row.name }}</span>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <p class="text-sm font-bold">{{ formatCurrency(row.total) }}</p>
+                                        <p class="text-[10px] text-muted-foreground">{{ row.count }} pedido{{ row.count === 1 ? '' : 's' }}</p>
+                                    </div>
+                                </li>
+                            </ul>
                         </CardContent>
                     </Card>
 

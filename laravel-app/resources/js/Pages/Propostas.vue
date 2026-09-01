@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { addDays, format, parseISO } from 'date-fns';
+import { addDays, format } from 'date-fns';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import {
@@ -30,17 +30,18 @@ import { Badge } from '@/Components/ui/badge';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group';
 import { useToast } from '@/composables/useToast';
-import { formatCurrency, formatPhoneNumber } from '@/lib/utils';
+import { formatCurrency, formatPhoneNumber, parseDateOnly } from '@/lib/utils';
 import { usePage } from '@inertiajs/vue3';
 
 defineOptions({ layout: AppLayout });
 
-const props = defineProps({ proposals: Array, customers: Array, products: Array });
+const props = defineProps({ proposals: Array, customers: Array, products: Array, technicians: Array });
 const { toast } = useToast();
 const page = usePage();
 const companyProfile = computed(() => page.props.companyProfile);
 
 const isQuickAddingClient = ref(false);
+const hasTechnicianInfluence = ref(false);
 const selectedProposal = ref(null);
 const deletingProposal = ref(null);
 const isDeleteDialogOpen = ref(false);
@@ -51,7 +52,7 @@ const proposalSearch = ref('');
 
 const defaults = {
     document_type: 'proposta', client_id: null, client_name: '', contact_name: '', client_phone: '',
-    save_to_contacts: false, contact_type: 'lead',
+    save_to_contacts: false, contact_type: 'lead', influenced_by_technician_id: null,
     proposal_date: format(new Date(), 'yyyy-MM-dd'), validity_date: format(addDays(new Date(), 10), 'yyyy-MM-dd'),
     items: [{ name: '', quantity: 1, price: 0, is_monthly: false }],
     payment_method: 'boleto', installments: 1, first_as_down_payment: false, observations: '',
@@ -156,12 +157,14 @@ function handleEditProposalClick(p) {
         document_type: p.document_type, client_id: p.client_id, client_name: p.client_name,
         contact_name: p.contact_name || '', client_phone: p.client_phone ? formatPhoneNumber(p.client_phone) : '',
         save_to_contacts: false, contact_type: 'lead',
-        proposal_date: p.proposal_date, validity_date: p.validity_date,
+        proposal_date: p.proposal_date.slice(0, 10),
+        validity_date: p.validity_date.slice(0, 10),
         items: p.items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price, is_monthly: !!i.is_monthly })),
         payment_method: p.payment_method, installments: p.installments, first_as_down_payment: !!p.first_as_down_payment,
-        observations: p.observations || '',
+        observations: p.observations || '', influenced_by_technician_id: p.influenced_by_technician_id || null,
     });
     isQuickAddingClient.value = !p.client_id;
+    hasTechnicianInfluence.value = !!p.influenced_by_technician_id;
     activeTab.value = 'gerador';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -174,14 +177,18 @@ function handleCloneProposal(p) {
 }
 
 function submit() {
-    const payload = form.transform((d) => ({ ...d, client_phone: d.client_phone?.replace(/\D/g, '') }));
+    const payload = form.transform((d) => ({
+        ...d,
+        client_phone: d.client_phone?.replace(/\D/g, ''),
+        influenced_by_technician_id: hasTechnicianInfluence.value ? d.influenced_by_technician_id : null,
+    }));
     if (editingProposal.value) {
         payload.put(`/dashboard/propostas/${editingProposal.value.id}`, {
-            onSuccess: () => { editingProposal.value = null; form.reset(); Object.assign(form, defaults); activeTab.value = 'historico'; },
+            onSuccess: () => { editingProposal.value = null; form.reset(); Object.assign(form, defaults); hasTechnicianInfluence.value = false; activeTab.value = 'historico'; },
         });
     } else {
         payload.post('/dashboard/propostas', {
-            onSuccess: () => { form.reset(); Object.assign(form, defaults); activeTab.value = 'historico'; },
+            onSuccess: () => { form.reset(); Object.assign(form, defaults); hasTechnicianInfluence.value = false; activeTab.value = 'historico'; },
         });
     }
 }
@@ -301,6 +308,19 @@ function confirmDelete() {
                                         <Label class="text-xs font-bold">Primeira como Entrada?</Label>
                                         <Switch v-model:checked="form.first_as_down_payment" />
                                     </div>
+                                    <div class="space-y-3 p-3 bg-orange-500/5 rounded-lg border border-orange-500/20">
+                                        <div class="flex items-center justify-between">
+                                            <Label class="text-xs font-bold text-orange-600">Teve influência de um técnico?</Label>
+                                            <Switch v-model:checked="hasTechnicianInfluence" />
+                                        </div>
+                                        <div v-if="hasTechnicianInfluence" class="space-y-2">
+                                            <Label class="text-[10px] uppercase text-muted-foreground">Técnico que influenciou</Label>
+                                            <Select v-model="form.influenced_by_technician_id">
+                                                <SelectTrigger><SelectValue placeholder="Selecione o técnico" /></SelectTrigger>
+                                                <SelectContent><SelectItem v-for="t in technicians" :key="t.id" :value="t.id">{{ t.name }}</SelectItem></SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
                                     <div class="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
                                         <p class="text-xs font-bold text-primary">Venda: {{ formatCurrency(totals.oneTime) }}</p>
                                         <div class="flex flex-col gap-1 mt-2 p-2 bg-background/50 rounded border border-primary/20">
@@ -339,7 +359,7 @@ function confirmDelete() {
                                     <TableCell class="font-bold">#{{ p.id }}</TableCell>
                                     <TableCell><Badge variant="outline" :class="p.document_type === 'pedido' && 'border-emerald-500 text-emerald-500'">{{ p.document_type === 'pedido' ? 'Pedido' : 'Proposta' }}</Badge></TableCell>
                                     <TableCell>{{ p.client_name }}</TableCell>
-                                    <TableCell class="text-xs">{{ format(parseISO(p.proposal_date), 'dd/MM/yyyy') }}</TableCell>
+                                    <TableCell class="text-xs">{{ format(parseDateOnly(p.proposal_date), 'dd/MM/yyyy') }}</TableCell>
                                     <TableCell class="font-bold">{{ formatCurrency(p.total_one_time) }}</TableCell>
                                     <TableCell class="text-right">
                                         <div class="flex justify-end gap-1" @click.stop>

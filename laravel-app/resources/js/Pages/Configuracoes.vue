@@ -58,6 +58,7 @@ const profileForm = useForm({
     phone: props.companyProfile.phone ? formatPhoneNumber(props.companyProfile.phone) : '',
     address: props.companyProfile.address,
     whatsapp_reminder_message: props.companyProfile.whatsapp_reminder_message || '',
+    whatsapp_technician_message: props.companyProfile.whatsapp_technician_message || '',
     google_calendar_email: props.companyProfile.google_calendar_email || '',
     monthly_goal: props.companyProfile.monthly_goal || 0,
     logo: null,
@@ -193,9 +194,14 @@ function clearAll() {
                                 <p v-if="profileForm.errors.monthly_goal" class="text-xs text-destructive">{{ profileForm.errors.monthly_goal }}</p>
                             </div>
                             <div class="space-y-2">
-                                <Label>Mensagem de Lembrete (WhatsApp)</Label>
+                                <Label>Mensagem de Lembrete ao Cliente (WhatsApp)</Label>
                                 <Textarea v-model="profileForm.whatsapp_reminder_message" rows="5" />
                                 <p class="text-xs text-muted-foreground">Variáveis: {cliente}, {empresa}, {data} e {hora}.</p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label>Mensagem de Aviso ao Técnico (WhatsApp)</Label>
+                                <Textarea v-model="profileForm.whatsapp_technician_message" rows="6" />
+                                <p class="text-xs text-muted-foreground">Variáveis: {tecnico}, {cliente}, {contato}, {data}, {hora}, {endereco}, {telefone}, {resumo} e {empresa}.</p>
                             </div>
                             <div class="space-y-2">
                                 <Label>Logo da Empresa</Label>

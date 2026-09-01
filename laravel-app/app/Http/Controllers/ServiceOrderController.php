@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ServiceOrder;
@@ -15,7 +16,7 @@ use Inertia\Response;
 
 class ServiceOrderController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $serviceOrders = ServiceOrder::with(['items', 'history', 'client:id,name,email,telefone', 'technician:id,name'])
             ->orderByDesc('opening_date')
@@ -33,7 +34,49 @@ class ServiceOrderController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'products' => Product::query()->orderBy('name')->get(['id', 'name', 'price']),
+            'prefillFromAppointment' => $this->buildAppointmentPrefill($request),
         ]);
+    }
+
+    /**
+     * Lets the Agenda "Abrir OS" action jump here with the appointment's data
+     * already filled in, so the technician only has to add the diagnosis.
+     * Appointments only carry a free-text client name/phone (no customer_id),
+     * so we try to match an existing Customer by phone then by exact name.
+     */
+    private function buildAppointmentPrefill(Request $request): ?array
+    {
+        $appointmentId = $request->query('from_appointment');
+        if (! $appointmentId) {
+            return null;
+        }
+
+        $appointment = Appointment::with('users')->find($appointmentId);
+        if (! $appointment) {
+            return null;
+        }
+
+        $cleanedPhone = preg_replace('/\D/', '', $appointment->phone ?? '');
+        $customer = null;
+        if ($cleanedPhone) {
+            $customer = Customer::query()->whereNotNull('telefone')->get(['id', 'telefone'])
+                ->first(fn ($c) => preg_replace('/\D/', '', $c->telefone) === $cleanedPhone);
+        }
+        if (! $customer) {
+            $customer = Customer::query()->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim($appointment->client_name))])->first();
+        }
+
+        return [
+            'client_id' => $customer?->id,
+            'client_name' => $appointment->client_name,
+            'phone' => $appointment->phone,
+            'address' => $appointment->address,
+            'contact' => $appointment->contact,
+            'summary' => $appointment->summary,
+            'time' => $appointment->time,
+            'delivery_date' => optional($appointment->date)->toDateString(),
+            'technician_id' => $appointment->users->first()?->id,
+        ];
     }
 
     private function rules(): array
@@ -201,6 +244,7 @@ class ServiceOrderController extends Controller
 
     public function destroy(ServiceOrder $serviceOrder): RedirectResponse
     {
+        abort_unless(Auth::user()?->isAdmin(), 403);
         $serviceOrder->delete();
 
         return back()->with('success', 'Ordem de Serviço excluída.');

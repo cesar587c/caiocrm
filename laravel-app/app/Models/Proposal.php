@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
-    'document_type', 'client_id', 'client_name', 'contact_name', 'client_phone',
+    'document_type', 'client_id', 'influenced_by_technician_id', 'client_name', 'contact_name', 'client_phone',
     'proposal_date', 'validity_date', 'payment_method', 'installments',
     'first_as_down_payment', 'total_one_time', 'total_monthly',
     'total_one_time_alt', 'total_monthly_alt', 'has_alternative', 'observations',
@@ -35,6 +35,11 @@ class Proposal extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'client_id');
+    }
+
+    public function influencedByTechnician(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'influenced_by_technician_id');
     }
 
     public function items(): HasMany

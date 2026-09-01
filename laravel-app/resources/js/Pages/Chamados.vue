@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -37,6 +37,7 @@ const props = defineProps({
     customers: Array,
     technicians: Array,
     products: Array,
+    prefillFromAppointment: Object,
 });
 const { toast } = useToast();
 const page = usePage();
@@ -112,6 +113,33 @@ function handleAddNew() {
     form.clearErrors();
     Object.assign(form, defaults, { items: [] });
 }
+
+onMounted(() => {
+    const p = props.prefillFromAppointment;
+    if (!p) return;
+
+    handleAddNew();
+    const parts = [`Atendimento agendado para ${safeFormat(p.delivery_date, 'dd/MM/yyyy')}${p.time ? ` às ${p.time}` : ''}.`];
+    if (p.address) parts.push(`Endereço: ${p.address}.`);
+    if (p.contact) parts.push(`Contato: ${p.contact}.`);
+    if (p.summary) parts.push(`Resumo: ${p.summary}`);
+    Object.assign(form, {
+        client_id: p.client_id || '',
+        technician_id: p.technician_id || '',
+        delivery_date: p.delivery_date || '',
+        problem_description: parts.join('\n'),
+    });
+
+    if (!p.client_id) {
+        toast({ variant: 'destructive', title: 'Cliente não encontrado', description: `Não encontramos "${p.client_name}" na base. Selecione ou cadastre o cliente antes de salvar.` });
+    } else {
+        toast({ title: 'OS pré-preenchida', description: 'Dados do agendamento carregados. Confira e complete o restante.' });
+    }
+
+    // Deferred: Inertia's own router touches history.state right after mount,
+    // which would otherwise race and clobber this URL cleanup.
+    setTimeout(() => window.history.replaceState(window.history.state, '', '/dashboard/chamados'), 0);
+});
 
 function handleEdit(order) {
     editingOrder.value = order;
@@ -192,6 +220,18 @@ function submit() {
         onSuccess: () => { if (!checkPendingJustification()) handleAddNew(); },
         onError: () => { checkPendingJustification(); },
     });
+}
+
+function handleCancelFinalization() {
+    finalizationState.isOpen = false;
+    finalizationJustification.value = '';
+    if (editingOrder.value) form.status = editingOrder.value.status;
+}
+
+function handleCancelReassignment() {
+    reassignmentState.isOpen = false;
+    reassignmentJustification.value = '';
+    if (editingOrder.value) form.technician_id = editingOrder.value.technician_id;
 }
 
 function handleConfirmFinalization() {
@@ -402,18 +442,24 @@ function handleSendWhatsApp() {
 
                                 <Card>
                                     <CardHeader class="p-4"><CardTitle class="text-base">Peças e Serviços Utilizados</CardTitle></CardHeader>
-                                    <CardContent class="p-4 pt-0">
-                                        <Table>
-                                            <TableHeader><TableRow><TableHead class="w-[50%]">Descrição</TableHead><TableHead>Qtd.</TableHead><TableHead>Preço Unit.</TableHead><TableHead class="text-right w-10" /></TableRow></TableHeader>
-                                            <TableBody>
-                                                <TableRow v-for="(item, idx) in form.items" :key="idx">
-                                                    <TableCell><Input v-model="item.name" list="product-datalist" placeholder="Descrição do item" class="min-w-[180px]" :title="item.name" @blur="handleItemNameBlur(idx)" /></TableCell>
-                                                    <TableCell><Input v-model="item.quantity" type="number" class="w-16" /></TableCell>
-                                                    <TableCell><Input v-model="item.price" type="number" step="0.01" class="w-24" /></TableCell>
-                                                    <TableCell class="text-right"><Button type="button" variant="ghost" size="icon" @click="removeItem(idx)"><Trash2 class="h-4 w-4 text-destructive" /></Button></TableCell>
-                                                </TableRow>
-                                            </TableBody>
-                                        </Table>
+                                    <CardContent class="p-4 pt-0 space-y-3">
+                                        <div v-if="form.items.length === 0" class="text-xs text-muted-foreground italic">Nenhum item adicionado.</div>
+                                        <div v-for="(item, idx) in form.items" :key="idx" class="rounded-lg border p-3 space-y-2">
+                                            <div class="flex items-start gap-2">
+                                                <Input v-model="item.name" list="product-datalist" placeholder="Descrição do item" class="flex-1" :title="item.name" @blur="handleItemNameBlur(idx)" />
+                                                <Button type="button" variant="ghost" size="icon" class="shrink-0" @click="removeItem(idx)"><Trash2 class="h-4 w-4 text-destructive" /></Button>
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <div class="space-y-1">
+                                                    <Label class="text-[10px] uppercase text-muted-foreground">Qtd.</Label>
+                                                    <Input v-model="item.quantity" type="number" />
+                                                </div>
+                                                <div class="space-y-1">
+                                                    <Label class="text-[10px] uppercase text-muted-foreground">Preço Unit.</Label>
+                                                    <Input v-model="item.price" type="number" step="0.01" />
+                                                </div>
+                                            </div>
+                                        </div>
                                         <Button type="button" variant="outline" size="sm" class="mt-2" @click="addItem"><PlusCircle class="mr-2 h-4 w-4" /> Adicionar Item</Button>
                                     </CardContent>
                                     <CardFooter class="bg-muted/50 p-4 flex justify-end">
@@ -532,18 +578,18 @@ function handleSendWhatsApp() {
         </DialogContent>
     </Dialog>
 
-    <Dialog v-model:open="finalizationState.isOpen">
+    <Dialog :open="finalizationState.isOpen" @update:open="(o) => !o && handleCancelFinalization()">
         <DialogContent>
             <DialogHeader><DialogTitle>Finalizar Ordem de Serviço</DialogTitle><DialogDescription>Para finalizar a OS, adicione um breve comentário sobre a resolução do problema.</DialogDescription></DialogHeader>
             <div class="py-4"><Textarea v-model="finalizationJustification" placeholder="Ex: Peça substituída e equipamento funcionando normalmente." rows="4" /></div>
             <DialogFooter>
-                <Button variant="outline" @click="finalizationState.isOpen = false; finalizationJustification = ''">Cancelar</Button>
+                <Button variant="outline" @click="handleCancelFinalization">Cancelar</Button>
                 <Button @click="handleConfirmFinalization">Confirmar Finalização</Button>
             </DialogFooter>
         </DialogContent>
     </Dialog>
 
-    <Dialog v-model:open="reassignmentState.isOpen">
+    <Dialog :open="reassignmentState.isOpen" @update:open="(o) => !o && handleCancelReassignment()">
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Justificar Reatribuição de Técnico</DialogTitle>
@@ -551,7 +597,7 @@ function handleSendWhatsApp() {
             </DialogHeader>
             <div class="py-4"><Textarea v-model="reassignmentJustification" placeholder="Ex: Mudança de turno, especialidade necessária, etc." rows="4" /></div>
             <DialogFooter>
-                <Button variant="outline" @click="reassignmentState.isOpen = false; reassignmentJustification = ''">Cancelar</Button>
+                <Button variant="outline" @click="handleCancelReassignment">Cancelar</Button>
                 <Button @click="handleConfirmReassignment">Confirmar Reatribuição</Button>
             </DialogFooter>
         </DialogContent>

@@ -21,6 +21,14 @@ export function formatPhoneNumber(value) {
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
 }
 
+// Parses a "yyyy-MM-dd"-prefixed date-only string (e.g. from a Laravel `date` cast,
+// which serializes as "yyyy-MM-ddT00:00:00.000000Z") into a local Date at midnight,
+// avoiding the off-by-one-day shift that `parseISO` causes in negative UTC offsets.
+export function parseDateOnly(value) {
+    const [y, m, d] = String(value).slice(0, 10).split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
 export function formatDocument(value) {
     if (!value) return '';
     const cleaned = String(value).replace(/\D/g, '').slice(0, 14);

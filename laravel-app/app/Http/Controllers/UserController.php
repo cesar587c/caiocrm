@@ -14,6 +14,16 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+    /**
+     * User management (including the `role` field, which is a direct path to
+     * bypassing every other permission check) must never depend solely on
+     * whether this page happens to be reachable — every write re-checks admin.
+     */
+    private function requireAdmin(): void
+    {
+        abort_unless(Auth::user()?->isAdmin(), 403);
+    }
+
     public function index(): Response
     {
         return Inertia::render('Usuarios', [
@@ -24,6 +34,7 @@ class UserController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $this->requireAdmin();
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', Rule::unique('users', 'name')],
             'email' => ['nullable', 'email'],
@@ -42,6 +53,7 @@ class UserController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
+        $this->requireAdmin();
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', Rule::unique('users', 'name')->ignore($user->id)],
             'email' => ['nullable', 'email'],
@@ -63,6 +75,7 @@ class UserController extends Controller
 
     public function destroy(User $user): RedirectResponse
     {
+        $this->requireAdmin();
         if ($user->id === Auth::id()) {
             throw ValidationException::withMessages(['user' => 'Você não pode excluir seu próprio usuário.']);
         }

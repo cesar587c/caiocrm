@@ -88,6 +88,7 @@ class CustomerController extends Controller
 
     public function destroy(Customer $customer): RedirectResponse
     {
+        abort_unless(Auth::user()?->isAdmin(), 403);
         $customer->delete();
 
         return back()->with('success', 'Cliente removido.');

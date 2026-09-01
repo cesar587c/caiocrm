@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\CompanyProfile;
 use App\Models\Proposal;
 use App\Models\ServiceOrder;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -41,6 +42,22 @@ class DashboardController extends Controller
         $appointmentsInRange = Appointment::query()->whereBetween('date', [$start->toDateString(), $end->toDateString()])->get();
         $completed = $appointmentsInRange->where('status', 'completed')->count();
 
+        $technicianRanking = $pedidos->whereNotNull('influenced_by_technician_id')
+            ->groupBy('influenced_by_technician_id')
+            ->map(fn ($group) => [
+                'technicianId' => $group->first()->influenced_by_technician_id,
+                'count' => $group->count(),
+                'total' => (float) $group->sum('total_one_time'),
+            ])
+            ->sortByDesc('total')
+            ->values()
+            ->take(5);
+        $technicianNames = User::query()->whereIn('id', $technicianRanking->pluck('technicianId'))->pluck('name', 'id');
+        $technicianRanking = $technicianRanking->map(fn ($row) => [
+            ...$row,
+            'name' => $technicianNames[$row['technicianId']] ?? 'N/A',
+        ])->values();
+
         return Inertia::render('Dashboard', [
             'filter' => $filter,
             'range' => ['from' => $start->toDateString(), 'to' => $end->toDateString()],
@@ -63,6 +80,7 @@ class DashboardController extends Controller
                 'propostas' => $proposalsInRange->where('document_type', 'proposta')->count(),
                 'os' => $serviceOrdersInRange->count(),
             ],
+            'technicianRanking' => $technicianRanking,
         ]);
     }
 }
