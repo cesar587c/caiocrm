@@ -116,7 +116,7 @@ function onSubmit() {
                     <CardDescription>Data, cliente e responsáveis pelo atendimento.</CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="space-y-2">
                             <Label>Data</Label><Input v-model="form.date" type="date" @click="(e) => e.currentTarget.showPicker?.()" />
                             <p v-if="form.errors.date" class="text-xs text-destructive">{{ form.errors.date }}</p>
@@ -141,7 +141,7 @@ function onSubmit() {
                         <Label>Endereço</Label><Input v-model="form.address" :disabled="fieldsDisabled" />
                         <p v-if="form.errors.address" class="text-xs text-destructive">{{ form.errors.address }}</p>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div class="space-y-2">
                             <Label>Telefone (WhatsApp)</Label>
                             <Input :model-value="form.phone" @update:modelValue="(v) => (form.phone = formatPhoneNumber(v))" :disabled="fieldsDisabled" placeholder="(00) 00000-0000" />

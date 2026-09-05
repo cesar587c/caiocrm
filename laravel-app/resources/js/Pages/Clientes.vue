@@ -299,7 +299,7 @@ function confirmDelete() {
                                         </div>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-2 gap-4 p-3 bg-primary/5 rounded-lg border border-primary/10">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-primary/5 rounded-lg border border-primary/10">
                                     <div class="space-y-2"><Label class="text-primary font-bold">Vlr. Venda (R$)</Label><Input v-model="form.one_time_value" type="number" step="0.01" /></div>
                                     <div class="space-y-2"><Label class="text-emerald-600 font-bold">Vlr. Mensal (R$)</Label><Input v-model="form.monthly_value" type="number" step="0.01" /></div>
                                 </div>

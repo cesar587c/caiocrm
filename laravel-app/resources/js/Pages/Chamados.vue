@@ -449,7 +449,7 @@ function handleSendWhatsApp() {
                                                 <Input v-model="item.name" list="product-datalist" placeholder="Descrição do item" class="flex-1" :title="item.name" @blur="handleItemNameBlur(idx)" />
                                                 <Button type="button" variant="ghost" size="icon" class="shrink-0" @click="removeItem(idx)"><Trash2 class="h-4 w-4 text-destructive" /></Button>
                                             </div>
-                                            <div class="grid grid-cols-2 gap-2">
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                 <div class="space-y-1">
                                                     <Label class="text-[10px] uppercase text-muted-foreground">Qtd.</Label>
                                                     <Input v-model="item.quantity" type="number" />

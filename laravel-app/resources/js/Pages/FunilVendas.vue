@@ -147,7 +147,7 @@ const columns = computed(() => stages.map((stage) => {
                     </div>
                 </div>
             </AlertDialogHeader>
-            <div class="grid grid-cols-2 gap-4 py-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 py-6">
                 <Button variant="outline" class="h-auto flex-col gap-3 p-6 hover:border-primary hover:bg-primary/5" @click="confirmConvert('one_time')">
                     <Users class="h-8 w-8 text-blue-500" />
                     <div class="text-center"><p class="font-bold">Cliente Avulso</p><p class="text-[10px] text-muted-foreground">Sem mensalidade fixa</p></div>
