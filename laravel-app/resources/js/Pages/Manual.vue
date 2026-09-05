@@ -82,7 +82,7 @@ const features = [
 <template>
     <Head title="Manual do Usuário" />
 
-    <div class="flex-1 space-y-6 p-8 pt-6 bg-background/50">
+    <div class="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-background/50">
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-3xl font-bold tracking-tight font-headline flex items-center gap-3">

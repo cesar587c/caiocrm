@@ -113,10 +113,10 @@ function submit() {
 <template>
     <Head title="Usuários" />
 
-    <div class="flex-1 space-y-4 p-8 pt-6">
-        <div class="flex items-center justify-between space-y-2">
+    <div class="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h2 class="text-3xl font-bold tracking-tight font-headline">Usuários e Equipe</h2>
-            <Button class="gap-2" @click="handleAddNew"><UserPlus class="h-4 w-4" /> Novo Usuário</Button>
+            <Button class="gap-2 w-fit" @click="handleAddNew"><UserPlus class="h-4 w-4" /> Novo Usuário</Button>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">

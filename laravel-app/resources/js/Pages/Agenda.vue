@@ -206,7 +206,7 @@ onMounted(() => {
     <Head title="Agenda" />
 
     <div class="flex h-full flex-col bg-card shadow-xl rounded-2xl p-6 text-card-foreground m-4 md:m-8">
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
                 <h2 class="text-2xl font-bold capitalize text-foreground">{{ format(currentMonth, 'MMMM', { locale: ptBR }) }}</h2>
                 <p class="text-lg text-muted-foreground">{{ format(currentMonth, 'yyyy') }}</p>

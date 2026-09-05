@@ -211,7 +211,7 @@ function confirmDelete() {
         </div>
 
         <Tabs :model-value="activeTab" @update:modelValue="(v) => (activeTab = v)" class="space-y-6">
-            <TabsList class="grid w-full max-w-[400px] grid-cols-2">
+            <TabsList class="grid h-auto w-full max-w-[400px] grid-cols-1 gap-1 sm:h-10 sm:grid-cols-2 sm:gap-0">
                 <TabsTrigger value="gerador" class="gap-2"><LayoutGrid class="h-4 w-4" /> Novo Orçamento</TabsTrigger>
                 <TabsTrigger value="historico" class="gap-2"><History class="h-4 w-4" /> Últimas Propostas</TabsTrigger>
             </TabsList>
@@ -221,7 +221,7 @@ function confirmDelete() {
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div class="lg:col-span-2 space-y-6">
                             <Card class="shadow-lg border-primary/10">
-                                <CardHeader class="flex flex-row items-start justify-between pb-6">
+                                <CardHeader class="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-6">
                                     <div class="space-y-4">
                                         <CardTitle class="text-xl flex items-center gap-2">
                                             <FileText class="h-5 w-5 text-primary" />
@@ -232,7 +232,7 @@ function confirmDelete() {
                                             <div class="flex items-center space-x-2"><RadioGroupItem value="pedido" id="rt-ped" /><Label for="rt-ped" class="text-xs">PEDIDO DE VENDA</Label></div>
                                         </RadioGroup>
                                     </div>
-                                    <div class="flex gap-4">
+                                    <div class="flex flex-wrap gap-4">
                                         <div class="space-y-1"><Label class="text-[10px] uppercase font-bold text-muted-foreground">Emissão</Label><Input v-model="form.proposal_date" type="date" class="w-[150px] h-9 text-xs" /></div>
                                         <div class="space-y-1"><Label class="text-[10px] uppercase font-bold text-muted-foreground">Validade</Label><Input v-model="form.validity_date" type="date" class="w-[150px] h-9 text-xs" /></div>
                                     </div>
@@ -345,9 +345,9 @@ function confirmDelete() {
             <TabsContent value="historico">
                 <Card class="shadow-lg">
                     <CardHeader>
-                        <div class="flex items-center justify-between">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <CardTitle>Histórico de Documentos</CardTitle>
-                            <div class="relative w-72"><Search class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input v-model="proposalSearch" placeholder="Buscar por cliente ou ID..." class="pl-10" /></div>
+                            <div class="relative w-full sm:w-72"><Search class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input v-model="proposalSearch" placeholder="Buscar por cliente ou ID..." class="pl-10" /></div>
                         </div>
                     </CardHeader>
                     <CardContent>

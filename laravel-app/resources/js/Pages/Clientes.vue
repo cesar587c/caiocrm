@@ -148,7 +148,7 @@ function confirmDelete() {
     <Head title="Clientes" />
 
     <div class="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-background/50">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
                 <h2 class="text-3xl font-bold tracking-tight font-headline">Clientes e Leads</h2>
                 <p class="text-muted-foreground">Gestão de clientes com foco em privacidade e segmentos.</p>
@@ -163,7 +163,7 @@ function confirmDelete() {
 
         <Tabs :model-value="activeTab" @update:modelValue="(v) => (activeTab = v)" class="space-y-6">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <TabsList class="bg-muted/50 p-1">
+                <TabsList class="bg-muted/50 p-1 flex-wrap h-auto">
                     <TabsTrigger value="all">Todos</TabsTrigger>
                     <TabsTrigger value="leads">Funil (Leads)</TabsTrigger>
                     <TabsTrigger value="contracts">Contratos</TabsTrigger>

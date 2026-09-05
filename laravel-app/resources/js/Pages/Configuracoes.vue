@@ -160,11 +160,11 @@ function clearAll() {
 <template>
     <Head title="Configurações" />
 
-    <div class="flex-1 space-y-4 p-8 pt-6">
+    <div class="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <h2 class="text-3xl font-bold tracking-tight font-headline">Configurações</h2>
 
         <Tabs default-value="company">
-            <TabsList class="grid w-full max-w-4xl grid-cols-5">
+            <TabsList class="grid h-auto w-full max-w-4xl grid-cols-1 gap-1 sm:grid-cols-2 md:h-10 md:grid-cols-5 md:gap-0">
                 <TabsTrigger value="company">Dados da Empresa</TabsTrigger>
                 <TabsTrigger value="sectors">Setores e Equipe</TabsTrigger>
                 <TabsTrigger value="permissions">Controle de Acesso</TabsTrigger>

@@ -26,7 +26,7 @@ const typeValues = computed(() => [props.stats.contracts, props.stats.oneTime]);
 <template>
     <Head title="Relatórios" />
 
-    <div class="flex-1 space-y-6 p-8 pt-6">
+    <div class="flex-1 space-y-6 p-4 md:p-8 pt-6">
         <div>
             <h2 class="text-3xl font-bold tracking-tight font-headline">Dashboards e Relatórios</h2>
             <p class="text-muted-foreground">Visão geral da sua carteira de clientes e desempenho.</p>
