@@ -355,7 +355,7 @@ function handleSendWhatsApp() {
                                 <CardDescription>{{ activeTab === 'todos' ? 'Exibindo todas as ordens de serviço.' : `Exibindo ordens com status "${stages.find(s => s.id === activeTab)?.title}".` }}</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <Table>
+                                <Table class="min-w-[700px]">
                                     <TableHeader>
                                         <TableRow><TableHead>OS</TableHead><TableHead>Cliente</TableHead><TableHead>Técnico</TableHead><TableHead>Status</TableHead><TableHead>Prazo</TableHead><TableHead class="text-right">Ações</TableHead></TableRow>
                                     </TableHeader>

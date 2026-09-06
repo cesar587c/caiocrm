@@ -127,7 +127,7 @@ function submit() {
                         <CardDescription>Gerencie quem acessa o sistema e defina seus níveis de responsabilidade.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Table>
+                        <Table class="min-w-[600px]">
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Nome / Contato</TableHead>

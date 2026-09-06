@@ -177,7 +177,7 @@ function confirmDelete() {
 
             <Card class="shadow-lg border-primary/10 overflow-hidden">
                 <CardContent class="p-0">
-                    <Table>
+                    <Table class="min-w-[720px]">
                         <TableHeader class="bg-muted/20">
                             <TableRow>
                                 <TableHead class="pl-6">Identificação / Cliente</TableHead>

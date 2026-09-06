@@ -265,7 +265,7 @@ function confirmDelete() {
                                             <h4 class="text-sm font-bold">Itens do Documento</h4>
                                             <Button type="button" variant="outline" size="sm" class="gap-2" @click="addItem"><PlusCircle class="h-3.5 w-3.5" /> Item</Button>
                                         </div>
-                                        <Table>
+                                        <Table class="min-w-[520px]">
                                             <TableHeader><TableRow><TableHead>Descrição</TableHead><TableHead class="w-24 text-center">Qtd</TableHead><TableHead class="w-40 text-center">Preço (R$)</TableHead><TableHead class="w-10 text-center">Rec.</TableHead><TableHead class="w-10" /></TableRow></TableHeader>
                                             <TableBody>
                                                 <TableRow v-for="(item, idx) in form.items" :key="idx">
@@ -351,7 +351,7 @@ function confirmDelete() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <Table>
+                        <Table class="min-w-[650px]">
                             <TableHeader><TableRow><TableHead>Nº</TableHead><TableHead>Tipo</TableHead><TableHead>Cliente</TableHead><TableHead>Data</TableHead><TableHead>Venda</TableHead><TableHead class="text-right">Ações</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 <TableRow v-if="filteredProposals.length === 0"><TableCell colspan="6" class="h-24 text-center text-muted-foreground italic">Nenhum documento encontrado.</TableCell></TableRow>
