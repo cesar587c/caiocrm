@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { BrainCircuit, Eye, EyeOff, Loader2 } from 'lucide-vue-next';
 import { Button } from '@/Components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 
@@ -31,7 +31,6 @@ function submit() {
                     <BrainCircuit class="h-10 w-10 text-primary" />
                     <h1 class="font-headline text-4xl font-semibold text-foreground">VendasPro</h1>
                 </div>
-                <CardTitle class="text-2xl">Login</CardTitle>
                 <CardDescription>Acesse o painel com seu usuário e senha.</CardDescription>
             </CardHeader>
             <form @submit.prevent="submit">
