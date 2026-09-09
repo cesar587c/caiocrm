@@ -25,6 +25,8 @@ Route::middleware(['auth', 'role.access'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/dashboard/clientes', [CustomerController::class, 'index'])->name('clientes.index');
+    Route::get('/dashboard/clientes/modelo-importacao', [CustomerController::class, 'importTemplate'])->name('clientes.importTemplate');
+    Route::post('/dashboard/clientes/importar', [CustomerController::class, 'import'])->name('clientes.import');
     Route::post('/dashboard/clientes', [CustomerController::class, 'store'])->name('clientes.store');
     Route::put('/dashboard/clientes/{customer}', [CustomerController::class, 'update'])->name('clientes.update');
     Route::delete('/dashboard/clientes/{customer}', [CustomerController::class, 'destroy'])->name('clientes.destroy');

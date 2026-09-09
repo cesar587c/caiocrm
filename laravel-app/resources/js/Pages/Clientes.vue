@@ -5,6 +5,7 @@ import axios from 'axios';
 import {
     PlusCircle, Search, Loader2, Trash2, Phone, Pencil, FileText, Tag, Repeat,
     UserCheck, Briefcase, Layers, DollarSign, User, Eye, EyeOff, MessageSquare,
+    Upload, Download,
 } from 'lucide-vue-next';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Badge } from '@/Components/ui/badge';
@@ -40,7 +41,11 @@ const SERVICE_CATEGORIES = [
 ];
 
 const isCnpjLoading = ref(false);
+const lastCnpjLookup = ref('');
 const isFormDialogOpen = ref(false);
+const isImportOpen = ref(false);
+const importInput = ref(null);
+const importForm = useForm({ file: null });
 const editingCustomer = ref(null);
 const deletingCustomer = ref(null);
 const isDeleteDialogOpen = ref(false);
@@ -64,18 +69,31 @@ const displayedCustomers = computed(() => {
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
 });
 
+function buildAddressFromCnpj(d) {
+    const cep = String(d.cep || '').replace(/\D/g, '');
+    const rua = [d.logradouro, d.numero].filter(Boolean).join(', ');
+    const cidadeUf = [d.municipio, d.uf].filter(Boolean).join(' - ');
+    return [rua, d.complemento, d.bairro, cidadeUf, cep ? `CEP ${cep.replace(/(\d{5})(\d{3})/, '$1-$2')}` : '']
+        .map((p) => (p || '').trim())
+        .filter(Boolean)
+        .join(', ');
+}
+
 async function handleCnpjLookup() {
     const cleaned = (form.cnpj || '').replace(/\D/g, '');
     if (cleaned.length !== 14) return;
+    lastCnpjLookup.value = cleaned;
     isCnpjLoading.value = true;
     try {
         const { data } = await axios.get('/cnpj-lookup', { params: { cnpj: cleaned } });
         if (data.success) {
             const d = data.success;
-            form.name = d.razao_social || '';
-            form.nome_fantasia = d.nome_fantasia || d.razao_social || '';
-            form.email = d.email || '';
+            form.name = d.razao_social || form.name;
+            form.nome_fantasia = d.nome_fantasia || d.razao_social || form.nome_fantasia;
+            form.email = d.email || form.email;
             if (d.ddd_telefone_1) form.telefone = formatPhoneNumber(d.ddd_telefone_1);
+            const addr = buildAddressFromCnpj(d);
+            if (addr) form.endereco = addr;
             toast({ title: 'CNPJ Consultado!' });
         }
     } catch (e) {
@@ -83,6 +101,33 @@ async function handleCnpjLookup() {
     } finally {
         isCnpjLoading.value = false;
     }
+}
+
+function onCnpjInput(v) {
+    form.cnpj = formatDocument(v);
+    const cleaned = (form.cnpj || '').replace(/\D/g, '');
+    if (cleaned.length === 14 && cleaned !== lastCnpjLookup.value && !isCnpjLoading.value) {
+        handleCnpjLookup();
+    }
+}
+
+function onImportFile(e) {
+    importForm.file = e.target.files?.[0] || null;
+}
+
+function handleImportSubmit() {
+    if (!importForm.file) {
+        toast({ variant: 'destructive', title: 'Selecione um arquivo CSV.' });
+        return;
+    }
+    importForm.post('/dashboard/clientes/importar', {
+        forceFormData: true,
+        onSuccess: () => {
+            isImportOpen.value = false;
+            importForm.reset();
+            if (importInput.value) importInput.value.value = '';
+        },
+    });
 }
 
 function handleEditClick(customer) {
@@ -103,6 +148,7 @@ function handleEditClick(customer) {
         one_time_value: customer.one_time_value || 0,
         monthly_value: customer.monthly_value || 0,
     });
+    lastCnpjLookup.value = (customer.cnpj || '').replace(/\D/g, '');
     isFormDialogOpen.value = true;
 }
 
@@ -110,6 +156,7 @@ function handleOpenNew() {
     editingCustomer.value = null;
     form.clearErrors();
     Object.assign(form, defaults);
+    lastCnpjLookup.value = '';
     isFormDialogOpen.value = true;
 }
 
@@ -157,6 +204,7 @@ function confirmDelete() {
                 <Button variant="outline" size="icon" @click="showFinancials = !showFinancials" :title="showFinancials ? 'Ocultar Valores' : 'Mostrar Valores'">
                     <EyeOff v-if="showFinancials" class="h-4 w-4" /><Eye v-else class="h-4 w-4" />
                 </Button>
+                <Button variant="outline" class="gap-2" @click="isImportOpen = true"><Upload class="h-4 w-4" /> Importar</Button>
                 <Button class="gap-2 shadow-md" @click="handleOpenNew"><PlusCircle class="h-4 w-4" /> Novo Registro</Button>
             </div>
         </div>
@@ -268,7 +316,7 @@ function confirmDelete() {
                                 <div class="space-y-2">
                                     <Label>CNPJ / CPF</Label>
                                     <div class="flex gap-2">
-                                        <Input :model-value="form.cnpj" @update:modelValue="(v) => (form.cnpj = formatDocument(v))" placeholder="00.000.000/0000-00" />
+                                        <Input :model-value="form.cnpj" @update:modelValue="onCnpjInput" placeholder="00.000.000/0000-00" />
                                         <Button type="button" variant="secondary" size="icon" :disabled="isCnpjLoading" @click="handleCnpjLookup">
                                             <Loader2 v-if="isCnpjLoading" class="h-4 w-4 animate-spin" /><Search v-else class="h-4 w-4" />
                                         </Button>
@@ -327,6 +375,36 @@ function confirmDelete() {
                     <Button type="submit" class="font-bold px-8 shadow-md" :disabled="form.processing">Salvar Registro</Button>
                 </DialogFooter>
             </form>
+        </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="isImportOpen">
+        <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Importar clientes (CSV)</DialogTitle>
+                <DialogDescription>Colunas aceitas: <strong>razao_social</strong>, nome_fantasia, cnpj, endereco, telefone.</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-4 py-2">
+                <a href="/dashboard/clientes/modelo-importacao" class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+                    <Download class="h-4 w-4" /> Baixar modelo de planilha
+                </a>
+                <div class="space-y-2">
+                    <Label>Arquivo CSV</Label>
+                    <input
+                        ref="importInput" type="file" accept=".csv,text/csv"
+                        class="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+                        @change="onImportFile"
+                    />
+                    <p v-if="importForm.errors.file" class="text-xs text-destructive">{{ importForm.errors.file }}</p>
+                </div>
+                <p class="text-xs text-muted-foreground">No Excel use <strong>Salvar Como &rarr; CSV UTF-8</strong>. Registros com CNPJ já cadastrado são ignorados. Todos entram como "Avulso".</p>
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" type="button" @click="isImportOpen = false">Cancelar</Button>
+                <Button type="button" :disabled="importForm.processing" @click="handleImportSubmit">
+                    <Loader2 v-if="importForm.processing" class="mr-2 h-4 w-4 animate-spin" /> Importar
+                </Button>
+            </DialogFooter>
         </DialogContent>
     </Dialog>
 

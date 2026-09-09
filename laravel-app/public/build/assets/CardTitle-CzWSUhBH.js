@@ -1,1 +1,0 @@
-import{Ut as e,Xt as t,Y as n,or as r,rr as i}from"./app-4SrM7dnv.js";import{t as a}from"./utils-CQ9BJEc2.js";var o={__name:`CardTitle`,props:{class:{type:null,default:void 0}},setup(o){return(o,s)=>(e(),n(`h3`,{class:r(i(a)(`text-2xl font-semibold leading-none tracking-tight font-headline`,o.$props.class))},[t(o.$slots,`default`)],2))}};export{o as t};
