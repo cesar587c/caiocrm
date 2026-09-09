@@ -1,1 +1,0 @@
-import{Ut as e,Xt as t,Y as n,or as r,rr as i}from"./app-Dj5iKS-G.js";import{t as a}from"./utils-Dcc0Ie3M.js";var o={__name:`CardHeader`,props:{class:{type:null,default:void 0}},setup(o){return(o,s)=>(e(),n(`div`,{class:r(i(a)(`flex flex-col space-y-1.5 p-6`,o.$props.class))},[t(o.$slots,`default`)],2))}};export{o as t};

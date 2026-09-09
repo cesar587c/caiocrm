@@ -7,7 +7,7 @@ import { format, parseISO, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
     PlusCircle, User as UserIcon, AlertCircle, Printer, Download, Mail, Send, Loader2,
-    Trash2, Search, XCircle, Copy,
+    Trash2, Search, Copy,
 } from 'lucide-vue-next';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -61,6 +61,7 @@ const statusColors = {
 const editingOrder = ref(null);
 const deletingOrder = ref(null);
 const isDeleteDialogOpen = ref(false);
+const isFormOpen = ref(false);
 const activeTab = ref('todos');
 const technicianFilter = ref([]);
 const selectedOrderForPreview = ref(null);
@@ -108,10 +109,25 @@ const filteredProducts = computed(() => {
 
 const total = computed(() => (form.items || []).reduce((acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.price) || 0), 0));
 
-function handleAddNew() {
+function resetForm() {
     editingOrder.value = null;
     form.clearErrors();
     Object.assign(form, defaults, { items: [] });
+}
+
+function handleAddNew() {
+    resetForm();
+    isFormOpen.value = true;
+}
+
+function closeForm() {
+    isFormOpen.value = false;
+    resetForm();
+}
+
+function onFormOpenChange(open) {
+    isFormOpen.value = open;
+    if (!open) resetForm();
 }
 
 onMounted(() => {
@@ -143,6 +159,7 @@ onMounted(() => {
 
 function handleEdit(order) {
     editingOrder.value = order;
+    isFormOpen.value = true;
     form.clearErrors();
     Object.assign(form, {
         client_id: order.client_id,
@@ -170,7 +187,7 @@ function confirmDelete() {
     if (!deletingOrder.value) return;
     const id = deletingOrder.value.id;
     router.delete(`/dashboard/chamados/${id}`, {
-        onSuccess: () => { if (editingOrder.value?.id === id) handleAddNew(); },
+        onSuccess: () => { if (editingOrder.value?.id === id) closeForm(); },
     });
     deletingOrder.value = null;
 }
@@ -192,6 +209,11 @@ function handleAddProductFromList(product) {
 
 function checkPendingJustification() {
     const flash = page.props.flash;
+    if (flash?.reassignment_pending || flash?.finalization_pending) {
+        // Hand off to the justification dialog; keep the OS form data so it can
+        // be restored if the user cancels.
+        isFormOpen.value = false;
+    }
     if (flash?.reassignment_pending) {
         const oldTech = props.technicians.find((t) => t.id === editingOrder.value.technician_id)?.name || 'N/A';
         const newTech = props.technicians.find((t) => t.id === form.technician_id)?.name || 'N/A';
@@ -210,14 +232,14 @@ function checkPendingJustification() {
 function submit() {
     if (!editingOrder.value) {
         form.transform((d) => { const { justification, ...rest } = d; return rest; }).post('/dashboard/chamados', {
-            onSuccess: () => handleAddNew(),
+            onSuccess: () => closeForm(),
         });
         return;
     }
 
     form.put(`/dashboard/chamados/${editingOrder.value.id}`, {
         preserveScroll: true,
-        onSuccess: () => { if (!checkPendingJustification()) handleAddNew(); },
+        onSuccess: () => { if (!checkPendingJustification()) closeForm(); },
         onError: () => { checkPendingJustification(); },
     });
 }
@@ -225,13 +247,19 @@ function submit() {
 function handleCancelFinalization() {
     finalizationState.isOpen = false;
     finalizationJustification.value = '';
-    if (editingOrder.value) form.status = editingOrder.value.status;
+    if (editingOrder.value) {
+        form.status = editingOrder.value.status;
+        isFormOpen.value = true;
+    }
 }
 
 function handleCancelReassignment() {
     reassignmentState.isOpen = false;
     reassignmentJustification.value = '';
-    if (editingOrder.value) form.technician_id = editingOrder.value.technician_id;
+    if (editingOrder.value) {
+        form.technician_id = editingOrder.value.technician_id;
+        isFormOpen.value = true;
+    }
 }
 
 function handleConfirmFinalization() {
@@ -243,7 +271,7 @@ function handleConfirmFinalization() {
         onSuccess: () => {
             finalizationState.isOpen = false;
             finalizationJustification.value = '';
-            handleAddNew();
+            closeForm();
         },
     });
 }
@@ -263,7 +291,7 @@ function handleConfirmReassignment() {
             }
             reassignmentState.isOpen = false;
             reassignmentJustification.value = '';
-            handleAddNew();
+            closeForm();
         },
     });
 }
@@ -323,9 +351,8 @@ function handleSendWhatsApp() {
             <p class="text-muted-foreground">Gerencie e acompanhe o fluxo de trabalho da sua equipe técnica.</p>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            <div class="lg:col-span-2 space-y-4">
-                <Tabs :model-value="activeTab" @update:modelValue="(v) => (activeTab = v)">
+        <div class="space-y-4">
+            <Tabs :model-value="activeTab" @update:modelValue="(v) => (activeTab = v)">
                     <div class="flex items-center justify-between flex-wrap gap-2">
                         <TabsList class="flex-wrap h-auto">
                             <TabsTrigger value="todos">Todas</TabsTrigger>
@@ -389,19 +416,15 @@ function handleSendWhatsApp() {
                         </Card>
                     </TabsContent>
                 </Tabs>
-            </div>
+        </div>
 
-            <div class="lg:col-span-1 sticky top-4">
-                <form @submit.prevent="submit">
-                    <Card class="flex flex-col max-h-[calc(100vh-5rem)]">
-                        <CardHeader class="flex flex-row items-start justify-between">
-                            <div>
-                                <CardTitle>{{ editingOrder ? `Editar OS #${editingOrder.number}` : 'Nova Ordem de Serviço' }}</CardTitle>
-                                <CardDescription>{{ editingOrder ? 'Altere os dados da OS. O cliente não pode ser modificado.' : 'Preencha os dados para abrir uma nova OS.' }}</CardDescription>
-                            </div>
-                            <Button v-if="editingOrder" type="button" variant="ghost" size="icon" class="h-7 w-7" @click="handleAddNew"><XCircle class="h-5 w-5" /></Button>
-                        </CardHeader>
-                        <CardContent class="flex-1 overflow-y-auto space-y-4">
+        <Dialog :open="isFormOpen" @update:open="onFormOpenChange">
+            <DialogContent class="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-2xl">
+                <DialogHeader class="space-y-1 border-b p-6 pb-4 text-left">
+                    <DialogTitle>{{ editingOrder ? `Editar OS #${editingOrder.number}` : 'Nova Ordem de Serviço' }}</DialogTitle>
+                    <DialogDescription>{{ editingOrder ? 'Altere os dados da OS. O cliente não pode ser modificado.' : 'Preencha os dados para abrir uma nova OS.' }}</DialogDescription>
+                </DialogHeader>
+                <form id="os-form" @submit.prevent="submit" class="flex-1 space-y-4 overflow-y-auto p-6">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div class="space-y-2">
                                     <Label>Cliente</Label>
@@ -503,12 +526,13 @@ function handleSendWhatsApp() {
                                     </ScrollArea>
                                 </div>
                             </template>
-                        </CardContent>
-                        <CardFooter><Button type="submit" class="w-full" :disabled="form.processing">Salvar</Button></CardFooter>
-                    </Card>
                 </form>
-            </div>
-        </div>
+                <DialogFooter class="gap-2 border-t p-6 pt-4 sm:gap-0">
+                    <Button type="button" variant="outline" @click="closeForm">Cancelar</Button>
+                    <Button type="submit" form="os-form" :disabled="form.processing">Salvar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
 
     <AlertDialog v-model:open="isDeleteDialogOpen">
